@@ -747,7 +747,7 @@ static u16 atan2_lookup(f32 y, f32 x) {
 s32 atan2s(s32 xDelta, s32 zDelta) {
     u16 ret;
 
-    if (xDelta == 0 && yDelta == 0) {
+    if (xDelta == 0 && zDelta == 0) {
         return 0;
     }
 
