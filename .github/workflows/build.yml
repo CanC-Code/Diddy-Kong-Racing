@@ -22,6 +22,10 @@ jobs:
         with:
           gradle-version: '8.2'
           cache-disabled: true
+      - name: Fetch asset metadata
+        run: gh release download dkr-asset-metadata --pattern asset_enums.h --output include/asset_enums.h --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build
         working-directory: Android
         shell: bash
