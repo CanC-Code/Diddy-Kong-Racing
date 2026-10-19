@@ -1,0 +1,35 @@
+name: Build DKR APK
+on:
+  push:
+    branches: [dkr-aarch64]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Locate NDK
+        run: |
+          NDK=$(ls $ANDROID_HOME/ndk | head -1)
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> $GITHUB_ENV
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+          cache-disabled: true
+      - name: Build shell
+        working-directory: Android
+        run: |
+          gradle assembleDebug --no-build-cache --rerun-tasks \
+            -Pandroid.externalNativeBuild.cmake.arguments="-DEXCLUDE_GAME_SRC=ON" \
+            2>&1 | tee ../build.log
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log

@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(dkrwrapper)
 add_compile_definitions(PORT=1 __aarch64__)
-add_compile_definitions(PORT=1 __aarch64__)
 
 # android_native_app_glue is shipped as sources, not as a CMake package.
 # Build it as a static library from the NDK tree.
@@ -85,6 +84,11 @@ target_include_directories(dkrwrapper PRIVATE
     $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/include>
     $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/include/PRinternal>
     $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/libultra/src/audio>
+    $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/libultra/src/gu>
+    $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/libultra/src/libc>
+    $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/libultra/src/os>
+    $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/libultra/src/debug>
+    $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/libultra/src/sc>
 )
 
 # ============================================================
