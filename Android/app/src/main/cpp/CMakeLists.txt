@@ -75,6 +75,7 @@ target_include_directories(dkrwrapper PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/tools
     ${REPO_ROOT}/src
     ${REPO_ROOT}/include
+    ${REPO_ROOT}/
 )
 
 # N64 SDK headers ONLY for C files
