@@ -587,3 +587,36 @@ void set_voice_limit(void) {}
 void set_stereo_pan_mode(void) {}
 int32_t gFramebufferWidth = 320;
 int32_t gFramebufferHeight = 240;
+
+/* ============ DKR-specific stubs (appended on top of BK base) ============ */
+void mempool_alloc(void) {}
+void mempool_alloc_fixed(void) {}
+void mempool_alloc_pool(void) {}
+void mempool_alloc_safe(void) {}
+void mempool_free(void) {}
+void mempool_free_queue_clear(void) {}
+void mempool_free_timer(void) {}
+void mempool_init_main(void) {}
+void mempool_locked_set(void) {}
+void mempool_locked_unset(void) {}
+void mempool_new_sub(void) {}
+void obj_shade_fast(void) {}
+int32_t obj_animate(void) { return 0; }
+void func_80000450(void) {}
+void func_80063A90(void) {}
+void func_80065A80(void) {}
+void calc_dynamic_lighting_for_object_2(void) {}
+void set_voice_limit(void) {}
+void set_stereo_pan_mode(void) {}
+/* DKR-specific framebuffer globals (wrapper reads these) */
+int32_t gFramebufferWidth  = 320;
+int32_t gFramebufferHeight = 240;
+/* RSP microcode blobs — DKR uses F3DDKR, BK doesn't need these */
+long long int rspbootTextStart[1] = {0};
+long long int rspbootTextEnd[1] = {0};
+long long int rspF3DDKRXbusStart[1] = {0};
+long long int rspF3DDKRFifoStart[1] = {0};
+long long int rspF3DDKRDataXbusStart[1] = {0};
+long long int rspF3DDKRDataFifoStart[1] = {0};
+long long int aspMainDataStart[1] = {0};
+long long int aspMainTextStart[1] = {0};
