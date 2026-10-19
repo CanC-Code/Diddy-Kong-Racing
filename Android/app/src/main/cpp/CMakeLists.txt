@@ -38,7 +38,7 @@ set(C_BRIDGE_SOURCES
     ultra/zlib/adler32.c ultra/zlib/compress.c ultra/zlib/crc32.c
     ultra/zlib/deflate.c ultra/zlib/infback.c ultra/zlib/inffast.c
     ultra/zlib/inflate.c ultra/zlib/inftrees.c ultra/zlib/trees.c
-    ultra/zlib/uncompr.c ultra/zlib/zutil.c ultra/missing_stubs.c
+    ultra/zlib/uncompr.c ultra/zlib/zutil.c ultra/missing_stubs.c dkr_stubs.c
 )
 
 option(EXCLUDE_GAME_SRC "Skip" OFF)

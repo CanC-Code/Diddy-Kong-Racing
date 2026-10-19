@@ -908,3 +908,25 @@ void dmacopy_doubleword(void *src, void *dst, u32 end) {
 #else
 GLOBAL_ASM("asm/math_util/dmacopy_doubleword.s")
 #endif
+
+#ifdef PORT
+/* Portable C fallbacks for MIPS asm functions — real math, not stubs. */
+#include <math.h>
+
+f32 sins_f(s16 angle)   { return sinf(angle * (M_PI / 32768.0f)); }
+f32 coss_f(s16 angle)   { return cosf(angle * (M_PI / 32768.0f)); }
+s32 sins_s16(s16 angle) { return (s32)(sinf(angle * (M_PI / 32768.0f)) * 65536.0f); }
+s32 coss_s16(s16 angle) { return (s32)(cosf(angle * (M_PI / 32768.0f)) * 65536.0f); }
+s32 sins_2(s16 angle)   { return (s32)(sinf(angle * (M_PI / 32768.0f)) * 32768.0f); }
+
+s16 gArcTanTable[1025];
+__attribute__((constructor))
+static void _dkr_port_init_arctan(void) {
+    for (int i = 0; i <= 1024; i++)
+        gArcTanTable[i] = (s16)(atan((double)i / 1024.0) * (32768.0 / M_PI));
+}
+
+u8  gIntDisFlag    = 0;
+s32 gCurrentRNGSeed = 0;
+s32 gPrevRNGSeed    = 0;
+#endif
