@@ -20,7 +20,7 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags "-std=c++17"
-                // Ensure DEXCLUDE_GAME_SRC matches your project logic
+                // Game sources included: EXCLUDE_GAME_SRC=OFF is required for Phase 2
                 arguments "-DANDROID_STL=c++_shared", "-DEXCLUDE_GAME_SRC=OFF"
             }
         }

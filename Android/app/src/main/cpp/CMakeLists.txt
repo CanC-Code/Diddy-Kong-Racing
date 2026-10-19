@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(dkrwrapper)
-add_compile_definitions(PORT=1 __aarch64__)
+add_compile_definitions(PORT=1 __aarch64__ NON_MATCHING NON_EQUIVALENT)
 
 # android_native_app_glue is shipped as sources, not as a CMake package.
 # Build it as a static library from the NDK tree.
