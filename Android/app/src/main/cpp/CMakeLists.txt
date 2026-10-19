@@ -82,6 +82,7 @@ target_include_directories(dkrwrapper PRIVATE
     $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/include>
     $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/include/n_audio/PR>
     $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/include>
+    $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/include/PR>
     $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/include/PRinternal>
     $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/libultra/src/audio>
     $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/libultra/src/gu>
