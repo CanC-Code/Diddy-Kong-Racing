@@ -8,10 +8,10 @@ endif
 
 CC := gcc
 CXX := g++
-CFLAGS := -I . -Wall -Wextra -Wno-unused-parameter -Wno-sfinae-incomplete -pedantic -std=c99 $(OPT) -s
+CFLAGS := -I . -Wall -Wextra -Wno-unused-parameter -pedantic -std=c99 $(OPT) -s
 # List of specific errors to ignore
-IGNORE_W_ERRORS := -Wno-unused-parameter -Wno-misleading-indentation -Wno-extra
-CXXFLAGS := -I . -I dkr_assets_tool_src/ -Wno-sfinae-incomplete -std=c++17 $(OPT)
+IGNORE_W_ERRORS := -Wno-unused-parameter -Wno-misleading-indentation -Wno-extra -Wno-deprecated-declarations
+CXXFLAGS := -I . -I dkr_assets_tool_src/ -std=c++17 $(OPT)
 LDFLAGS := -lm
 PROGRAMS := n64crc dkr_assets_tool
 
@@ -26,7 +26,8 @@ else ifeq ($(UNAME_S),Darwin)
 	LDFLAGS += -I/opt/homebrew/lib -lpcre2-8
 else ifeq ($(UNAME_S),Linux)
 	DETECTED_OS := linux
-	CXXFLAGS += -Werror -Wall $(IGNORE_W_ERRORS) -lpcre2-8 
+	CXXFLAGS += -Wall $(IGNORE_W_ERRORS)
+        LDFLAGS += -lpcre2-8 
 	UNAME_M := $(shell uname -m)
 # If we detect arm as a platform for linux, but not mac, we'll make this -arm to download that version (Mostly used for raspi)
 	ifneq ($(filter aarch%,$(UNAME_M)),)

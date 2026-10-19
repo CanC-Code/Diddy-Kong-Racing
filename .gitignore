@@ -94,3 +94,16 @@ Android/app/build/
 Android/.gradle/
 *.apk
 *.log
+baseroms/*.z64
+baseroms/*.n64
+baseroms/*.v64
+
+# DKR asset tool outputs (all ROM-derived)
+/assets/
+/asm/
+/build/
+/data/
+/ucode/
+/assets.bin
+/..lut.bin
+include/asset_enums.h
