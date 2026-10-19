@@ -1,0 +1,674 @@
+#include <dlfcn.h>
+#include "n64_os_types_cpp.h"
+// File: Android/app/src/main/cpp/ultra/lowlevel_bridge.cpp
+
+#include <sys/mman.h>
+#include <errno.h>
+#include <android/log.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <stdint.h>
+#include <GLES2/gl2.h>
+#include <pthread.h>
+#include <fstream>
+#include <sstream>
+#include <cstdint>
+
+#define LOG_TAG "BKA_MEM"
+
+#define BKA_RDRAM_ALLOC_SIZE  0x04000000
+#define N64_REG_SPACE_SIZE    0x1000000
+#define N64_PIF_SPACE_SIZE    0x0010000
+#define N64_ROM_SPACE_SIZE    0x04000000
+
+#define MI_INTR_REG_IDX       (0x00300008 / 4)
+#define MI_INTR_VI            0x08
+
+#define N64_HEAP_OFFSET       0x002D500
+#define N64_HEAP_SIZE         0x211120
+
+uint8_t* gN64_RDRAM    = nullptr;
+uint32_t* gN64_Reg_Base = nullptr;
+uint32_t* gN64_PIF_Base = nullptr;
+uint8_t* gN64_ROM_Base = nullptr;
+
+// -----------------------------------------------------------------------
+// Framebuffer allocation (moved from missing_stubs.c for C++ linkage)
+// The game draws into a double-buffered framebuffer in N64 RDRAM.
+// Each buffer is 292×216×2 bytes, placed at offset 0x400000 (4 MB).
+// The video plugin reads from gN64_RDRAM + g_active_fb_offset.
+// -----------------------------------------------------------------------
+#define FB_WIDTH   292
+#define FB_HEIGHT  216
+#define FB_SIZE    (FB_WIDTH * FB_HEIGHT * sizeof(u16))
+
+uint16_t gFramebuffers[2][FB_WIDTH * FB_HEIGHT];
+uint32_t g_active_fb_offset = 0x400000;
+
+// Virtual-to-physical mapping registry.
+// The recompiled code should call bka_add_addr_mapping() through osVirtualToPhysical.
+#include <unordered_map>
+#include <android/log.h>
+
+
+extern "C" int         bka_is_readable(void* ptr);
+extern "C" int         bka_is_mapped(void* ptr);
+extern "C" uintptr_t   bka_get_mapped_end(void* ptr);
+extern "C" void        bka_refresh_maps(void);
+
+// ---- /proc/self/maps cache (was: fopen+parse on every bka_is_* call) ----
+struct BkaMapsRegion { uintptr_t start; uintptr_t end; char perms[5]; };
+static BkaMapsRegion s_maps[1024];
+static int s_maps_count = 0;
+static pthread_mutex_t s_maps_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void bka_refresh_maps() {
+    pthread_mutex_lock(&s_maps_mutex);
+    FILE* f = fopen("/proc/self/maps", "r");
+    if (!f) { pthread_mutex_unlock(&s_maps_mutex); return; }
+    s_maps_count = 0;
+    char line[512];
+    while (s_maps_count < 1024 && fgets(line, sizeof(line), f)) {
+        unsigned long lo = 0, hi = 0;
+        char perms[5] = {0,0,0,0,0};
+        if (sscanf(line, "%lx-%lx %4s", &lo, &hi, perms) == 3) {
+            s_maps[s_maps_count].start = (uintptr_t)lo;
+            s_maps[s_maps_count].end   = (uintptr_t)hi;
+            memcpy(s_maps[s_maps_count].perms, perms, 5);
+            s_maps_count++;
+        }
+    }
+    fclose(f);
+    pthread_mutex_unlock(&s_maps_mutex);
+}
+// -------------------------------------------------------------------------
+
+// Fixed-capacity static map — avoids heap churn that perturbs the game's allocator.
+// Slots are filled in insertion order; lookups scan until an empty slot.
+// If a key is overwritten, the old value is preserved in the "cold" array below.
+struct BKAAddrEntry { uint32_t key; void* ptr; };
+static constexpr size_t BKA_ADDR_MAP_SIZE = 1048576;
+static BKAAddrEntry s_addrMapFixed[BKA_ADDR_MAP_SIZE];
+static size_t s_addrMapCount = 0;
+
+// Overwrite-tolerant: if the same key appears twice, the newer pointer wins.
+static inline void bka_addr_map_insert(uint32_t key, void* ptr) {
+    if (key == 0) return;
+    if ((uintptr_t)ptr == (uintptr_t)key) return;   // reject identity
+    if (key == 0xFFF9153F || key == 0xFFFF153F) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
+            "MAPINS key=0x%08X ptr=%p count=%zu", key, ptr, s_addrMapCount);
+    }
+    // Fast scan of most recent inserts
+    for (size_t i = s_addrMapCount; i-- > 0; ) {
+        if (s_addrMapFixed[i].key == key) {
+            s_addrMapFixed[i].ptr = ptr;  // update in place
+            return;
+        }
+    }
+    if (s_addrMapCount < BKA_ADDR_MAP_SIZE) {
+        s_addrMapFixed[s_addrMapCount].key = key;
+        s_addrMapFixed[s_addrMapCount].ptr = ptr;
+        s_addrMapCount++;
+    } else {
+        // Ring-buffer rollover: overwrite oldest
+        s_addrMapFixed[s_addrMapCount % BKA_ADDR_MAP_SIZE].key = key;
+        s_addrMapFixed[s_addrMapCount % BKA_ADDR_MAP_SIZE].ptr = ptr;
+        s_addrMapCount++;
+    }
+}
+
+static inline void* bka_addr_map_lookup(uint32_t key) {
+    if (key == 0) return nullptr;
+    /* ARM64 port 2026-10-14: clamp walk to array size (ring wrap). */
+    size_t limit = s_addrMapCount < BKA_ADDR_MAP_SIZE
+                 ? s_addrMapCount : BKA_ADDR_MAP_SIZE;
+    for (size_t j = 0; j < limit; j++) {
+        size_t i = (s_addrMapCount - 1 - j) % BKA_ADDR_MAP_SIZE;
+        if (s_addrMapFixed[i].key == key) {
+            if (key == 0xFFF9153F || key == 0xFFFF153F) {
+                __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
+                    "MAPLUK key=0x%08X -> %p (hit)", key, s_addrMapFixed[i].ptr);
+            }
+            return s_addrMapFixed[i].ptr;
+        }
+    }
+    if (key == 0xFFF9153F || key == 0xFFFF153F) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
+            "MAPLUK key=0x%08X -> MISS count=%zu", key, s_addrMapCount);
+    }
+    return nullptr;
+}
+static std::unordered_map<uint64_t, void*> s_fullAddrMap;
+
+extern "C" void* bka_lookup_addr_mapping_c(uint32_t key);
+extern "C" int bka_is_mapped(void* ptr);
+extern "C" void* bka_lookup_addr_by_low32(uint32_t low32);
+
+
+extern "C" void* bka_lookup_addr_by_low32(uint32_t low32) {
+    // Search all registrations for one whose pointer low32 matches.
+    // ARM64 port 2026-10-14: clamp walk to the array size. Once
+    // s_addrMapCount exceeds BKA_ADDR_MAP_SIZE (1M), the previous
+    // loop read s_addrMapFixed[i] out of bounds -- adjacent .bss
+    // memory (JVM/ART strings) was returned as a "match", which is
+    // how the RARE logo palette got 'setSelectedTabIndicator',
+    // 'preventLayout', and similar ART method names.
+    size_t limit = s_addrMapCount < BKA_ADDR_MAP_SIZE
+                 ? s_addrMapCount : BKA_ADDR_MAP_SIZE;
+    /* ARM64 port 2026-10-14: prefer RDRAM-range matches. Two 64-bit
+       host pointers can share a low32 (game RDRAM mmap and a scratch
+       buffer or the ROM mmap). The game means the RDRAM one for
+       textures/segments; the ROM one for boot-time reads. Prioritize
+       RDRAM, then ROM, then anything else. Fall back to most-recent
+       match if no emulator-range candidate exists. */
+    uintptr_t rdram_lo = (uintptr_t)gN64_RDRAM;
+    uintptr_t rdram_hi = rdram_lo ? rdram_lo + 0x04000000 : 0;
+    uintptr_t rom_lo   = (uintptr_t)gN64_ROM_Base;
+    uintptr_t rom_hi   = rom_lo ? rom_lo + 0x04000000 : 0;
+    void* fallback = nullptr;
+    for (size_t j = 0; j < limit; j++) {
+        size_t i = (s_addrMapCount - 1 - j) % BKA_ADDR_MAP_SIZE;
+        uintptr_t p = (uintptr_t)s_addrMapFixed[i].ptr;
+        if ((uint32_t)p != low32 || p == (uintptr_t)low32) continue;
+        if (rdram_lo && p >= rdram_lo && p < rdram_hi) return s_addrMapFixed[i].ptr;
+        if (rom_lo   && p >= rom_lo   && p < rom_hi  ) return s_addrMapFixed[i].ptr;
+        if (!fallback) fallback = s_addrMapFixed[i].ptr;
+    }
+    return fallback;
+}
+
+extern "C" void* bka_lookup_addr_mapping(uint32_t low32) {
+    void* p = bka_addr_map_lookup(low32);
+    if (p && (uintptr_t)p == (uintptr_t)low32) p = bka_lookup_addr_by_low32(low32);
+    static int s_lookup_diag = 0;
+    if (!p && s_lookup_diag++ < 8) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
+            "MAPMISS key=0x%08X map_count=%zu", low32, s_addrMapCount);
+    }
+    static int s_lookup_log = 0;
+    if (s_lookup_log++ < 30) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
+            "MAPLOOKUP key=0x%08X -> %p", low32, p);
+    }
+    if (p) {
+        uintptr_t addr = (uintptr_t)p;
+        // Only reconstruct if the low32 looks like a plausible heap
+        // pointer low32: not in the top of the 32-bit range (which is
+        // almost always a flag/length field, not a truncated pointer).
+        // Valid heap low32s are in the 0x00000001..0x7FFFFFFF range,
+        // with the top bit typically clear.
+        if (addr >= 0x20000000ULL && addr < 0x23000000ULL) {
+            uint64_t cand = 0x7200000000ULL | (uint64_t)addr;
+            if (bka_is_mapped((void*)cand)) return (void*)cand;
+            cand = 0x7300000000ULL | (uint64_t)addr;
+            if (bka_is_mapped((void*)cand)) return (void*)cand;
+        }
+        return p;
+    }
+    return nullptr;
+}
+
+extern "C" void* bka_lookup_addr_mapping_range_c(uint32_t low32);
+void* bka_lookup_addr_mapping_range(uint32_t low32) {
+    // Delegate to bka_lookup_addr_mapping — the diagnostic proves this path
+    // finds entries that bka_lookup_addr_mapping_c alone misses.
+    return bka_lookup_addr_mapping(low32);
+}
+extern "C" void* bka_lookup_addr_mapping_range_c(uint32_t key) {
+    return bka_lookup_addr_mapping_range(key);
+}
+
+static bool is_address_mapped(void* ptr) {
+    uintptr_t addr = (uintptr_t)ptr;
+    std::ifstream maps("/proc/self/maps");
+    std::string line;
+    while (std::getline(maps, line)) {
+        uintptr_t start, end;
+        char perms[5];
+        if (sscanf(line.c_str(), "%lx-%lx %4s", &start, &end, perms) == 3) {
+            if (addr >= start && addr < end) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void bka_add_addr_mapping(uint32_t low32, void* fullPtr) {
+    bka_addr_map_insert(low32, fullPtr);
+}
+
+void bka_add_full_addr_mapping(uint64_t fullAddr, void* ptr) {
+    s_fullAddrMap[fullAddr] = ptr;
+}
+
+void* bka_lookup_full_addr_mapping_internal(uint64_t fullAddr) {
+    auto it = s_fullAddrMap.find(fullAddr);
+    if (it != s_fullAddrMap.end()) return it->second;
+    return nullptr;
+}
+
+
+
+
+// C-compatible wrappers for linker_stubs.c
+extern "C" {
+void bka_add_addr_mapping_c(uint32_t key, void *ptr) {
+    if ((key & 0xFF000000u) == 0xFF000000u) {
+        static int s_susp = 0;
+        if (s_susp++ < 60) {
+            __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
+                "REGSUS key=0x%08X ptr=%p", key, ptr);
+        }
+    }
+    bka_addr_map_insert(key, ptr);
+}
+
+extern "C" void* bka_lookup_addr_mapping_c(uint32_t key) {
+    // Do NOT recurse into the C++ map function — return null so callers
+    // can fall through to a different lookup path.
+    return nullptr;
+}
+
+void bka_store_full_addr_mapping(uint64_t fullAddr, void *ptr) {
+    bka_add_full_addr_mapping(fullAddr, ptr);
+}
+void* bka_lookup_full_addr_mapping(uint64_t fullAddr) {
+    return bka_lookup_full_addr_mapping_internal(fullAddr);
+}
+static bool is_address_readable(void* ptr) {
+    uintptr_t addr = (uintptr_t)ptr;
+    std::ifstream maps("/proc/self/maps");
+    std::string line;
+    while (std::getline(maps, line)) {
+        uintptr_t start, end;
+        char perms[5];
+        if (sscanf(line.c_str(), "%lx-%lx %4s", &start, &end, perms) == 3) {
+            if (addr >= start && addr < end) {
+                return perms[0] == 'r';
+            }
+        }
+    }
+    return false;
+}
+
+extern "C" int bka_is_mapped(void* ptr) { return bka_is_readable(ptr); }
+
+
+extern "C" void bka_log_gdma_ra(void* ra, unsigned long long v) {
+    static uintptr_t seen[256];
+    static int n = 0;
+    static int total = 0;
+    total++;
+    uintptr_t r = (uintptr_t)ra;
+
+    // Log any call with the suspicious low32.
+    if ((unsigned int)v == 0xFFF9153F || (unsigned int)v == 0xFFFF153F) {
+        static int bad = 0;
+        if (bad++ < 20) {
+            __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
+                "GDMARA-BAD ra=%p v=0x%llx total=%d", ra, v, total);
+        }
+
+
+        return;
+    }
+
+    // Log first-seen per unique caller + every 500th call (for totals).
+    int found = 0;
+    for (int i = 0; i < n; i++) if (seen[i] == r) { found = 1; break; }
+    if (!found && n < 256) {
+        seen[n++] = r;
+        __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
+            "GDMARA #%d ra=%p first_v=0x%llx total=%d", n, ra, v, total);
+    } else if ((total % 500) == 0) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
+            "GDMARA-CNT total=%d ra=%p v=0x%llx", total, ra, v);
+    }
+}
+
+extern "C" void bka_log_gdma_full(void* ra, unsigned long long v, unsigned int c, unsigned int l, unsigned int p) {
+    static int s_seen = 0;
+    if (s_seen++ > 50000) return;
+    Dl_info di = {0};
+    dladdr(ra, &di);
+    uintptr_t r = (uintptr_t)ra;
+    uintptr_t base = di.dli_fbase ? (uintptr_t)di.dli_fbase : 0;
+    uintptr_t off  = (base && r >= base) ? (r - base) : r;
+    __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
+        "GDMARA ra=%p sym=%s+0x%lX base=0x%lX off=0x%lX lib=%s c=0x%02X l=%u p=0x%X first_v=0x%llx",
+        ra,
+        di.dli_sname ? di.dli_sname : "?",
+        (unsigned long)(di.dli_saddr ? (r - (uintptr_t)di.dli_saddr) : 0),
+        (unsigned long)base, (unsigned long)off,
+        di.dli_fname ? di.dli_fname : "?",
+        c, l, p, v);
+}
+
+extern "C" void bka_log_seg1_emit(void* ra, unsigned long long a, unsigned int l, unsigned int p) {
+    __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
+        "SEG1EMIT ra=%p a=0x%llx l=%u p=%u", ra, a, l, p);
+}
+
+
+extern "C" int bka_is_readable(void* ptr) {
+    if (s_maps_count == 0) bka_refresh_maps();
+    uintptr_t a = (uintptr_t)ptr;
+    for (int i = 0; i < s_maps_count; i++) {
+        if (a >= s_maps[i].start && a < s_maps[i].end)
+            return s_maps[i].perms[0] == 'r';
+    }
+    static int s_retry = 0;
+    if (s_retry++ < 3) {
+        bka_refresh_maps();
+        for (int i = 0; i < s_maps_count; i++) {
+            if (a >= s_maps[i].start && a < s_maps[i].end)
+                return s_maps[i].perms[0] == 'r';
+        }
+    }
+    return 0;
+}
+}
+
+extern "C" {
+
+    void HLE_TriggerN64Event(int event_id);
+
+    // gFramebufferWidth/Height - actual definitions (292x216)
+    extern int32_t gFramebufferWidth;
+    extern int32_t gFramebufferHeight;
+
+    void InitN64Registers(const char* assetDir) {
+        if (gN64_RDRAM != nullptr && gN64_Reg_Base != nullptr &&
+            gN64_PIF_Base != nullptr && gN64_ROM_Base != nullptr) {
+            return;
+        }
+
+        gN64_RDRAM = (uint8_t*)mmap(nullptr, BKA_RDRAM_ALLOC_SIZE,
+                                    PROT_READ | PROT_WRITE,
+                                    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        gN64_Reg_Base = (uint32_t*)mmap(nullptr, N64_REG_SPACE_SIZE,
+                                        PROT_READ | PROT_WRITE,
+                                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        gN64_PIF_Base = (uint32_t*)mmap(nullptr, N64_PIF_SPACE_SIZE,
+                                        PROT_READ | PROT_WRITE,
+                                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        gN64_ROM_Base = (uint8_t*)mmap(nullptr, N64_ROM_SPACE_SIZE,
+                                       PROT_READ | PROT_WRITE,
+                                       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+        if (gN64_RDRAM == MAP_FAILED || gN64_Reg_Base == MAP_FAILED ||
+            gN64_PIF_Base == MAP_FAILED || gN64_ROM_Base == MAP_FAILED) {
+            __android_log_print(ANDROID_LOG_FATAL, LOG_TAG,
+                "Critical virtual memory mapping failure: %s", strerror(errno));
+            if (gN64_RDRAM    != MAP_FAILED && gN64_RDRAM    != nullptr) munmap(gN64_RDRAM,    BKA_RDRAM_ALLOC_SIZE);
+            if (gN64_Reg_Base != MAP_FAILED && gN64_Reg_Base != nullptr) munmap(gN64_Reg_Base, N64_REG_SPACE_SIZE);
+            if (gN64_PIF_Base != MAP_FAILED && gN64_PIF_Base != nullptr) munmap(gN64_PIF_Base, N64_PIF_SPACE_SIZE);
+            if (gN64_ROM_Base != MAP_FAILED && gN64_ROM_Base != nullptr) munmap(gN64_ROM_Base, N64_ROM_SPACE_SIZE);
+            gN64_RDRAM    = nullptr;
+            gN64_Reg_Base = nullptr;
+            gN64_PIF_Base = nullptr;
+            gN64_ROM_Base = nullptr;
+            abort();
+        }
+
+        memset(gN64_RDRAM,    0, BKA_RDRAM_ALLOC_SIZE);
+        memset(gN64_Reg_Base, 0, N64_REG_SPACE_SIZE);
+        memset(gN64_PIF_Base, 0, N64_PIF_SPACE_SIZE);
+        memset(gN64_ROM_Base, 0, N64_ROM_SPACE_SIZE);
+
+        if (N64_HEAP_OFFSET + N64_HEAP_SIZE <= BKA_RDRAM_ALLOC_SIZE) {
+            __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
+                "Heap region validated: RDRAM+0x%X (0x%X bytes) for D_8002D500",
+                N64_HEAP_OFFSET, N64_HEAP_SIZE);
+        } else {
+            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
+                "FATAL: Heap region exceeds RDRAM allocation!");
+        }
+        __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
+            "RDRAM allocated: %zu bytes (16MB usable + 4KB overflow guard)",
+            (size_t)BKA_RDRAM_ALLOC_SIZE);
+
+        char romPath[512];
+        snprintf(romPath, sizeof(romPath), "%s/rom_base.bin", assetDir);
+        FILE* f = fopen(romPath, "rb");
+        if (f) {
+            size_t bytesRead = fread(gN64_ROM_Base, 1, N64_ROM_SPACE_SIZE, f);
+            fclose(f);
+            __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
+                "Memory Engine Stabilized: physical ROM mapped from %s (%zu bytes).", romPath, bytesRead);
+        } else {
+            __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "WARNING: rom_base.bin missing, fallback memory will be zeroed.");
+            gN64_ROM_Base[0x3B] = 'N'; gN64_ROM_Base[0x3C] = 'B';
+            gN64_ROM_Base[0x3D] = 'K'; gN64_ROM_Base[0x3E] = 'E';
+        }
+    }
+
+    void HardwareRegs_Shutdown() {
+        if (gN64_RDRAM)    { munmap(gN64_RDRAM,    BKA_RDRAM_ALLOC_SIZE); gN64_RDRAM    = nullptr; }
+        if (gN64_Reg_Base) { munmap(gN64_Reg_Base, N64_REG_SPACE_SIZE);   gN64_Reg_Base = nullptr; }
+        if (gN64_PIF_Base) { munmap(gN64_PIF_Base, N64_PIF_SPACE_SIZE);   gN64_PIF_Base = nullptr; }
+        if (gN64_ROM_Base) { munmap(gN64_ROM_Base, N64_ROM_SPACE_SIZE);   gN64_ROM_Base = nullptr; }
+        __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Memory Engine Closed down cleanly.");
+    }
+
+    struct BKA_ControllerPad {
+        uint16_t button;
+        int8_t   stick_x;
+        int8_t   stick_y;
+        uint8_t  errno_val;
+    };
+    BKA_ControllerPad gN64_ControllerData[4] = {{0, 0, 0, 0}};
+
+    void N64_TriggerVirtualVBlankInterrupt(void) {
+        if (!gN64_Reg_Base) return;
+        gN64_Reg_Base[MI_INTR_REG_IDX] |= MI_INTR_VI;
+        HLE_TriggerN64Event(14);
+    }
+
+    volatile int g_bka_real_frame_count = 0;
+
+extern volatile uint32_t g_bka_frame_gen;
+
+static int g_tex_cache_w = 0;
+static int g_tex_cache_h = 0;
+static uint32_t g_tex_cache_id = 0;
+
+void VideoPlugin_OutputFrameTexture(uint32_t hostTextureId) {
+    /* return; */ // Re-enabled for software rendering
+        static int diagCount = 0;
+        int diag_n = ++diagCount;
+        if (diag_n <= 40 || diag_n % 200 == 0) {
+            __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
+                "VideoPlugin: call=%d texId=%u rdr=%p fb_ofs=%08X w=%d h=%d gen=%u real_frame=%d",
+                diag_n, hostTextureId, gN64_RDRAM,
+                g_active_fb_offset, gFramebufferWidth, gFramebufferHeight,
+                (unsigned)g_bka_frame_gen, g_bka_real_frame_count);
+        }
+
+        if (!gN64_RDRAM || hostTextureId == 0) return;
+
+        // Only upload when the RSP thread has completed a task since the
+        // last upload.  Prevents sampling mid-task and catching the
+        // frame between the fill and the triangles.
+        static uint32_t s_last_gen = 0xFFFFFFFFu;
+        static int64_t  s_last_upload_ns = 0;
+        struct timespec _now; clock_gettime(CLOCK_MONOTONIC, &_now);
+        int64_t _now_ns = (int64_t)_now.tv_sec * 1000000000LL + _now.tv_nsec;
+        uint32_t gen = g_bka_frame_gen;
+        bool gen_changed = (gen != s_last_gen);
+        bool stale = (_now_ns - s_last_upload_ns) > 500000000LL;  // 500ms
+        if (diag_n <= 40 || diag_n % 200 == 0) {
+            __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
+                "VideoPlugin GATE: call=%d gen=%u last_gen=%u changed=%d stale=%d (->%s)",
+                diag_n, (unsigned)gen, (unsigned)s_last_gen,
+                (int)gen_changed, (int)stale,
+                (gen_changed || stale) ? "upload" : "SKIP");
+        }
+        if (!gen_changed && !stale) return;
+        s_last_gen = gen;
+        s_last_upload_ns = _now_ns;
+
+        uint32_t fbPhysAddr = g_active_fb_offset;
+        if (fbPhysAddr == 0) return;
+
+        uint8_t* fbBase = gN64_RDRAM + fbPhysAddr;
+        { static int s_rd = 0; if (s_rd++ < 3)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-READ",
+                "FILL-READ  rdr=%p ofs=0x%X fb=%p", (void*)gN64_RDRAM, fbPhysAddr, (void*)fbBase); }
+        if (fbBase < gN64_RDRAM || fbBase >= gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE) return;
+
+        s32 fbWidth  = gFramebufferWidth;
+        s32 fbHeight = gFramebufferHeight;
+        if (fbWidth <= 0 || fbWidth > 640)  fbWidth  = 320;
+        if (fbHeight <= 0 || fbHeight > 480) fbHeight = 240;
+
+        size_t fbSize = (size_t)fbWidth * fbHeight * 2;
+        if (fbBase + fbSize > gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE) return;
+
+        glBindTexture(GL_TEXTURE_2D, hostTextureId);
+
+        // Allocate conversion buffer as uint8_t to avoid any word-packing
+        // endianness issues. GL_RGBA with GL_UNSIGNED_BYTE expects bytes
+        // in R,G,B,A order in memory.
+        static uint8_t* s_convBuffer = nullptr;
+        static size_t   s_convBufferSize = 0;
+        size_t neededSize = (size_t)fbWidth * fbHeight * 4;
+        if (!s_convBuffer || s_convBufferSize < neededSize) {
+            free(s_convBuffer);
+            s_convBuffer = (uint8_t*)malloc(neededSize);
+            s_convBufferSize = neededSize;
+        }
+
+        if (s_convBuffer) {
+            // Diagnostic: sample the framebuffer once every 120 calls.
+            static int s_sample = 0;
+            s_sample++;
+            if (s_sample <= 5 || s_sample % 60 == 0) {
+            {
+                /* Dump first 32 pixels of framebuffer as hex, direct from RDRAM */
+                uint16_t* fb = (uint16_t*)fbBase;
+                char hb[256]; int n = 0;
+                for (int k = 0; k < 32 && n < (int)sizeof(hb) - 8; k++)
+                    n += snprintf(hb + n, sizeof(hb) - n, " %04X", fb[k]);
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-FB",
+                    "PIXELS[0..31] fbBase=%p%s", (void*)fbBase, hb);
+            }
+                uint16_t* fbs = (uint16_t*)fbBase;
+                int nonZero = 0, nonFFFF = 0, firstNZ = -1;
+                for (int i = 0; i < fbWidth * fbHeight; i++) {   // full scan
+                    if (fbs[i] != 0) { nonZero++; if (firstNZ < 0) firstNZ = i; }
+                    if (fbs[i] != 0xFFFF) nonFFFF++;
+                }
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-FB",
+                    "SCAN fb=%p rdr=%p ofs=0x%X w=%d h=%d firstNZ=%d nz=%d",
+                    (void*)fbBase, (void*)gN64_RDRAM, g_active_fb_offset,
+                    fbWidth, fbHeight, firstNZ, nonZero);
+                __android_log_print(ANDROID_LOG_INFO, "BKA-SENT",
+                    "AFTER-SCAN fbs[0]=%04X fbs[1]=%04X fbs[fbW]=%04X",
+                    fbs[0], fbs[1], fbs[fbWidth]);
+                if (nonZero > 0 && g_bka_real_frame_count == 0) {
+                    g_bka_real_frame_count = 1;
+                    // Also drop a heartbeat file that MainActivity's
+                    // AlarmManager check reads.
+                    FILE* hb = fopen("/data/user/0/com.dkrwrapper/files/last_frame.txt", "w");
+                    if (hb) {
+                        struct timespec ts;
+                        clock_gettime(CLOCK_REALTIME, &ts);
+                        long long ms = (long long)ts.tv_sec * 1000LL + ts.tv_nsec / 1000000LL;
+                        fprintf(hb, "%lld\n", ms);
+                        fclose(hb);
+                    }
+                }
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-FB",
+                    "frame %d: nonZero=%d nonFFFF=%d first16=%04X %04X %04X %04X",
+                    s_sample, nonZero, nonFFFF,
+                    fbs[0], fbs[1], fbs[2], fbs[3]);
+            }
+
+            uint16_t* src = (uint16_t*)fbBase;
+            uint8_t*  dst = s_convBuffer;
+            for (s32 y = 0; y < fbHeight; y++) {
+                for (s32 x = 0; x < fbWidth; x++) {
+                    // Read pixel directly — no byte swap.
+                    // The red fill test writes uint16_t values in ARM native
+                    // (little-endian) order. Real N64 game rendering will
+                    // produce big-endian bytes in RDRAM, which we'll need to
+                    // handle with __builtin_bswap16 when that phase arrives.
+                    // For now, interpret the raw uint16_t as little-endian
+                    // RGB565 with this bit layout in memory:
+                    //   Byte 0 (low):  [G2 G1 G0 B4 B3 B2 B1 B0]
+                    //   Byte 1 (high): [R4 R3 R2 R1 R0 G4 G3 G2]
+                    // Which in uint16_t form is:
+                    //   bits 15-11 = Green (high 3 bits)
+                    //   bits 10-5  = Red (all 5 bits mixed with G low bits)
+                    // This is scrambled. Use the raw bytes directly.
+                    uint8_t  lo = ((uint8_t*)src)[0];
+                    uint8_t  hi = ((uint8_t*)src)[1];
+                    src++;
+
+                    // Byte 1 (high byte in little-endian uint16_t):
+                    //   bits 7-3 = Red[4:0]
+                    //   bits 2-0 = Green[4:2]
+                    // Byte 0 (low byte):
+                    //   bits 7-5 = Green[1:0]
+                    //   bits 4-0 = Blue[4:0]
+                    uint8_t r = (hi & 0xF8);                    // hi bits 7-3
+                    uint8_t g = ((hi & 0x07) << 5) | (lo & 0xE0) >> 3;  // hi bits 2-0 + lo bits 7-5
+                    uint8_t b = (lo & 0x1F) << 3;               // lo bits 4-0
+                    uint8_t a = 0xFF;
+
+                    // Write bytes in explicit R,G,B,A order
+                    *dst++ = r;
+                    *dst++ = g;
+                    *dst++ = b;
+                    *dst++ = a;
+                }
+            }
+            /* TEMP disabled for crash diagnosis */
+/* Use cached allocation + glTexSubImage2D to avoid per-frame
+               texture reallocations that trigger Android 14's libgui
+               buffer-callback bug. */
+            // A new host texture ID (e.g. after resume recreates the
+            // EGL context) invalidates the cached allocation.
+            if (g_tex_cache_id != hostTextureId) {
+                g_tex_cache_w = 0;
+                g_tex_cache_h = 0;
+                g_tex_cache_id = hostTextureId;
+            }
+            if (g_tex_cache_w != fbWidth || g_tex_cache_h != fbHeight) {
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, fbWidth, fbHeight, 0,
+                             GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+                g_tex_cache_w = fbWidth;
+                g_tex_cache_h = fbHeight;
+            }
+            static int s_conv_sample = 0;
+            s_conv_sample++;
+            if (s_conv_sample <= 5 || s_conv_sample % 120 == 0) {
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-FB",
+                    "conv frame %d: rgba[0..3] = %02X %02X %02X %02X  %02X %02X %02X %02X",
+                    s_conv_sample,
+                    s_convBuffer[0],s_convBuffer[1],s_convBuffer[2],s_convBuffer[3],
+                    s_convBuffer[4],s_convBuffer[5],s_convBuffer[6],s_convBuffer[7]);
+            }
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, fbWidth, fbHeight,
+                            GL_RGBA, GL_UNSIGNED_BYTE, s_convBuffer);
+        }
+    }
+
+} // extern "C"
+extern "C" int getActiveFramebuffer(void) {
+    return (g_active_fb_offset == 0x400000) ? 0 : 1;
+}
+
+// Added for segment-1 fallback in RDP_TranslateAddr. Searches the fixed
+// address map for any registered pointer inside [lo, hi).
+extern "C" void* bka_find_registered_in_range(uintptr_t lo, uintptr_t hi) {
+    for (size_t i = s_addrMapCount; i-- > 0; ) {
+        uintptr_t p = (uintptr_t)s_addrMapFixed[i].ptr;
+        if (p >= lo && p < hi) return (void*)p;
+    }
+    return nullptr;
+}

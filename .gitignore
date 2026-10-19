@@ -81,3 +81,16 @@ tools/ido-recomp
 tools/binutils
 *.d
 treemap.html
+# DKR build artifacts / ROM-derived
+baseroms/*.z64
+baseroms/*.n64
+baseroms/*.v64
+assets/
+asm/
+ucode/
+build/
+Android/app/.cxx/
+Android/app/build/
+Android/.gradle/
+*.apk
+*.log

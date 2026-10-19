@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:memtagMode="off"
+        android:vmSafeMode="true"
+        android:usesCleartextTraffic="true"
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Bkawrapper">
+
+        <meta-data android:name="androidx.profileinstaller.enabled" android:value="false" />
+
+        <!-- Streaming mode: headless service + Chrome display.
+             Works on all devices including Motorola libgui UAF. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="Banjo-Kazooie (streaming)"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:noHistory="true"
+            android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Native mode: SurfaceView + GL blit. Full speed on stock
+             Android. Crashes on Motorola's broken libgui. -->
+        <activity
+            android:name=".NativeGameActivity"
+            android:exported="true"
+            android:label="Banjo-Kazooie (native)"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|uiMode|density"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".BkaService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                      android:value="game engine" />
+        </service>
+
+        <service
+            android:name=".OtrService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false" />
+    </application>
+</manifest>

@@ -1,0 +1,129 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(dkrwrapper)
+
+# android_native_app_glue is shipped as sources, not as a CMake package.
+# Build it as a static library from the NDK tree.
+set(NDK_GLUE_DIR ${CMAKE_ANDROID_NDK}/sources/android/native_app_glue)
+if(NOT EXISTS "${NDK_GLUE_DIR}/android_native_app_glue.c")
+    set(NDK_GLUE_DIR $ENV{ANDROID_NDK_HOME}/sources/android/native_app_glue)
+endif()
+if(NOT EXISTS "${NDK_GLUE_DIR}/android_native_app_glue.c")
+    message(FATAL_ERROR "android_native_app_glue.c not found under ${NDK_GLUE_DIR}")
+endif()
+
+
+
+set(REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../../../..)
+
+# ============================================================
+# 1. C++ Bridge Sources
+# ============================================================
+set(CPP_BRIDGE_SOURCES
+    ultra/NativeBridge.cpp ultra/otr_builder.cpp ultra/parameters.cpp
+    ultra/libm_vals.cpp ultra/exceptasm.cpp ultra/LinkerSymbols.cpp
+    ultra/setintmask.cpp ultra/math_bridge.cpp ultra/audio_bridge.cpp
+    ultra/lowlevel_bridge.cpp ultra/bka_trace_ff.cpp ultra/bka_memcpy_hook.cpp emulator/stubs.cpp emulator/pi_hle.cpp
+    emulator/resource_mgr.cpp
+    emulator/gfx_interpreter.cpp
+    native_main.cpp
+    tools/rare_decompression.cpp
+    ultra/linker_stubs.c
+)
+
+# ============================================================
+# 2. C Sources
+# ============================================================
+set(C_BRIDGE_SOURCES
+    ultra/zlib/adler32.c ultra/zlib/compress.c ultra/zlib/crc32.c
+    ultra/zlib/deflate.c ultra/zlib/infback.c ultra/zlib/inffast.c
+    ultra/zlib/inflate.c ultra/zlib/inftrees.c ultra/zlib/trees.c
+    ultra/zlib/uncompr.c ultra/zlib/zutil.c ultra/missing_stubs.c
+)
+
+option(EXCLUDE_GAME_SRC "Skip" OFF)
+set(GAME_SOURCES "")
+if(NOT EXCLUDE_GAME_SRC)
+    file(GLOB_RECURSE ALL_GAME_FILES "${REPO_ROOT}/src/*.c")
+    set(EXCLUDE_LIST createthread.c startthread.c stopthread.c destroythread.c
+        yieldthread.c settreadpri.c getthreadpri.c createmesgqueue.c
+        seteventmesg.c recvmesg.c sendmesg.c jammesg.c visetmode.c
+        visetevent.c overlaymanager.c pimanager.c ucode.c memory.c bamotor.c code_1D00.c vimgr.c transition.c)
+    foreach(F ${ALL_GAME_FILES})
+        get_filename_component(N ${F} NAME)
+        if(NOT N IN_LIST EXCLUDE_LIST)
+            list(APPEND GAME_SOURCES ${F})
+        endif()
+    endforeach()
+    list(REMOVE_ITEM GAME_SOURCES "${REPO_ROOT}/src/core1/inflate.c")
+endif()
+
+
+
+add_library(dkrwrapper SHARED ${CPP_BRIDGE_SOURCES} ${C_BRIDGE_SOURCES} ${GAME_SOURCES})
+
+target_link_options(dkrwrapper PRIVATE -Wl,--wrap=memcpy -Wl,--wrap=memmove -Wl,--wrap=memset "-Wl,--export-dynamic" "-Wl,--error-limit=0" "-Wl,--wrap=__osInitialize_common" )
+
+# ============================================================
+# Include Directories
+# ============================================================
+# Common (safe for both C and C++) - includes boot/core1 for rarezip.h
+target_include_directories(dkrwrapper PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/ultra
+    ${CMAKE_CURRENT_SOURCE_DIR}/emulator
+    ${CMAKE_CURRENT_SOURCE_DIR}/tools
+    ${REPO_ROOT}/src
+    ${REPO_ROOT}/include
+)
+
+# N64 SDK headers ONLY for C files
+target_include_directories(dkrwrapper PRIVATE
+    $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/include>
+    $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/include/n_audio/PR>
+    $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/include>
+    $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/include/PRinternal>
+    $<$<COMPILE_LANGUAGE:C>:${REPO_ROOT}/libultra/src/audio>
+)
+
+# ============================================================
+# Compile Options
+# ============================================================
+set_source_files_properties(${CPP_BRIDGE_SOURCES} PROPERTIES
+    COMPILE_FLAGS "-std=c++17 -w -fpermissive -O0 -g3"
+)
+set_source_files_properties(${C_BRIDGE_SOURCES} ${GAME_SOURCES} PROPERTIES
+    COMPILE_FLAGS "-std=gnu11 -w -O0 -g3 -include ${CMAKE_CURRENT_SOURCE_DIR}/ultra/n64_types.h"
+)
+
+target_compile_definitions(dkrwrapper PRIVATE F3DEX_GBI N64_RECOMP VERSION=0 __ANDROID__)
+
+find_library(log-lib log)
+find_library(android-lib android)
+find_library(egl-lib EGL)
+find_library(gles3-lib GLESv3)
+find_library(gles2-lib GLESv2)
+
+target_include_directories(dkrwrapper PRIVATE
+    ${NDK_GLUE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/rt64_include
+    ${CMAKE_CURRENT_SOURCE_DIR}/rt64/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/rt64/src/hle
+    ${CMAKE_CURRENT_SOURCE_DIR}/rt64/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/rt64/src/contrib
+    ${CMAKE_CURRENT_SOURCE_DIR}/rt64/src/contrib/hlslpp/include
+)
+add_library(native_app_glue STATIC "${NDK_GLUE_DIR}/android_native_app_glue.c")
+target_include_directories(native_app_glue PUBLIC "${NDK_GLUE_DIR}")
+set_source_files_properties("${NDK_GLUE_DIR}/android_native_app_glue.c" PROPERTIES
+    COMPILE_FLAGS "-std=gnu11 -w -O2")
+
+target_link_libraries(dkrwrapper ${log-lib} ${android-lib} ${egl-lib} ${gles3-lib} ${gles2-lib} native_app_glue atomic m dl)
+
+# ANativeActivity_onCreate lives in native_app_glue and is resolved by the
+# framework at dlopen time — nothing in our code references it, so the
+# linker would drop it from the static lib.  Force the reference.
+target_link_options(dkrwrapper PRIVATE "-Wl,-u,ANativeActivity_onCreate")
+
+# linker_stubs.c must compile without N64 headers
+set_source_files_properties(ultra/linker_stubs.c PROPERTIES
+    COMPILE_FLAGS "-std=gnu11 -w -O0 -g3")

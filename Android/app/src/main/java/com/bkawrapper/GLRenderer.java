@@ -1,0 +1,248 @@
+// File: Android/app/src/main/java/com/dkrwrapper/GLRenderer.java
+package com.dkrwrapper;
+
+import android.content.Context;
+import android.content.res.AssetManager;
+import android.opengl.GLES20;
+import android.opengl.GLSurfaceView;
+import android.util.Log;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
+
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
+
+/**
+ * GLRenderer
+ *
+ * Drives the N64 framebuffer → Android display pipeline.
+ */
+public class GLRenderer implements GLSurfaceView.Renderer {
+    private long mLastFrameMs = 0L;
+
+    private static final String TAG = "BKA-GLRenderer";
+
+    private final Context context;
+    private final String assetDir;
+    private final AssetManager mgr;
+
+    private static boolean engineBooted = false;
+    private boolean isSurfaceReady = false;
+
+    // GL resources
+    private int mTextureId = 0;
+    private int mProgram = 0;
+    private int gSurfaceW = 720;
+    private int mFrameCount = 0;
+    private int gSurfaceH = 1449;
+    private FloatBuffer mQuadVertices;
+    private FloatBuffer mQuadTexCoords;
+
+    // Simple vertex shader
+    private static final String VERTEX_SHADER =
+        "attribute vec4 aPosition;\n" +
+        "attribute vec2 aTexCoord;\n" +
+        "varying vec2 vTexCoord;\n" +
+        "void main() {\n" +
+        "  gl_Position = aPosition;\n" +
+        "  vTexCoord = aTexCoord;\n" +
+        "}";
+
+    // Simple fragment shader that samples the texture
+    private static final String FRAGMENT_SHADER =
+        "precision mediump float;\n" +
+        "varying vec2 vTexCoord;\n" +
+        "uniform sampler2D uTexture;\n" +
+        "void main() {\n" +
+        "  gl_FragColor = texture2D(uTexture, vTexCoord);\n" +
+        "}";
+
+    // Full-screen quad vertices (two triangles)
+    private static final float[] QUAD_VERTICES = {
+        -1.0f, -1.0f, 0.0f,
+         1.0f, -1.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f,
+         1.0f,  1.0f, 0.0f
+    };
+
+    // Texture coordinates matching the vertices
+    private static final float[] QUAD_TEXCOORDS = {
+        0.0f, 1.0f,
+        1.0f, 1.0f,
+        0.0f, 0.0f,
+        1.0f, 0.0f
+    };
+
+    public GLRenderer(Context context, String assetDir, AssetManager mgr) {
+        this.context = context;
+        this.assetDir = assetDir;
+        this.mgr = mgr;
+
+        // Prepare vertex buffers
+        ByteBuffer vbb = ByteBuffer.allocateDirect(QUAD_VERTICES.length * 4);
+        vbb.order(ByteOrder.nativeOrder());
+        mQuadVertices = vbb.asFloatBuffer();
+        mQuadVertices.put(QUAD_VERTICES);
+        mQuadVertices.position(0);
+
+        ByteBuffer tbb = ByteBuffer.allocateDirect(QUAD_TEXCOORDS.length * 4);
+        tbb.order(ByteOrder.nativeOrder());
+        mQuadTexCoords = tbb.asFloatBuffer();
+        mQuadTexCoords.put(QUAD_TEXCOORDS);
+        mQuadTexCoords.position(0);
+    }
+
+    private int loadShader(int type, String shaderCode) {
+        int shader = GLES20.glCreateShader(type);
+        GLES20.glShaderSource(shader, shaderCode);
+        GLES20.glCompileShader(shader);
+        int[] compiled = new int[1];
+        GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compiled, 0);
+        if (compiled[0] == 0) {
+            Log.e(TAG, "Shader compile error: " + GLES20.glGetShaderInfoLog(shader));
+            GLES20.glDeleteShader(shader);
+            return 0;
+        }
+        return shader;
+    }
+
+    private void setupGraphics() {
+        // Create shader program
+        int vertexShader = loadShader(GLES20.GL_VERTEX_SHADER, VERTEX_SHADER);
+        int fragmentShader = loadShader(GLES20.GL_FRAGMENT_SHADER, FRAGMENT_SHADER);
+        if (vertexShader == 0 || fragmentShader == 0) return;
+
+        mProgram = GLES20.glCreateProgram();
+        GLES20.glAttachShader(mProgram, vertexShader);
+        GLES20.glAttachShader(mProgram, fragmentShader);
+        GLES20.glLinkProgram(mProgram);
+
+        // Create texture
+        int[] textures = new int[1];
+        GLES20.glGenTextures(1, textures, 0);
+        mTextureId = textures[0];
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTextureId);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+        // Initialize with a magenta placeholder so we can see if texture upload works
+        ByteBuffer placeholder = ByteBuffer.allocateDirect(4 * 4 * 4); // 4x4 RGBA
+        placeholder.order(ByteOrder.nativeOrder());
+        for (int i = 0; i < 16; i++) {
+            placeholder.put((byte)0xFF); // R
+            placeholder.put((byte)0x00); // G
+            placeholder.put((byte)0xFF); // B
+            placeholder.put((byte)0xFF); // A
+        }
+        placeholder.position(0);
+        GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, 4, 4, 0,
+                GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, placeholder);
+    }
+
+    @Override
+    public void onSurfaceCreated(GL10 gl, EGLConfig config) {
+        Log.i(TAG, "onSurfaceCreated: GL context ready");
+        GLES20.glClearColor(0f, 0f, 0f, 1f);
+        setupGraphics();
+    }
+
+    @Override
+    public void onSurfaceChanged(GL10 gl, int width, int height) {
+        Log.i(TAG, "onSurfaceChanged: " + width + "×" + height);
+        GLES20.glViewport(0, 0, width, height);
+        gSurfaceW = width;
+        gSurfaceH = height;
+
+        // Tell the native side the GL context is alive and provide ACTUAL dimensions
+        NativeBridge.surfaceReady(width, height);
+        isSurfaceReady = true;
+
+        // Protected by the static flag so it only runs once per app process.
+        if (!engineBooted) {
+            engineBooted = true;
+            Log.i(TAG, "Game thread starting — assetDir=" + assetDir);
+
+            // Boot on a separate Java thread so the GL thread is never blocked.
+            // The GL thread must return from onSurfaceChanged for GLSurfaceView to
+            // start calling onDrawFrame, and nativeGameBoot does boot-time work
+            // (ROM parse, resource init, thread spawn) that can take seconds.
+            new Thread(new Runnable() {
+                @Override public void run() {
+                    Log.i(TAG, "Game thread dispatch — assetDir=" + assetDir);
+                    NativeBridge.nativeGameBoot(assetDir, mgr);
+                    Log.i(TAG, "nativeGameBoot returned");
+                }
+            }, "GameBoot").start();
+        }
+    }
+
+    @Override
+    public void onDrawFrame(GL10 gl) {
+        // Throttle to ~30 fps.  The Motorola Android 14 libgui.so
+        // TransactionCompletedListener bug is triggered by queueBuffer
+        // churn; halving the swap rate halves the exposure.
+        long nowMs = android.os.SystemClock.uptimeMillis();
+        long since = nowMs - mLastFrameMs;
+        if (since < 66L) {
+            try { Thread.sleep(66L - since); } catch (InterruptedException ignored) {}
+        }
+        mLastFrameMs = android.os.SystemClock.uptimeMillis();
+        mFrameCount++;
+        if (mFrameCount <= 3 || mFrameCount % 120 == 0) {
+            Log.i(TAG, "onDrawFrame #" + mFrameCount + " surfaceReady=" + isSurfaceReady);
+        }
+        if (!isSurfaceReady) return;
+        try {
+            NativeBridge.updateTexture(mTextureId);
+        } catch (Throwable t) {
+            Log.e(TAG, "updateTexture threw: " + t);
+            android.util.Log.e(TAG, "stack:", t);
+        }
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+
+        // Fit 4:3 content into the current surface with letterboxing.
+        // Framebuffer is 292x216; surface aspect comes from onSurfaceChanged.
+        float contentAspect = 292.0f / 216.0f;
+        float surfaceAspect = (float)gSurfaceW / (float)gSurfaceH;
+        float sx = 1.0f, sy = 1.0f;
+        if (surfaceAspect > contentAspect) {
+            sx = contentAspect / surfaceAspect;
+        } else {
+            sy = surfaceAspect / contentAspect;
+        }
+        float[] quad = {
+            -sx, -sy, 0.0f,
+             sx, -sy, 0.0f,
+            -sx,  sy, 0.0f,
+             sx,  sy, 0.0f
+        };
+        mQuadVertices.position(0);
+        mQuadVertices.put(quad);
+        mQuadVertices.position(0);
+        GLES20.glUseProgram(mProgram);
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTextureId);
+        int loc = GLES20.glGetUniformLocation(mProgram, "uTexture");
+        GLES20.glUniform1i(loc, 0);
+        int posLoc = GLES20.glGetAttribLocation(mProgram, "aPosition");
+        int texLoc = GLES20.glGetAttribLocation(mProgram, "aTexCoord");
+        mQuadVertices.position(0);
+        GLES20.glVertexAttribPointer(posLoc, 3, GLES20.GL_FLOAT, false, 0, mQuadVertices);
+        GLES20.glEnableVertexAttribArray(posLoc);
+        mQuadTexCoords.position(0);
+        GLES20.glVertexAttribPointer(texLoc, 2, GLES20.GL_FLOAT, false, 0, mQuadTexCoords);
+        GLES20.glEnableVertexAttribArray(texLoc);
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+        GLES20.glDisableVertexAttribArray(posLoc);
+        GLES20.glDisableVertexAttribArray(texLoc);
+        GLES20.glFinish();  // fix: force completion before implicit swap
+        if (mFrameCount <= 5) {
+            int err = GLES20.glGetError();
+            Log.i(TAG, "onDrawFrame #" + mFrameCount + " END err=" + err);
+        }
+    }
+
+}
