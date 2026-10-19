@@ -744,7 +744,11 @@ void racer_sound_doppler_effect(Object *observerObj, Camera *camera, Object *sou
 
         // Now things get weird...
         // First, convert the base pitch to cents (logarithmic scale).
+#ifdef PORT
+        cents = game_log(gRacerSound->basePitch[0]) * 1731.23404; // 1200 / ln(2)
+#else
         cents = log(gRacerSound->basePitch[0]) * 1731.23404; // 1200 / ln(2)
+#endif
 
         // Then scale the cents using (70 + v) / (70 - v), which is incorrect.
         // Cents are logarithmic and shouldn't be scaled like this.
@@ -1120,7 +1124,11 @@ UNUSED u8 racer_sound_check(void) {
  * Returns the natural logarithm of the given argument.
  * Uses a Maclaurin series expansion for the inverse hyperbolic tangent (artanh) for the calculation.
  */
+#ifdef PORT
+f32 game_log(f32 x) {
+#else
 f32 log(f32 x) {
+#endif
     f32 prev_sum;
     f32 x_squared;
     f32 power;
