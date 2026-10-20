@@ -34,6 +34,7 @@ void mainproc(void) {
  * Reset the start and endpoint of the game thread stack, then set thread priority to zero, effectively
  * stopping this thread, as it's no longer needed.
  */
+extern void BKA_DropEngineLock(void);
 void thread1_main(UNUSED void *unused) {
     thread0_create();
     osCreateThread(&gThread3, 3, &thread3_main, 0, &gThread3Stack[STACKSIZE(STACK_GAME)], 10);
@@ -41,6 +42,7 @@ void thread1_main(UNUSED void *unused) {
     gThread3Stack[0] = 0;
     osStartThread(&gThread3);
     osSetThreadPri(NULL, OS_PRIORITY_IDLE);
+    BKA_DropEngineLock();
     while (1) {}
 }
 
