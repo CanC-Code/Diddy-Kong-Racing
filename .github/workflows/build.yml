@@ -37,3 +37,11 @@ jobs:
         with:
           name: build-log
           path: build.log
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dkr-debug-apk
+          path: Android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
