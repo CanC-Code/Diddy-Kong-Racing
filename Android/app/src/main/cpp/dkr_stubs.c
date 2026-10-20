@@ -3,11 +3,9 @@
 /* ============================================================
  * mempool_* stubs — host malloc-backed.
  * src/memory.c is EXCLUDED from the Android build (CMakeLists line 51).
- * These stubs are the only definitions of the mempool interface.
- * <stdlib.h> MUST be included above so malloc has the correct 8-byte
- * return type on ARM64; otherwise it's implicit-int and truncates.
+ * <stdlib.h> MUST be above so malloc has the 8-byte return type on ARM64.
  * ============================================================ */
-void *mempool_alloc_safe(int size, int tag) { (void)tag; if (size <= 0) return NULL; return malloc((size_t)size); }
+void *mempool_alloc_safe(int size, int tag)  { (void)tag; if (size <= 0) return NULL; return malloc((size_t)size); }
 void *mempool_alloc(int size, int tag)       { (void)tag; if (size <= 0) return NULL; return malloc((size_t)size); }
 void *mempool_alloc_fixed(int size, int tag) { (void)tag; if (size <= 0) return NULL; return malloc((size_t)size); }
 void *mempool_alloc_pool(void *slots, int size) { (void)slots; if (size <= 0) return NULL; return malloc((size_t)size); }
@@ -18,6 +16,16 @@ void  mempool_free_timer(int state)           { (void)state; }
 void  mempool_init_main(void)                 {}
 void  mempool_locked_set(void *addr)          { (void)addr; }
 void  mempool_locked_unset(void)              {}
+/* ============================================================ */
+
+
+/* ============================================================
+ * mempool_* stubs — host malloc-backed.
+ * src/memory.c is EXCLUDED from the Android build (CMakeLists line 51).
+ * These stubs are the only definitions of the mempool interface.
+ * <stdlib.h> MUST be included above so malloc has the correct 8-byte
+ * return type on ARM64; otherwise it's implicit-int and truncates.
+ * ============================================================ */
 /* ============================================================ */
 
 /* dkr_stubs.c — stub markers */
@@ -144,17 +152,8 @@ const char* dkr_stubs_build_id = "mempool_removed_2026_10_20";
 
 
 
-void *mempool_alloc_fixed(int size, int tag) {
-    (void)tag;
-    if (size <= 0) return NULL;
-    return malloc((size_t)size);
-}
 
 
 
-void mempool_free_queue_clear(void) {}
-void mempool_free_timer(int state) { (void)state; }
-void mempool_locked_set(void *addr) { (void)addr; }
-void mempool_locked_unset(void) {}
 
 /* ============================================================ */
