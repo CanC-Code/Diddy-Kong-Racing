@@ -169,7 +169,7 @@ public class StreamServer {
         "</head>\n" +
         "<body>\n" +
         "<canvas id='screen'></canvas>\n" +
-        "<div id='hud'>BKA streaming</div>\n" +
+        "<div id='hud'>DKR streaming</div>\n" +
         "<script>\n" +
         "var W=" + W + ",H=" + H + ";\n" +
         "var cv=document.getElementById('screen');\n" +
