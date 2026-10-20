@@ -234,10 +234,18 @@ void init_game(void) {
     audspat_init();
     __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "init_game step 6 after: audspat_init();");
     sControllerStatus = input_init();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SUBINIT", "before tex_init_textures");
     tex_init_textures();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SUBINIT", "after tex_init_textures");
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SUBINIT", "before allocate_object_model_pools");
     allocate_object_model_pools();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SUBINIT", "after allocate_object_model_pools");
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SUBINIT", "before allocate_object_pools");
     allocate_object_pools();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SUBINIT", "after allocate_object_pools");
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SUBINIT", "before debug_text_init");
     debug_text_init();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SUBINIT", "after debug_text_init");
     __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "init_game step 7 after: debug_text_init();");
     allocate_ghost_data();
     init_particle_assets();
