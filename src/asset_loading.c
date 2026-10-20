@@ -190,6 +190,8 @@ UNUSED s32 asset_table_load_addr(u32 assetIndex, void *address) {
  * Official name: piRomLoadSection
  */
 s32 asset_load(u32 assetIndex, void *address, s32 assetOffset, s32 size) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LOAD",
+        "asset_load ENTRY id=%u address=%p size=%d", assetIndex, address, size);
     u32 *index;
     s32 start;
 
