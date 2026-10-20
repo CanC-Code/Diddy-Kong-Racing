@@ -637,13 +637,15 @@ TextureHeader *load_texture(s32 id) {
     dlistPtr = (uintptr_t) align16((u8 *) ((uintptr_t) tex + assetSize));
     texTemp = tex;
     for (i = 0; i < numberOfTextures; i++) {
-        material_init(texTemp, (Gfx *) assetOffset);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+            "loop i=%d texTemp=%p dlistPtr=0x%lX palOff=%d",
+            (int)i, (void*)texTemp, (unsigned long)dlistPtr, (int)paletteOffset);
+        material_init(texTemp, (Gfx *) dlistPtr);
         if (paletteOffset >= 0) {
             texTemp->ciPaletteOffset = paletteOffset;
-            assetOffset += PALETTE_GFX_SIZE; // I'm guessing it takes 6 f3d commands to load the palette
-                                             //!@bug — no memory was allocated for this!
+            dlistPtr += PALETTE_GFX_SIZE;
         }
-        assetOffset += TEXTURE_GFX_SIZE; // I'm guessing it takes 12 f3d commands to load the texture
+        dlistPtr += TEXTURE_GFX_SIZE;
         texTemp = (TextureHeader *) ((uintptr_t) texTemp + texTemp->textureSize);
     }
     if (gCiPalettesSize >= MAX_TEX_PALETTE_SIZE) {
