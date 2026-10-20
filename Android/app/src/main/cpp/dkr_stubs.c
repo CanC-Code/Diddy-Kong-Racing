@@ -1,3 +1,21 @@
+
+/* ============================================================
+ * mempool_alloc — matches memory.h declaration (MemoryPoolSlot * return)
+ * The previous batch stub skipped this because a naive 'mempool_alloc_safe'
+ * check was true. That caused the caller (textures_sprites.c) to see the
+ * correct 8-byte return type from memory.h but the linker to resolve to
+ * an implicit int mempool_alloc — producing truncated 32-bit pointers on
+ * ARM64. This properly-typed version fixes the truncation.
+ * ============================================================ */
+#include <stdlib.h>
+
+MemoryPoolSlot *mempool_alloc(s32 size, u32 colourTag) {
+    (void)colourTag;
+    if (size <= 0) return NULL;
+    return (MemoryPoolSlot *)malloc((size_t)size);
+}
+/* ============================================================ */
+
 /* dkr_stubs.c — stub markers */
 /* dkr_stubs.c — link stubs for DKR port.
  * Audio, OS, PFS, GU, RSP blobs. Silent/no-op for first boot. */

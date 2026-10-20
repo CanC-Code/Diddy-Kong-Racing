@@ -1,4 +1,5 @@
 #include "textures_sprites.h"
+#include "memory.h"
 #include "asset_loading.h"
 #include "game_ui.h"
 #include "gzip.h"
@@ -517,6 +518,8 @@ TextureHeader *load_texture(s32 id) {
     // If compressed, decompress it.
     if (!gTempTextureHeader->header.isCompressed) {
         tex = (TextureHeader *) mempool_alloc(numberOfTextures * TEXTURE_GFX_SIZE + assetSize, gTexColourTag);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+            "load_texture id=0x%X size=%d tex=%p", id, numberOfTextures * TEXTURE_GFX_SIZE + assetSize, (void*)tex);
         if (tex == NULL) {
             return NULL;
         }
