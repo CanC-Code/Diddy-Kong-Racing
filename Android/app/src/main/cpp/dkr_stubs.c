@@ -1,3 +1,4 @@
+#include <android/log.h>
 #include <stdlib.h>
 
 /* ============================================================
@@ -5,8 +6,16 @@
  * src/memory.c is EXCLUDED from the Android build (CMakeLists line 51).
  * <stdlib.h> MUST be above so malloc has the 8-byte return type on ARM64.
  * ============================================================ */
-void *mempool_alloc_safe(int size, int tag)  { (void)tag; if (size <= 0) return NULL; return malloc((size_t)size); }
-void *mempool_alloc(int size, int tag)       { (void)tag; if (size <= 0) return NULL; return malloc((size_t)size); }
+void *mempool_alloc_safe(int size, int tag)  {
+    void *p = (size <= 0) ? NULL : malloc((size_t)size);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-MPAS", "mempool_alloc_safe(%d) -> %p", size, p);
+    return p;
+}
+void *mempool_alloc(int size, int tag)       {
+    void *p = (size <= 0) ? NULL : malloc((size_t)size);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-MPA", "mempool_alloc(%d) -> %p", size, p);
+    return p;
+}
 void *mempool_alloc_fixed(int size, int tag) { (void)tag; if (size <= 0) return NULL; return malloc((size_t)size); }
 void *mempool_alloc_pool(void *slots, int size) { (void)slots; if (size <= 0) return NULL; return malloc((size_t)size); }
 void *mempool_new_sub(int size, int slots)   { (void)slots; if (size <= 0) return NULL; return malloc((size_t)size); }
