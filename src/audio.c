@@ -1,3 +1,4 @@
+#include <android/log.h>
 #include "audio.h"
 #include "memory.h"
 
@@ -76,6 +77,7 @@ SoundHandle gRacerSoundMask;
  * Afterwards, set up the audio thread and start it.
  */
 void audio_init(OSSched *sc) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "audio_init ENTERED");
     s32 i;
     ALSynConfig synth_config;
     s32 *addrPtr;
@@ -86,25 +88,62 @@ void audio_init(OSSched *sc) {
 
     seqLength = 0;
     alHeapInit(&gALHeap, gAudioHeapStack, sizeof(gAudioHeapStack));
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after alHeapInit");
+
 
     addrPtr = (s32 *) asset_table_load(ASSET_AUDIO_TABLE);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after asset_table_load");
+
+
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
+        "LUT addrPtr=%p: [0]=%d [1]=%d [2]=%d [3]=%d [4]=%d [5]=%d [6]=%d [7]=%d",
+        (void*)addrPtr,
+        addrPtr ? addrPtr[ASSET_AUDIO_0] : -1,
+        addrPtr ? addrPtr[ASSET_AUDIO_1] : -1,
+        addrPtr ? addrPtr[ASSET_AUDIO_2] : -1,
+        addrPtr ? addrPtr[ASSET_AUDIO_3] : -1,
+        addrPtr ? addrPtr[ASSET_AUDIO_4] : -1,
+        addrPtr ? addrPtr[ASSET_AUDIO_5] : -1,
+        addrPtr ? addrPtr[ASSET_AUDIO_6] : -1,
+        addrPtr ? addrPtr[ASSET_AUDIO_7] : -1);
+
     gSoundBank = (ALBankFile *) mempool_alloc_safe(addrPtr[ASSET_AUDIO_2] - addrPtr[ASSET_AUDIO_1], COLOUR_TAG_CYAN);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSoundBank alloc");
+
     asset_load(ASSET_AUDIO, gSoundBank, addrPtr[ASSET_AUDIO_1], addrPtr[ASSET_AUDIO_2] - addrPtr[ASSET_AUDIO_1]);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSoundBank load");
+
     alBnkfNew(gSoundBank, asset_rom_offset(ASSET_AUDIO, addrPtr[ASSET_AUDIO_2]));
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSoundBank alBnkfNew");
+
 
     gSoundTableSize = addrPtr[ASSET_AUDIO_7] - addrPtr[ASSET_AUDIO_6];
     gSoundTable = (SoundData *) mempool_alloc_safe(gSoundTableSize, COLOUR_TAG_CYAN);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSoundTable alloc");
+
     asset_load(ASSET_AUDIO, gSoundTable, addrPtr[ASSET_AUDIO_6], gSoundTableSize);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSoundTable load");
+
     gSoundCount = gSoundTableSize / sizeof(SoundData);
 
     gSeqSoundTableSize = addrPtr[ASSET_AUDIO_6] - addrPtr[ASSET_AUDIO_5];
     gSeqSoundTable = (MusicData *) mempool_alloc_safe(gSeqSoundTableSize, COLOUR_TAG_CYAN);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSeqSoundTable alloc");
+
     asset_load(ASSET_AUDIO, gSeqSoundTable, addrPtr[ASSET_AUDIO_5], gSeqSoundTableSize);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSeqSoundTable load");
+
     gSeqSoundCount = gSeqSoundTableSize / sizeof(MusicData);
 
     gSequenceBank = (ALBankFile *) mempool_alloc_safe(addrPtr[ASSET_AUDIO_0], COLOUR_TAG_CYAN);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSequenceBank alloc");
+
     asset_load(ASSET_AUDIO, gSequenceBank, 0, addrPtr[ASSET_AUDIO_0]);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSequenceBank load");
+
     alBnkfNew(gSequenceBank, asset_rom_offset(ASSET_AUDIO, addrPtr[ASSET_AUDIO_0]));
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSequenceBank alBnkfNew");
+
     gSequenceTable = (ALSeqFile *) alHeapAlloc(&gALHeap, 1, 4);
     asset_load(ASSET_AUDIO, gSequenceTable, addrPtr[ASSET_AUDIO_4], 4);
 
@@ -134,7 +173,11 @@ void audio_init(OSSched *sc) {
     synth_config.outputRate = 0;
     synth_config.heap = &gALHeap;
     amCreateAudioMgr(&synth_config, 12, sc);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after amCreateAudioMgr");
+
     gMusicPlayer = sound_seqplayer_init(24, 120);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after sound_seqplayer_init");
+
     set_voice_limit(gMusicPlayer, 18);
     gJinglePlayer = sound_seqplayer_init(16, 50);
     gMusicSequenceData = mempool_alloc_safe(seqLength, COLOUR_TAG_CYAN);
