@@ -1,4 +1,5 @@
 #include <string.h>
+#include "dkr_embedded_lut.h"
 #include "asset_loading.h"
 #include <android/log.h>
 
@@ -38,7 +39,7 @@ extern u32 gBkaAssetsRomOffset;
  * Official Name: piInit
  */
 void pi_init(void) {
-    __android_log_print(ANDROID_LOG_ERROR, "DKR-PI", "pi_init ENTERED");
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-PI", "pi_init ENTERED (embedded LUT mode)");
     u32 assetTableSize;
     osCreateMesgQueue(&gPIMesgQueue, gPIMesgBuf, ARRAY_COUNT(gPIMesgBuf));
     osCreateMesgQueue(&gDmaMesgQueue, &gDmaMesg, 1);
@@ -49,17 +50,25 @@ void pi_init(void) {
     osSendMesg(&gDmaMutex, (OSMesg) 1, OS_MESG_NOBLOCK);
 #endif
 
-    assetTableSize = gBkaLutSize;
+    // Embedded LUT: 208 bytes from splat (assets.lut.bin), no ROM dependency.
+    assetTableSize = G_EMBEDDED_LUT_SIZE;
     gAssetsLookupTable = (u32 *) mempool_alloc_safe(assetTableSize, COLOUR_TAG_GREY);
-    __android_log_print(ANDROID_LOG_ERROR, "DKR-LUT", "pi_init: assetTableSize=%d gAssetsLookupTable=%p",
-        (int)assetTableSize, (void*)gAssetsLookupTable);
+    if (gAssetsLookupTable == NULL) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-PI", "FATAL: mempool_alloc_safe returned NULL for LUT");
+        return;
+    }
     mempool_locked_set((u8 *) gAssetsLookupTable);
-    dmacopy_internal(gBkaLutRomOffset, gAssetsLookupTable, (s32) assetTableSize);
-    
-    // DYNAMIC ENDIAN SHIM: Convert the LUT from BE to LE
+    memcpy(gAssetsLookupTable, g_embedded_lut, assetTableSize);
+
+    // Byteswap BE -> LE in place
     for (u32 i = 0; i < assetTableSize / 4; i++) {
         gAssetsLookupTable[i] = __builtin_bswap32(gAssetsLookupTable[i]);
     }
+
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LUT",
+        "embedded LUT: [0]=%u [1]=%u [2]=%u [3]=%u [4]=%u [5]=%u [6]=%u [7]=%u",
+        gAssetsLookupTable[0], gAssetsLookupTable[1], gAssetsLookupTable[2], gAssetsLookupTable[3],
+        gAssetsLookupTable[4], gAssetsLookupTable[5], gAssetsLookupTable[6], gAssetsLookupTable[7]);
 }
 
 /**
