@@ -1,3 +1,25 @@
+#include <stdlib.h>
+
+/* ============================================================
+ * mempool_* stubs — host malloc-backed.
+ * src/memory.c is EXCLUDED from the Android build (CMakeLists line 51).
+ * These stubs are the only definitions of the mempool interface.
+ * <stdlib.h> MUST be included above so malloc has the correct 8-byte
+ * return type on ARM64; otherwise it's implicit-int and truncates.
+ * ============================================================ */
+void *mempool_alloc_safe(int size, int tag) { (void)tag; if (size <= 0) return NULL; return malloc((size_t)size); }
+void *mempool_alloc(int size, int tag)       { (void)tag; if (size <= 0) return NULL; return malloc((size_t)size); }
+void *mempool_alloc_fixed(int size, int tag) { (void)tag; if (size <= 0) return NULL; return malloc((size_t)size); }
+void *mempool_alloc_pool(void *slots, int size) { (void)slots; if (size <= 0) return NULL; return malloc((size_t)size); }
+void *mempool_new_sub(int size, int slots)   { (void)slots; if (size <= 0) return NULL; return malloc((size_t)size); }
+void  mempool_free(void *addr)                { if (addr) free(addr); }
+void  mempool_free_queue_clear(void)          {}
+void  mempool_free_timer(int state)           { (void)state; }
+void  mempool_init_main(void)                 {}
+void  mempool_locked_set(void *addr)          { (void)addr; }
+void  mempool_locked_unset(void)              {}
+/* ============================================================ */
+
 /* dkr_stubs.c — stub markers */
 /* dkr_stubs.c — link stubs for DKR port.
  * Audio, OS, PFS, GU, RSP blobs. Silent/no-op for first boot. */
@@ -118,7 +140,7 @@ const char* dkr_stubs_build_id = "mempool_removed_2026_10_20";
  * the Android build. These functions provide the same interface
  * using standard host malloc/free.
  * ============================================================ */
-#include <stdlib.h>
+
 
 
 
