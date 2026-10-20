@@ -1,3 +1,4 @@
+#include <android/log.h>
 #include "thread3_main.h"
 
 #include "asset_enums.h"
@@ -152,7 +153,12 @@ UNUSED s32 D_80123568[3]; // BSS Padding
  * Official Name: mainThread
  */
 void thread3_main(UNUSED void *unused) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "thread3_main ENTERED");
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "before init_game");
+
     init_game();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "init_game RETURNED");
+
     gSaveDataFlags = input_update(gSaveDataFlags, 0);
     sBootDelayTimer = 0;
     gGameMode = GAMEMODE_INTRO;
@@ -167,6 +173,13 @@ void thread3_main(UNUSED void *unused) {
                           DPC_CLR_CMD_CTR | DPC_CLR_CMD_CTR);
             while (1) {
                 ; // Infinite loop
+            }
+        }
+        {
+            static u32 s_bka_frame = 0;
+            s_bka_frame++;
+            if ((s_bka_frame % 60) == 1) {
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "game_loop frame=%u", s_bka_frame);
             }
         }
         main_game_loop();

@@ -615,9 +615,9 @@ void BKA_StartEngine(void) {
 
     // GIL already held by NativeThreadWrapper
 
-    LOGI("BKA-STUBS: Launching engine entry func_80000450.");
-    func_80000450(0);
-    LOGI("BKA-STUBS: Engine entry func_80000450 returned — game thread exited!");
+    LOGI("BKA-STUBS: Launching engine entry mainproc().");
+    mainproc();
+    LOGI("BKA-STUBS: Engine entry mainproc() returned — threads should be running!");
 
     // s_n64_gil.unlock REMOVED — game threads manage GIL via BKA_FrameSyncHook();
 }
