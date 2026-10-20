@@ -513,22 +513,61 @@ TextureHeader *load_texture(s32 id) {
     assetOffset = gTextureAssetTable[tableType][assetIndex];
     assetSize = gTextureAssetTable[tableType][assetIndex + 1] - assetOffset;
     asset_load(assetSection, gTempTextureHeader, assetOffset, sizeof(TempTexHeader));
+
+    // ARM64: temp header is BE in ROM. Swap it in place before reading fields.
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+        "temp_hdr raw: numOfTextures=0x%04X isCompressed=%d uncompressedSize=0x%08X",
+        (unsigned)gTempTextureHeader->header.numOfTextures,
+        (int)gTempTextureHeader->header.isCompressed,
+        (unsigned)gTempTextureHeader->uncompressedSize);
+
+    gTempTextureHeader->header.numOfTextures = __builtin_bswap16(gTempTextureHeader->header.numOfTextures);
+    gTempTextureHeader->uncompressedSize = (s32)__builtin_bswap32((u32)gTempTextureHeader->uncompressedSize);
+
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+        "temp_hdr swapped: numOfTextures=0x%04X uncompressedSize=0x%08X",
+        (unsigned)gTempTextureHeader->header.numOfTextures,
+        (unsigned)gTempTextureHeader->uncompressedSize);
+
     numberOfTextures = gTempTextureHeader->header.numOfTextures >> 8;
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+        "numberOfTextures=%u", (unsigned)numberOfTextures);
 
     // Allocate memory for the texture and its display lists.
     // If compressed, decompress it.
     if (!gTempTextureHeader->header.isCompressed) {
-        tex = (TextureHeader *) mempool_alloc(numberOfTextures * TEXTURE_GFX_SIZE + assetSize, gTexColourTag);
+        u32 _alloc_size = numberOfTextures * TEXTURE_GFX_SIZE + assetSize;
+        if (_alloc_size > 4 * 1024 * 1024) {
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+                "SIZE OVERFLOW: num=%u assetSize=%d computed=%u (clamped to 4MB)",
+                (unsigned)numberOfTextures, (int)assetSize, _alloc_size);
+            _alloc_size = 4 * 1024 * 1024;
+        }
+        tex = (TextureHeader *) mempool_alloc(_alloc_size, gTexColourTag);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX", "tex = %p (size=%u)", (void*)tex, _alloc_size);
         __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
             "load_texture id=0x%X size=%d tex=%p", id, numberOfTextures * TEXTURE_GFX_SIZE + assetSize, (void*)tex);
         if (tex == NULL) {
             return NULL;
         }
-        asset_load(assetSection, tex, assetOffset, assetSize);
+        {
+            TextureHeader * volatile _tex_v = tex;
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+                "before asset_load: tex=%p", (void*)_tex_v);
+            asset_load(assetSection, _tex_v, assetOffset, assetSize);
+        }
     } else {
         // Allocate enough memory for the decompressed texture
         uncompressedSize = byteswap32((u8 *) &gTempTextureHeader->uncompressedSize) + sizeof(TextureHeader);
-        tex = (TextureHeader *) mempool_alloc(numberOfTextures * TEXTURE_GFX_SIZE + uncompressedSize, gTexColourTag);
+        u32 _alloc_size = numberOfTextures * TEXTURE_GFX_SIZE + uncompressedSize;
+        if (_alloc_size > 4 * 1024 * 1024) {
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+                "SIZE OVERFLOW: num=%u uncompressedSize=%d computed=%u (clamped to 4MB)",
+                (unsigned)numberOfTextures, (int)uncompressedSize, _alloc_size);
+            _alloc_size = 4 * 1024 * 1024;
+        }
+        tex = (TextureHeader *) mempool_alloc(_alloc_size, gTexColourTag);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX", "tex = %p (size=%u)", (void*)tex, _alloc_size);
         if (tex == NULL) {
             return NULL;
         }
