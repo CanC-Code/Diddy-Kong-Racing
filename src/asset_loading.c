@@ -1,4 +1,5 @@
 #include "asset_loading.h"
+#include <android/log.h>
 
 #include "common.h"
 #include "gzip.h"
