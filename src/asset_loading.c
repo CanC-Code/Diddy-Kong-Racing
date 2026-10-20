@@ -37,6 +37,7 @@ extern u32 gBkaAssetsRomOffset;
  * Official Name: piInit
  */
 void pi_init(void) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-PI", "pi_init ENTERED");
     u32 assetTableSize;
     osCreateMesgQueue(&gPIMesgQueue, gPIMesgBuf, ARRAY_COUNT(gPIMesgBuf));
     osCreateMesgQueue(&gDmaMesgQueue, &gDmaMesg, 1);

@@ -198,6 +198,7 @@ void init_game(void) {
     stubbed_printf(sDebugRomBuildInfo);
     mempool_init_main();
     gzip_init();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "init_game step 1 after: gzip_init();");
 #ifdef ANTI_TAMPER
     sAntiPiracyTriggered = TRUE;
     if (drm_validate_imem()) {
@@ -223,24 +224,32 @@ void init_game(void) {
     }
 #endif
     video_init(VIDEO_MODE_LOWRES_LPN, &gMainSched);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "init_game step 2 after: video_init(VIDEO_MODE_LOWRES_LPN, &gMain");
     pi_init();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "init_game step 3 after: pi_init();");
     gfxtask_init(&gMainSched);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "init_game step 4 after: gfxtask_init(&gMainSched);");
     audio_init(&gMainSched);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "init_game step 5 after: audio_init(&gMainSched);");
     audspat_init();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "init_game step 6 after: audspat_init();");
     sControllerStatus = input_init();
     tex_init_textures();
     allocate_object_model_pools();
     allocate_object_pools();
     debug_text_init();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "init_game step 7 after: debug_text_init();");
     allocate_ghost_data();
     init_particle_assets();
     weather_init();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "init_game step 8 after: weather_init();");
     calc_and_alloc_heap_for_settings();
     default_alloc_displaylist_heap();
     load_fonts();
     init_controller_paks();
     init_save_data();
     bgload_init();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "init_game step 9 after: bgload_init();");
     osCreateMesgQueue(&gNMIMesgQueue, &gNMIOSMesg, 1);
     osScAddClient(&gMainSched, (OSScClient *) gNMISched, &gNMIMesgQueue, OS_SC_ID_PRENMI);
     gNMIMesgBuf = 0;
