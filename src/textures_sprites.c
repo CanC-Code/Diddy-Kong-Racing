@@ -477,6 +477,7 @@ TextureHeader *load_texture(s32 id) {
     s32 assetIndex;
     s32 assetOffset;
     s32 assetSize;
+    uintptr_t dlistPtr;   /* ARM64: separate 64-bit dlist pointer */
     s32 paletteOffset;
     s32 assetSection;
     s32 slotIndex;
@@ -633,7 +634,7 @@ TextureHeader *load_texture(s32 id) {
     gFirstTexIsLoaded = FALSE;
 
     // Initialize display lists for each frame of the texture
-    assetOffset = (s32) (uintptr_t) align16((u8 *) ((uintptr_t) tex + assetSize));
+    dlistPtr = (uintptr_t) align16((u8 *) ((uintptr_t) tex + assetSize));
     texTemp = tex;
     for (i = 0; i < numberOfTextures; i++) {
         material_init(texTemp, (Gfx *) assetOffset);
