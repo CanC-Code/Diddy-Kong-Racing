@@ -1,21 +1,3 @@
-
-/* ============================================================
- * mempool_alloc — matches memory.h declaration (MemoryPoolSlot * return)
- * The previous batch stub skipped this because a naive 'mempool_alloc_safe'
- * check was true. That caused the caller (textures_sprites.c) to see the
- * correct 8-byte return type from memory.h but the linker to resolve to
- * an implicit int mempool_alloc — producing truncated 32-bit pointers on
- * ARM64. This properly-typed version fixes the truncation.
- * ============================================================ */
-#include <stdlib.h>
-
-MemoryPoolSlot *mempool_alloc(s32 size, u32 colourTag) {
-    (void)colourTag;
-    if (size <= 0) return NULL;
-    return (MemoryPoolSlot *)malloc((size_t)size);
-}
-/* ============================================================ */
-
 /* dkr_stubs.c — stub markers */
 /* dkr_stubs.c — link stubs for DKR port.
  * Audio, OS, PFS, GU, RSP blobs. Silent/no-op for first boot. */
@@ -138,17 +120,7 @@ const char* dkr_stubs_build_id = "mempool_removed_2026_10_20";
  * ============================================================ */
 #include <stdlib.h>
 
-void *mempool_alloc_safe(int size, int tag) {
-    (void)tag;
-    if (size <= 0) return NULL;
-    return malloc((size_t)size);
-}
 
-void *mempool_alloc(int size, int tag) {
-    (void)tag;
-    if (size <= 0) return NULL;
-    return malloc((size_t)size);
-}
 
 void *mempool_alloc_fixed(int size, int tag) {
     (void)tag;
@@ -156,21 +128,11 @@ void *mempool_alloc_fixed(int size, int tag) {
     return malloc((size_t)size);
 }
 
-void *mempool_alloc_pool(int size, int tag) {
-    (void)tag;
-    if (size <= 0) return NULL;
-    return malloc((size_t)size);
-}
 
-void mempool_free(void *addr) {
-    if (addr) free(addr);
-}
 
 void mempool_free_queue_clear(void) {}
 void mempool_free_timer(int state) { (void)state; }
-void mempool_init_main(void) {}
 void mempool_locked_set(void *addr) { (void)addr; }
 void mempool_locked_unset(void) {}
-void *mempool_new_sub(int size, int numSlots) { (void)numSlots; return malloc((size_t)size); }
 
 /* ============================================================ */
