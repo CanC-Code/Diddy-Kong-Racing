@@ -82,13 +82,13 @@ s32 osPfsReadWriteFile(OSPfs *pfs, s32 fileNum, u8 flag, int offset, int size, u
 
 /* Internal OS */
 void *__osGetActiveQueue(void) { return 0; }
-int32_t __osSpSetStatus(void)  { return 0; }
+void __osSpSetStatus(u32 status) { (void)status; }
 
 /* GU — matrices (wrong values but defined) */
 void _guMtxF2L(void) {}
 void _guRotateF(void) {}
 void _guTranslateF(void) {}
-void guPerspectiveF(void) {}
+void guPerspectiveF(float mf[4][4], u16 *pn, float fovy, float aspect, float near, float far, float scale) { (void)mf; (void)pn; (void)fovy; (void)aspect; (void)near; (void)far; (void)scale; }
 
 /* Game functions from asm — no C fallback */
 void mempool_alloc(void) {}
@@ -112,7 +112,7 @@ void set_voice_limit(void) {}
 void set_stereo_pan_mode(void) {}
 
 /* Misc */
-int bcmp(const void *a, const void *b, size_t n) { return memcmp(a, b, n); }
+int bcmp(const void *a, const void *b, int n) { return memcmp(a, b, (size_t)n); }
 
 /* Framebuffer dims — wrapper reads these */
 int32_t gFramebufferWidth  = 320;
