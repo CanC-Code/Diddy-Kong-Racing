@@ -27,7 +27,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="Banjo-Kazooie (streaming)"
+            android:label="DKR (streaming)"
             android:theme="@android:style/Theme.NoDisplay"
             android:noHistory="true"
             android:excludeFromRecents="true">
@@ -42,7 +42,7 @@
         <activity
             android:name=".NativeGameActivity"
             android:exported="true"
-            android:label="Banjo-Kazooie (native)"
+            android:label="DKR (native)"
             android:screenOrientation="sensorLandscape"
             android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|uiMode|density"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
