@@ -92,10 +92,10 @@ void _guTranslateF(void) {}
 void guPerspectiveF(float mf[4][4], u16 *pn, float fovy, float aspect, float near, float far, float scale) { (void)mf; (void)pn; (void)fovy; (void)aspect; (void)near; (void)far; (void)scale; }
 
 /* Game functions from asm — no C fallback */
-void mempool_alloc(void) {}
+void *mempool_alloc(int size) { return malloc(size); }
 void mempool_alloc_fixed(void) {}
 void mempool_alloc_pool(void) {}
-void mempool_alloc_safe(void) {}
+void *mempool_alloc_safe(int size, int tag) { (void)tag; return malloc(size); }
 void mempool_free(void) {}
 void mempool_free_queue_clear(void) {}
 void mempool_free_timer(void) {}

@@ -50,6 +50,11 @@ void pi_init(void) {
     gAssetsLookupTable = (u32 *) mempool_alloc_safe(assetTableSize, COLOUR_TAG_GREY);
     mempool_locked_set((u8 *) gAssetsLookupTable);
     dmacopy_internal(gBkaLutRomOffset, (u32) gAssetsLookupTable, (s32) assetTableSize);
+    
+    // DYNAMIC ENDIAN SHIM: Convert the LUT from BE to LE
+    for (u32 i = 0; i < assetTableSize / 4; i++) {
+        gAssetsLookupTable[i] = __builtin_bswap32(gAssetsLookupTable[i]);
+    }
 }
 
 /**
