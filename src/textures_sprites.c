@@ -562,6 +562,14 @@ TextureHeader *load_texture(s32 id) {
             __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
                 "before asset_load: tex=%p", (void*)_tex_v);
             asset_load(assetSection, _tex_v, assetOffset, assetSize);
+            // ARM64 BE/LE: swap texture header fields now that we have the body
+            _tex_v->format              = __builtin_bswap16(_tex_v->format);
+            _tex_v->textureSize         = __builtin_bswap16(_tex_v->textureSize);
+            _tex_v->ciPaletteOffset     = __builtin_bswap16(_tex_v->ciPaletteOffset);
+            _tex_v->numberOfInstances   = __builtin_bswap16(_tex_v->numberOfInstances);
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+                "tex header after swap: format=0x%X textureSize=0x%X ciPaletteOffset=0x%X",
+                (unsigned)_tex_v->format, (unsigned)_tex_v->textureSize, (unsigned)_tex_v->ciPaletteOffset);
         }
     } else {
         // Allocate enough memory for the decompressed texture
@@ -581,7 +589,7 @@ TextureHeader *load_texture(s32 id) {
 
         // Load the compressed texture at the end of the allocated block,
         // so it can be decompressed into the entire block
-        compressedStart = (((s32) tex + uncompressedSize) - assetSize);
+        compressedStart = (((uintptr_t) tex + uncompressedSize) - assetSize);
         compressedStart = (s32) compressedStart - (s32) compressedStart % 16;
         asset_load(assetSection, compressedStart, assetOffset, assetSize);
         gzip_inflate((u8 *) (compressedStart + sizeof(TextureHeader)), (u8 *) tex);
@@ -600,7 +608,7 @@ TextureHeader *load_texture(s32 id) {
         gNumberOfLoadedTextures++;
     }
     gTextureCache[ASSETCACHE_ID(slotIndex)] = id;
-    gTextureCache[ASSETCACHE_PTR(slotIndex)] = (s32) tex;
+    gTextureCache[ASSETCACHE_PTR(slotIndex)] = (uintptr_t) tex;
 
     // Load palettes if needed. If the texture has multiple frames, the palette is shared, so we only load it once.
     paletteOffset = -1;
@@ -625,7 +633,7 @@ TextureHeader *load_texture(s32 id) {
     gFirstTexIsLoaded = FALSE;
 
     // Initialize display lists for each frame of the texture
-    assetOffset = (s32) align16((u8 *) ((s32) tex + assetSize));
+    assetOffset = (s32) (uintptr_t) align16((u8 *) ((uintptr_t) tex + assetSize));
     texTemp = tex;
     for (i = 0; i < numberOfTextures; i++) {
         material_init(texTemp, (Gfx *) assetOffset);
@@ -635,7 +643,7 @@ TextureHeader *load_texture(s32 id) {
                                              //!@bug — no memory was allocated for this!
         }
         assetOffset += TEXTURE_GFX_SIZE; // I'm guessing it takes 12 f3d commands to load the texture
-        texTemp = (TextureHeader *) ((s32) texTemp + texTemp->textureSize);
+        texTemp = (TextureHeader *) ((uintptr_t) texTemp + texTemp->textureSize);
     }
     if (gCiPalettesSize >= MAX_TEX_PALETTE_SIZE) {
         stubbed_printf("TEX Error: Palette memory overflow!!\n");
@@ -659,7 +667,7 @@ void tex_free(TextureHeader *tex) {
     if (tex != NULL) {
         if ((--tex->numberOfInstances) <= 0) {
             for (i = 0; i < gNumberOfLoadedTextures; i++) {
-                if ((s32) tex == gTextureCache[ASSETCACHE_PTR(i)]) {
+                if ((uintptr_t) tex == gTextureCache[ASSETCACHE_PTR(i)]) {
                     mempool_free(tex);
 
                     gTextureCache[ASSETCACHE_ID(i)] = -1;
