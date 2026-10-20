@@ -44,17 +44,9 @@ void mempool_init_main(void) {
  * Official name: mmAllocRegion
  */
 MemoryPoolSlot *mempool_new_sub(s32 poolDataSize, s32 numSlots) {
-    s32 size;
-    MemoryPoolSlot *slots;
-    UNUSED s32 unused_2;
-    u32 intFlags = interrupts_disable();
-    MemoryPoolSlot *newPool;
-
-    size = poolDataSize + (numSlots * sizeof(MemoryPoolSlot));
-    slots = (MemoryPoolSlot *) mempool_alloc_safe(size, COLOUR_TAG_WHITE);
-    newPool = mempool_init(slots, size, numSlots);
-    interrupts_enable(intFlags);
-    return newPool;
+    (void)numSlots;
+    if (poolDataSize <= 0) return NULL;
+    return (MemoryPoolSlot *)malloc((size_t)poolDataSize);
 }
 
 /**

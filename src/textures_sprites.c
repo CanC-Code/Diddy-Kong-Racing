@@ -1,4 +1,5 @@
 #include "textures_sprites.h"
+#include <android/log.h>
 #include "memory.h"
 #include "asset_loading.h"
 #include "game_ui.h"
