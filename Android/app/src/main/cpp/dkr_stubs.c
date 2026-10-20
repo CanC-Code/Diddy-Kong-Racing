@@ -110,3 +110,49 @@ int32_t gFramebufferWidth  = 320;
 int32_t gFramebufferHeight = 240;
 
 const char* dkr_stubs_build_id = "mempool_removed_2026_10_20";
+
+
+/* ============================================================
+ * Android malloc-backed memory pool (replaces src/memory.c)
+ * The N64 memory pool code in src/memory.c is not compiled into
+ * the Android build. These functions provide the same interface
+ * using standard host malloc/free.
+ * ============================================================ */
+#include <stdlib.h>
+
+void *mempool_alloc_safe(int size, int tag) {
+    (void)tag;
+    if (size <= 0) return NULL;
+    return malloc((size_t)size);
+}
+
+void *mempool_alloc(int size, int tag) {
+    (void)tag;
+    if (size <= 0) return NULL;
+    return malloc((size_t)size);
+}
+
+void *mempool_alloc_fixed(int size, int tag) {
+    (void)tag;
+    if (size <= 0) return NULL;
+    return malloc((size_t)size);
+}
+
+void *mempool_alloc_pool(int size, int tag) {
+    (void)tag;
+    if (size <= 0) return NULL;
+    return malloc((size_t)size);
+}
+
+void mempool_free(void *addr) {
+    if (addr) free(addr);
+}
+
+void mempool_free_queue_clear(void) {}
+void mempool_free_timer(int state) { (void)state; }
+void mempool_init_main(void) {}
+void mempool_locked_set(void *addr) { (void)addr; }
+void mempool_locked_unset(void) {}
+void *mempool_new_sub(int size, int numSlots) { (void)numSlots; return malloc((size_t)size); }
+
+/* ============================================================ */

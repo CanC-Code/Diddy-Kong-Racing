@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include "memory.h"
 #include "config.h"
 #include "math_util.h"
@@ -99,16 +98,22 @@ MemoryPoolSlot *mempool_init(MemoryPoolSlot *slots, s32 poolSize, s32 numSlots) 
  * dumping the function stack contents onto a controller pak for debugging.
  */
 void *mempool_alloc_safe(s32 size, u32 colourTag) {
-    (void)colourTag;
-    return malloc(size);
+    void *addr;
+    if (size == 0) {
+        dump_memory_to_cpak(stack_pointer()->sp, size, colourTag);
+    }
+    addr = mempool_slot_find(POOL_MAIN, size, colourTag);
+    if (addr == NULL) {
+        dump_memory_to_cpak(stack_pointer()->sp, size, colourTag);
+    }
+    return addr;
 }
 
 /**
  * Reserves and returns memory from the main memory pool. Has no assert checks.
  */
-void *mempool_alloc(s32 size, u32 colourTag) {
-    (void)colourTag;
-    return malloc(size);
+MemoryPoolSlot *mempool_alloc(s32 size, u32 colourTag) {
+    return mempool_slot_find(POOL_MAIN, size, colourTag);
 }
 
 /**
@@ -247,7 +252,15 @@ void mempool_free_timer(s32 state) {
  * state is set to 0, otherwise the data will just be marked for deletion.
  * Official Name: mmFree
  */
-void mempool_free(void *addr) { free(addr); }
+void mempool_free(void *data) {
+    u32 intFlags = interrupts_disable();
+    if (gFreeQueueTimer == 0) {
+        mempool_free_addr(data);
+    } else {
+        mempool_free_queue(data);
+    }
+    interrupts_enable(intFlags);
+}
 
 /**
  * Frees all the addresses in the free queue.
