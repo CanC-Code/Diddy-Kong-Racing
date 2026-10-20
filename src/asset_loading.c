@@ -285,6 +285,8 @@ void dmacopy(u32 romOffset, void *ramAddress, s32 numBytes) {
 
 // Looks like v2 ROMs made an alternate version of this function, and this is the original.
 void dmacopy_internal(u32 romOffset, void *ramAddress, s32 numBytes) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-DMA",
+        "dmacopy: romOffset=0x%X ramAddr=%p numBytes=%d", romOffset, ramAddress, numBytes);
 #endif
     OSMesg dmaMesg;
     s32 numBytesToDMA;
