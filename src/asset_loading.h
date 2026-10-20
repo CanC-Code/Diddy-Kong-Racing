@@ -3,6 +3,7 @@
 
 #include "types.h"
 
+extern u32 *gAssetsLookupTable;
 void pi_init(void);
 u32 *asset_table_load(u32 assetIndex);
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);

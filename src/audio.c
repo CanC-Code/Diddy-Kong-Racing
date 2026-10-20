@@ -108,19 +108,18 @@ void audio_init(OSSched *sc) {
     }
     {
         // ARM64 BE/LE shim: audio metadata table is BE in ROM.
-        // gAssetsLookupTable now holds LE offsets (post-bswap in pi_init).
-        // Size of the loaded table = LUT[ASSET_AUDIO_TABLE+2] - LUT[ASSET_AUDIO_TABLE+1]
-        u32 audio_table_size = gAssetsLookupTable[ASSET_AUDIO_TABLE + 2] - gAssetsLookupTable[ASSET_AUDIO_TABLE + 1];
-        u32 audio_table_entries = audio_table_size / 4;
+        // Per asset_audio.meta.json: 13 sub-assets (ASSET_AUDIO_0 .. ASSET_AUDIO_12)
+        const u32 audio_table_entries = 13;
         __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
-            "audio table BEFORE swap: size=%u entries=%u [0]=%d [1]=%d [2]=%d [3]=%d",
-            audio_table_size, audio_table_entries,
-            addrPtr[0], addrPtr[1], addrPtr[2], addrPtr[3]);
-        dkr_bswap_u32_buf((u32 *)addrPtr, audio_table_entries);
-        __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
-            "audio table AFTER swap: [0]=%d [1]=%d [2]=%d [3]=%d [4]=%d [5]=%d [6]=%d [7]=%d",
+            "audio table BEFORE swap: [0]=%d [1]=%d [2]=%d [3]=%d [4]=%d [5]=%d [6]=%d [7]=%d",
             addrPtr[0], addrPtr[1], addrPtr[2], addrPtr[3],
             addrPtr[4], addrPtr[5], addrPtr[6], addrPtr[7]);
+        dkr_bswap_u32_buf((u32 *)addrPtr, audio_table_entries);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
+            "audio table AFTER swap: [0]=%d [1]=%d [2]=%d [3]=%d [4]=%d [5]=%d [6]=%d [7]=%d [8]=%d [9]=%d [10]=%d [11]=%d [12]=%d",
+            addrPtr[0], addrPtr[1], addrPtr[2], addrPtr[3],
+            addrPtr[4], addrPtr[5], addrPtr[6], addrPtr[7],
+            addrPtr[8], addrPtr[9], addrPtr[10], addrPtr[11], addrPtr[12]);
     }
     __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after asset_table_load");
 
