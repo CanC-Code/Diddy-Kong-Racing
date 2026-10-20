@@ -107,3 +107,5 @@ baseroms/*.v64
 /assets.bin
 /..lut.bin
 include/asset_enums.h
+!Android/app/src/main/assets/
+!Android/app/src/main/assets/*.yaml
