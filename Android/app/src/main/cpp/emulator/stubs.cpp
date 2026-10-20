@@ -589,6 +589,7 @@ int bkboot_inflate(void) {
     return result;
 }
 
+extern void mainproc(void);
 void BKA_StartEngine(void) {
     LOGI("BKA-STUBS: Waiting for resource gate before engine ignition...");
     WaitForResourcesReady();
