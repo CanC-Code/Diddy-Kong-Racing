@@ -53,7 +53,7 @@ void pi_init(void) {
     __android_log_print(ANDROID_LOG_ERROR, "DKR-LUT", "pi_init: assetTableSize=%d gAssetsLookupTable=%p",
         (int)assetTableSize, (void*)gAssetsLookupTable);
     mempool_locked_set((u8 *) gAssetsLookupTable);
-    dmacopy_internal(gBkaLutRomOffset, (u32) gAssetsLookupTable, (s32) assetTableSize);
+    dmacopy_internal(gBkaLutRomOffset, gAssetsLookupTable, (s32) assetTableSize);
     
     // DYNAMIC ENDIAN SHIM: Convert the LUT from BE to LE
     for (u32 i = 0; i < assetTableSize / 4; i++) {
@@ -88,7 +88,7 @@ u32 *asset_table_load(u32 assetIndex) {
         return NULL;
     }
 
-    dmacopy_internal((u32) (start + gBkaAssetsRomOffset), (u32) out, size);
+    dmacopy_internal((u32) (start + gBkaAssetsRomOffset), out, size);
 
 #if VERSION >= VERSION_79
     osSendMesg(&gDmaMutex, (OSMesg) 1, OS_MESG_NOBLOCK);
@@ -123,7 +123,7 @@ UNUSED u8 *asset_table_load_zipped(u32 assetIndex, s32 extraMemory) {
     size = ((s32 *) out)[1] - start;
     gzipHeaderRamPos = (u8 *) mempool_alloc_safe(8, COLOUR_TAG_WHITE);
 
-    dmacopy_internal((u32) (start + gBkaAssetsRomOffset), (u32) gzipHeaderRamPos, 8);
+    dmacopy_internal((u32) (start + gBkaAssetsRomOffset), gzipHeaderRamPos, 8);
 
     totalSpace = byteswap32(gzipHeaderRamPos) + extraMemory;
     mempool_free(gzipHeaderRamPos);
@@ -133,7 +133,7 @@ UNUSED u8 *asset_table_load_zipped(u32 assetIndex, s32 extraMemory) {
     }
     gzipHeaderRamPos = (out + totalSpace) - size;
     if (1) {} // Fakematch
-    dmacopy_internal((u32) (start + gBkaAssetsRomOffset), (u32) gzipHeaderRamPos, size);
+    dmacopy_internal((u32) (start + gBkaAssetsRomOffset), gzipHeaderRamPos, size);
     gzip_inflate(gzipHeaderRamPos, out);
 
 #if VERSION >= VERSION_79
@@ -147,7 +147,7 @@ UNUSED u8 *asset_table_load_zipped(u32 assetIndex, s32 extraMemory) {
  * Loads an asset section to a specific memory address.
  * Returns the size of asset section.
  */
-UNUSED s32 asset_table_load_addr(u32 assetIndex, u32 address) {
+UNUSED s32 asset_table_load_addr(u32 assetIndex, void *address) {
     u32 start;
     s32 size;
     u32 *index;
@@ -265,7 +265,7 @@ s32 asset_table_size(u32 assetIndex) {
  * Copies data from the game cartridge to a ram address.
  * Official name: romCopy
  */
-void dmacopy(u32 romOffset, u32 ramAddress, s32 numBytes) {
+void dmacopy(u32 romOffset, void *ramAddress, s32 numBytes) {
 #if VERSION >= VERSION_79
     OSMesg msg = NULL;
     osRecvMesg(&gDmaMutex, &msg, OS_MESG_BLOCK);
@@ -274,7 +274,7 @@ void dmacopy(u32 romOffset, u32 ramAddress, s32 numBytes) {
 }
 
 // Looks like v2 ROMs made an alternate version of this function, and this is the original.
-void dmacopy_internal(u32 romOffset, u32 ramAddress, s32 numBytes) {
+void dmacopy_internal(u32 romOffset, void *ramAddress, s32 numBytes) {
 #endif
     OSMesg dmaMesg;
     s32 numBytesToDMA;
