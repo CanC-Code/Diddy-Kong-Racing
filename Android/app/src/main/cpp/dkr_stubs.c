@@ -15,9 +15,9 @@ long long int aspMainDataStart[1] = {0};
 long long int aspMainTextStart[1] = {0};
 
 /* ROM/linker symbols — populated by wrapper at runtime */
+u32 gBkaLutSize = 0;
+u32 gBkaLutN64Addr = 0;
 uint8_t __ROM_END[0];
-uint8_t __ASSETS_LUT_START[0];
-uint8_t __ASSETS_LUT_END[0];
 uint8_t D_B0000578[16];
 uint8_t gzip_inflate_block[4096];
 uint8_t align16[16];

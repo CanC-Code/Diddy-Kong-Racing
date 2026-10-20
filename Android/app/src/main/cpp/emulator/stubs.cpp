@@ -590,11 +590,20 @@ int bkboot_inflate(void) {
 }
 
 extern void mainproc(void);
+extern u32 gBkaLutSize;
+extern u32 gBkaLutN64Addr;
 void BKA_StartEngine(void) {
     LOGI("BKA-STUBS: Waiting for resource gate before engine ignition...");
     WaitForResourcesReady();
 
     LOGI("BKA-STUBS: Resource gate passed.");
+
+    // Dynamically load the Asset LUT metadata from the ROM
+    // YAML shows 'lookup' segment at 0xF31560 -> ROM offset 0x731560
+    gBkaLutN64Addr = 0x80731560;
+    u32 max_index = __builtin_bswap32(*(u32*)(gN64_ROM_Base + 0x731560));
+    gBkaLutSize = (max_index + 2) * 4; // max_index + 1 offsets + 1 end_boundary
+    LOGI("BKA-STUBS: LUT initialized at 0x%X, max_index=%u, size=%u", gBkaLutN64Addr, max_index, gBkaLutSize);
 
     if (gN64_RDRAM == nullptr) {
         LOGE("BKA-STUBS: FATAL: gN64_RDRAM is null.");

@@ -25,7 +25,8 @@ u32 *gAssetsLookupTable;
 /*******************************/
 
 // These are both defined in the generated dkr.ld file.
-extern u8 __ASSETS_LUT_START[], __ASSETS_LUT_END[];
+extern u32 gBkaLutSize;
+extern u32 gBkaLutN64Addr;
 
 /**
  * Set up the peripheral interface message queues and scheduling.
@@ -44,10 +45,10 @@ void pi_init(void) {
     osSendMesg(&gDmaMutex, (OSMesg) 1, OS_MESG_NOBLOCK);
 #endif
 
-    assetTableSize = __ASSETS_LUT_END - __ASSETS_LUT_START;
+    assetTableSize = gBkaLutSize;
     gAssetsLookupTable = (u32 *) mempool_alloc_safe(assetTableSize, COLOUR_TAG_GREY);
     mempool_locked_set((u8 *) gAssetsLookupTable);
-    dmacopy_internal((u32) __ASSETS_LUT_START, (u32) gAssetsLookupTable, (s32) assetTableSize);
+    dmacopy_internal(gBkaLutN64Addr, (u32) gAssetsLookupTable, (s32) assetTableSize);
 }
 
 /**
@@ -77,7 +78,7 @@ u32 *asset_table_load(u32 assetIndex) {
         return NULL;
     }
 
-    dmacopy_internal((u32) (start + __ASSETS_LUT_END), (u32) out, size);
+    dmacopy_internal((u32) (start + gBkaLutN64Addr + gBkaLutSize), (u32) out, size);
 
 #if VERSION >= VERSION_79
     osSendMesg(&gDmaMutex, (OSMesg) 1, OS_MESG_NOBLOCK);
@@ -112,7 +113,7 @@ UNUSED u8 *asset_table_load_zipped(u32 assetIndex, s32 extraMemory) {
     size = ((s32 *) out)[1] - start;
     gzipHeaderRamPos = (u8 *) mempool_alloc_safe(8, COLOUR_TAG_WHITE);
 
-    dmacopy_internal((u32) (start + __ASSETS_LUT_END), (u32) gzipHeaderRamPos, 8);
+    dmacopy_internal((u32) (start + gBkaLutN64Addr + gBkaLutSize), (u32) gzipHeaderRamPos, 8);
 
     totalSpace = byteswap32(gzipHeaderRamPos) + extraMemory;
     mempool_free(gzipHeaderRamPos);
@@ -122,7 +123,7 @@ UNUSED u8 *asset_table_load_zipped(u32 assetIndex, s32 extraMemory) {
     }
     gzipHeaderRamPos = (out + totalSpace) - size;
     if (1) {} // Fakematch
-    dmacopy_internal((u32) (start + __ASSETS_LUT_END), (u32) gzipHeaderRamPos, size);
+    dmacopy_internal((u32) (start + gBkaLutN64Addr + gBkaLutSize), (u32) gzipHeaderRamPos, size);
     gzip_inflate(gzipHeaderRamPos, out);
 
 #if VERSION >= VERSION_79
@@ -154,7 +155,7 @@ UNUSED s32 asset_table_load_addr(u32 assetIndex, u32 address) {
     start = *index;
     size = *(index + 1) - start;
 
-    dmacopy_internal((u32) (start + __ASSETS_LUT_END), address, size);
+    dmacopy_internal((u32) (start + gBkaLutN64Addr + gBkaLutSize), address, size);
 
 #if VERSION >= VERSION_79
     osSendMesg(&gDmaMutex, (OSMesg) 1, OS_MESG_NOBLOCK);
@@ -185,7 +186,7 @@ s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size) {
     index = assetIndex + gAssetsLookupTable;
     start = *index + assetOffset;
 
-    dmacopy_internal((u32) (start + __ASSETS_LUT_END), address, size);
+    dmacopy_internal((u32) (start + gBkaLutN64Addr + gBkaLutSize), address, size);
 
 #if VERSION >= VERSION_79
     osSendMesg(&gDmaMutex, (OSMesg) 1, OS_MESG_NOBLOCK);
@@ -219,7 +220,7 @@ u8 *asset_rom_offset(u32 assetIndex, u32 assetOffset) {
     osSendMesg(&gDmaMutex, (OSMesg) 1, OS_MESG_NOBLOCK);
 #endif
 
-    return start + __ASSETS_LUT_END;
+    return start + gBkaLutN64Addr + gBkaLutSize;
 }
 
 /**
