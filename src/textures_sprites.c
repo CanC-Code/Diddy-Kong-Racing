@@ -386,6 +386,22 @@ void tex_init_textures(void) {
     gTextureAssetTable[TEX_TABLE_2D] = (s32 *) asset_table_load(ASSET_TEXTURES_2D_TABLE);
     gTextureAssetTable[TEX_TABLE_3D] = (s32 *) asset_table_load(ASSET_TEXTURES_3D_TABLE);
 
+    // ARM64 BE/LE shim: gTextureAssetTable holds BE offsets from ROM.
+    // Byteswap in place until the terminator (-1 in BE becomes -1 in LE, so
+    // the same sentinel works: 0xFFFFFFFF byteswapped is still 0xFFFFFFFF).
+    if (gTextureAssetTable[TEX_TABLE_2D]) {
+        for (i = 0; gTextureAssetTable[TEX_TABLE_2D][i] != -1; i++) {
+            gTextureAssetTable[TEX_TABLE_2D][i] = (s32)__builtin_bswap32((u32)gTextureAssetTable[TEX_TABLE_2D][i]);
+        }
+        gTextureAssetTable[TEX_TABLE_2D][i] = -1; // sentinel
+    }
+    if (gTextureAssetTable[TEX_TABLE_3D]) {
+        for (i = 0; gTextureAssetTable[TEX_TABLE_3D][i] != -1; i++) {
+            gTextureAssetTable[TEX_TABLE_3D][i] = (s32)__builtin_bswap32((u32)gTextureAssetTable[TEX_TABLE_3D][i]);
+        }
+        gTextureAssetTable[TEX_TABLE_3D][i] = -1;
+    }
+
     for (i = 0; gTextureAssetTable[TEX_TABLE_2D][i] != -1; i++) {}
     gTextureTableSize[TEX_TABLE_2D] = --i;
 

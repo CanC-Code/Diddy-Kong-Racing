@@ -10,6 +10,7 @@ s32 asset_load(u32 assetIndex, void *address, s32 assetOffset, s32 size);
 u8 *asset_rom_offset(u32 assetIndex, u32 assetOffset);
 s32 asset_table_size(u32 assetIndex);
 void dmacopy(u32 romOffset, void *ramAddress, s32 numBytes);
+void dmacopy_internal(u32 romOffset, void *ramAddress, s32 numBytes);
 void dmacopy_v1(u32 romOffset, void *ramAddress, s32 numBytes);
 
 #endif
