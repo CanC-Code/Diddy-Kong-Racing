@@ -1,3 +1,4 @@
+/* dkr_stubs.c — stub markers */
 /* dkr_stubs.c — link stubs for DKR port.
  * Audio, OS, PFS, GU, RSP blobs. Silent/no-op for first boot. */
 #include <stdint.h>
@@ -107,3 +108,5 @@ int bcmp(const void *a, const void *b, int n) { return memcmp(a, b, (size_t)n); 
 /* Framebuffer dims — wrapper reads these */
 int32_t gFramebufferWidth  = 320;
 int32_t gFramebufferHeight = 240;
+
+const char* dkr_stubs_build_id = "mempool_removed_2026_10_20";

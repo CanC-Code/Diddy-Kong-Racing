@@ -106,7 +106,7 @@ void *mempool_alloc_safe(s32 size, u32 colourTag) {
 /**
  * Reserves and returns memory from the main memory pool. Has no assert checks.
  */
-MemoryPoolSlot *mempool_alloc(s32 size, u32 colourTag) {
+void *mempool_alloc(s32 size, u32 colourTag) {
     (void)colourTag;
     return malloc(size);
 }

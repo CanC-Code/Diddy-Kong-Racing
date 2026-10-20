@@ -48,6 +48,8 @@ void pi_init(void) {
 
     assetTableSize = gBkaLutSize;
     gAssetsLookupTable = (u32 *) mempool_alloc_safe(assetTableSize, COLOUR_TAG_GREY);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LUT", "pi_init: assetTableSize=%d gAssetsLookupTable=%p",
+        (int)assetTableSize, (void*)gAssetsLookupTable);
     mempool_locked_set((u8 *) gAssetsLookupTable);
     dmacopy_internal(gBkaLutRomOffset, (u32) gAssetsLookupTable, (s32) assetTableSize);
     
