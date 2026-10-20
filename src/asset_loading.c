@@ -1,3 +1,4 @@
+#include <string.h>
 #include "asset_loading.h"
 #include <android/log.h>
 
