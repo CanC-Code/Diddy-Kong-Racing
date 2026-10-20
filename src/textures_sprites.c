@@ -514,28 +514,35 @@ TextureHeader *load_texture(s32 id) {
     assetSize = gTextureAssetTable[tableType][assetIndex + 1] - assetOffset;
     asset_load(assetSection, gTempTextureHeader, assetOffset, sizeof(TempTexHeader));
 
-    // ARM64: temp header is BE in ROM. Swap it in place before reading fields.
+    // Temp header is BE in ROM. The original code already byteswaps
+    // uncompressedSize via byteswap32(); we just need to swap numOfTextures.
     __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
         "temp_hdr raw: numOfTextures=0x%04X isCompressed=%d uncompressedSize=0x%08X",
         (unsigned)gTempTextureHeader->header.numOfTextures,
         (int)gTempTextureHeader->header.isCompressed,
         (unsigned)gTempTextureHeader->uncompressedSize);
 
+    // Swap numOfTextures (u16). isCompressed is a BYTE, no swap needed.
     gTempTextureHeader->header.numOfTextures = __builtin_bswap16(gTempTextureHeader->header.numOfTextures);
-    gTempTextureHeader->uncompressedSize = (s32)__builtin_bswap32((u32)gTempTextureHeader->uncompressedSize);
+    // Do NOT swap uncompressedSize — original code will do it with byteswap32()
 
     __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
-        "temp_hdr swapped: numOfTextures=0x%04X uncompressedSize=0x%08X",
+        "temp_hdr numOfTextures swapped=0x%04X isCompressed=%d",
         (unsigned)gTempTextureHeader->header.numOfTextures,
-        (unsigned)gTempTextureHeader->uncompressedSize);
+        (int)gTempTextureHeader->header.isCompressed);
 
     numberOfTextures = gTempTextureHeader->header.numOfTextures >> 8;
+    if (numberOfTextures == 0) numberOfTextures = 1;  // single-frame fallback
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+        "numberOfTextures=%u (after fallback)", (unsigned)numberOfTextures);
     __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
         "numberOfTextures=%u", (unsigned)numberOfTextures);
 
     // Allocate memory for the texture and its display lists.
     // If compressed, decompress it.
-    if (!gTempTextureHeader->header.isCompressed) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+        "isCompressed check: value=%d", (int)gTempTextureHeader->header.isCompressed);
+    if (1) {  // FORCE uncompressed path for diagnostic; revert to !isCompressed after
         u32 _alloc_size = numberOfTextures * TEXTURE_GFX_SIZE + assetSize;
         if (_alloc_size > 4 * 1024 * 1024) {
             __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
