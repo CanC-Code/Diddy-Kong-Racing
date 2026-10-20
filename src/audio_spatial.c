@@ -1,3 +1,4 @@
+#include <android/log.h>
 #include "audio_spatial.h"
 #include "audio.h"
 #include "audio_vehicle.h"
@@ -40,20 +41,8 @@ s32 D_8011AC1C;
  * Initializes the audio spatial system.
  */
 void audspat_init(void) {
-    s32 i;
-
-    sound_table_properties(&gSpatialSoundTable, NULL, NULL);
-    gAudioPointsPool = mempool_alloc_safe(sizeof(AudioPoint) * MAX_AUDIO_POINTS, COLOUR_TAG_CYAN);
-    gFreeAudioPoints = mempool_alloc_safe(sizeof(uintptr_t) * MAX_AUDIO_POINTS, COLOUR_TAG_CYAN);
-    gAudioPoints = mempool_alloc_safe(sizeof(uintptr_t) * MAX_AUDIO_POINTS, COLOUR_TAG_CYAN);
-    gNumAudioPoints = 0;
-    for (i = 0; i < ARRAY_COUNT(gAudioLines); i++) {
-        gAudioLines[i].soundHandle = NULL;
-    }
-    for (i = 0; i < MAX_AUDIO_POINTS; i++) {
-        gAudioPointsPool[i].soundHandle = NULL;
-    }
-    audspat_reset();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
+        "audspat_init STUBBED — audio spatial disabled");
 }
 
 /**
