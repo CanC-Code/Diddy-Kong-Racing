@@ -47,7 +47,7 @@ s32 byteswap32(u8 *arg0) {
  * Official name: rzipUncompressSizeROM
  */
 s32 gzip_size_uncompressed(s32 assetIndex, s32 assetOffset) {
-    asset_load(assetIndex, (u32) gPackedHeader, assetOffset, 8);
+    asset_load(assetIndex, gPackedHeader, assetOffset, 8);
     return byteswap32((u8 *) gPackedHeader);
 }
 

@@ -1359,7 +1359,7 @@ void func_800C6464_C7064(void) {
     for (i = 0; i < 4; i++) {
         jpFontHeader = &D_8012C2A4_EE5E4[i];
         for (charIndex = 0; charIndex < JP_FONT_ARRAY_SIZE; charIndex++) {
-            asset_load(ASSET_JAPANESE_FONTS, (u32) jpFontData,
+            asset_load(ASSET_JAPANESE_FONTS, jpFontData,
                        jpFontHeader->offsetToData + (charIndex * jpFontHeader->bytesPerCharacter), 0x40);
             D_8012C2A8_EE5E8[i]->spacing[charIndex] = jpFontData->spacing;
         }
@@ -1476,7 +1476,7 @@ s32 func_800C68CC_C74CC(u16 arg0) {
                 }
             }
             asset = &D_8012C2C0_EE600[curIndex];
-            asset_load(ASSET_JAPANESE_FONTS, (u32) asset,
+            asset_load(ASSET_JAPANESE_FONTS, asset,
                        D_8012C2A4_EE5E4[fontInUse].offsetToData +
                            (D_8012C2A4_EE5E4[fontInUse].bytesPerCharacter * arg0),
                        D_8012C2A4_EE5E4[fontInUse].bytesPerCharacter);

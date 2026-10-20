@@ -189,7 +189,7 @@ UNUSED s32 asset_table_load_addr(u32 assetIndex, void *address) {
  * Returns the size argument.
  * Official name: piRomLoadSection
  */
-s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size) {
+s32 asset_load(u32 assetIndex, void *address, s32 assetOffset, s32 size) {
     u32 *index;
     s32 start;
 
@@ -276,6 +276,15 @@ s32 asset_table_size(u32 assetIndex) {
  * Official name: romCopy
  */
 void dmacopy(u32 romOffset, void *ramAddress, s32 numBytes) {
+    // ARM64 truncation guard: on 64-bit Android, ramAddress MUST fit in 64 bits.
+    // If upper 32 bits are zero but the address is < 4GB and != NULL, it was
+    // truncated somewhere upstream. Abort early to make the bug visible.
+    uintptr_t _addr_val = (uintptr_t)ramAddress;
+    if (_addr_val != 0 && _addr_val < 0x100000000ULL && numBytes > 0) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-TRUNC",
+            "dmacopy: TRUNCATED dst ptr=0x%lX numBytes=%d romOffset=0x%X",
+            (unsigned long)_addr_val, numBytes, romOffset);
+    }
 #if VERSION >= VERSION_79
     OSMesg msg = NULL;
     osRecvMesg(&gDmaMutex, &msg, OS_MESG_BLOCK);

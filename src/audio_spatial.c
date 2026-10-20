@@ -41,8 +41,7 @@ s32 D_8011AC1C;
  * Initializes the audio spatial system.
  */
 void audspat_init(void) {
-    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
-        "audspat_init STUBBED — audio spatial disabled");
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "audspat_init STUBBED");
 }
 
 /**

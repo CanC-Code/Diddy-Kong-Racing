@@ -1974,7 +1974,7 @@ void load_menu_text(s32 language) {
         return;
     }
 
-    asset_load(ASSET_MENU_TEXT, (u32) temp, langIndex, size);
+    asset_load(ASSET_MENU_TEXT, temp, langIndex, size);
 
     // TODO: Find a way to clean up the ugly hacks.
     // Fill up the lookup table with proper RAM addresses

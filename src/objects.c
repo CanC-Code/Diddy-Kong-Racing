@@ -901,7 +901,7 @@ ObjectHeader *load_object_header(s32 index) {
     size = gAssetsObjectHeadersTable[index + 1] - assetOffset;
     address = mempool_alloc_pool((MemoryPoolSlot *) gObjectMemoryPool, size);
     if (address != NULL) {
-        asset_load(ASSET_OBJECTS, (u32) address, assetOffset, size);
+        asset_load(ASSET_OBJECTS, address, assetOffset, size);
         address->unk24 = (ObjectHeader24 *) ((uintptr_t) address + (uintptr_t) address->unk24);
         address->objectParticles =
             (ObjHeaderParticleEntry *) ((uintptr_t) address + (uintptr_t) address->objectParticles);
@@ -993,7 +993,7 @@ void track_spawn_objects(s32 mapID, s32 index) {
         compressedAsset = (u8 *) mem;
         compressedAsset =
             ((compressedAsset + gzip_size_uncompressed(ASSET_LEVEL_OBJECT_MAPS, assetOffset)) - (0, assetSize)) + 0x20;
-        asset_load(ASSET_LEVEL_OBJECT_MAPS, (u32) compressedAsset, assetOffset, assetSize);
+        asset_load(ASSET_LEVEL_OBJECT_MAPS, compressedAsset, assetOffset, assetSize);
         gzip_inflate(compressedAsset, (u8 *) mem);
         mempool_free(objMapTable);
         gObjectMapSpawnList[index] = (u8 *) (gObjectMap[index] + sizeof(uintptr_t));

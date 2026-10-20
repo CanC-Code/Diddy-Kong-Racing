@@ -68,7 +68,7 @@ VehicleSoundData *racer_sound_init(s32 characterId, s32 vehicleId) {
     table = (s32 *) asset_table_load(ASSET_AUDIO_TABLE);
     assetOffset = table[ASSET_AUDIO_7] + (vehicleId * 10 + characterId) * sizeof(VehicleSoundAsset);
     asset = (VehicleSoundAsset *) mempool_alloc_safe(sizeof(VehicleSoundAsset), COLOUR_TAG_CYAN);
-    asset_load(ASSET_AUDIO, (u32) asset, assetOffset, sizeof(VehicleSoundAsset));
+    asset_load(ASSET_AUDIO, asset, assetOffset, sizeof(VehicleSoundAsset));
 
     soundData = (VehicleSoundData *) mempool_alloc_safe(sizeof(VehicleSoundData), COLOUR_TAG_CYAN);
 

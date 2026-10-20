@@ -6,7 +6,7 @@
 extern u32 *gAssetsLookupTable;
 void pi_init(void);
 u32 *asset_table_load(u32 assetIndex);
-s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
+s32 asset_load(u32 assetIndex, void *address, s32 assetOffset, s32 size);
 u8 *asset_rom_offset(u32 assetIndex, u32 assetOffset);
 s32 asset_table_size(u32 assetIndex);
 void dmacopy(u32 romOffset, void *ramAddress, s32 numBytes);
