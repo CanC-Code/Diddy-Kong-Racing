@@ -15,8 +15,9 @@ long long int aspMainDataStart[1] = {0};
 long long int aspMainTextStart[1] = {0};
 
 /* ROM/linker symbols — populated by wrapper at runtime */
-u32 gBkaLutSize = 0;
-u32 gBkaLutN64Addr = 0;
+u32 gBkaLutSize = 0xD0; // 208 bytes from splat YAML
+u32 gBkaLutRomOffset = 0xED0E0; // assets.lut start from splat YAML
+uint32_t gBkaAssetsRomOffset = 0xED1B0; // assets start from splat YAML
 uint8_t __ROM_END[0];
 uint8_t D_B0000578[16];
 uint8_t gzip_inflate_block[4096];
