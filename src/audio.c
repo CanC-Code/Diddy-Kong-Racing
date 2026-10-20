@@ -11,6 +11,16 @@
 #include "sched.h"
 #include "types.h"
 
+/* ARM64 port: byteswap an array of u32 in place (N64 BE -> host LE).
+ * Used at every asset_load boundary where a table of u32 offsets/sizes is
+ * loaded from ROM. Matches the OTR pattern: swap per-structure at use site. */
+static void dkr_bswap_u32_buf(u32 *buf, u32 count) {
+    for (u32 i = 0; i < count; i++) {
+        buf[i] = __builtin_bswap32(buf[i]);
+    }
+}
+
+
 /************ .data ************/
 
 ALCSPlayer *gMusicPlayer = NULL;  // Official Name: tuneSeqPlayer
@@ -92,6 +102,26 @@ void audio_init(OSSched *sc) {
 
 
     addrPtr = (s32 *) asset_table_load(ASSET_AUDIO_TABLE);
+    if (addrPtr == NULL) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "FATAL: asset_table_load returned NULL");
+        return;
+    }
+    {
+        // ARM64 BE/LE shim: audio metadata table is BE in ROM.
+        // gAssetsLookupTable now holds LE offsets (post-bswap in pi_init).
+        // Size of the loaded table = LUT[ASSET_AUDIO_TABLE+2] - LUT[ASSET_AUDIO_TABLE+1]
+        u32 audio_table_size = gAssetsLookupTable[ASSET_AUDIO_TABLE + 2] - gAssetsLookupTable[ASSET_AUDIO_TABLE + 1];
+        u32 audio_table_entries = audio_table_size / 4;
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
+            "audio table BEFORE swap: size=%u entries=%u [0]=%d [1]=%d [2]=%d [3]=%d",
+            audio_table_size, audio_table_entries,
+            addrPtr[0], addrPtr[1], addrPtr[2], addrPtr[3]);
+        dkr_bswap_u32_buf((u32 *)addrPtr, audio_table_entries);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
+            "audio table AFTER swap: [0]=%d [1]=%d [2]=%d [3]=%d [4]=%d [5]=%d [6]=%d [7]=%d",
+            addrPtr[0], addrPtr[1], addrPtr[2], addrPtr[3],
+            addrPtr[4], addrPtr[5], addrPtr[6], addrPtr[7]);
+    }
     __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after asset_table_load");
 
 
