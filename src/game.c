@@ -72,6 +72,15 @@ void level_global_init(void) {
     s32 j;
     header = mempool_alloc_safe(sizeof(LevelHeader), COLOUR_TAG_YELLOW);
     gTempAssetTable = (s32 *) asset_table_load(ASSET_LEVEL_HEADERS_TABLE);
+    /* ARM64: BE offset table needs byteswapping; terminator -1 survives bswap. */
+    if (gTempAssetTable != NULL) {
+        s32 _n = 0;
+        while (_n < 4096 && gTempAssetTable[_n] != -1) _n++;
+        for (s32 _i = 0; _i <= _n; _i++) {
+            gTempAssetTable[_i] = (s32) __builtin_bswap32((u32) gTempAssetTable[_i]);
+        }
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-LVL", "gTempAssetTable bswapped, %d entries", _n);
+    }
     i = 0;
     while (i < 16) {
         gRaceTypeCountTable[i++] = 0;
@@ -106,7 +115,12 @@ void level_global_init(void) {
     }
     for (i = 0; i < gNumberOfLevelHeaders; i++) {
         if (gGlobalLevelTable[i].raceType == 5) {
-            D_80121178[gGlobalLevelTable[i].world] = i;
+            s32 _w = gGlobalLevelTable[i].world;
+            if (_w >= 0 && _w < gNumberOfWorlds) {
+                D_80121178[_w] = i;
+            } else {
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-LVL", "OOB world idx=%d (max=%d) — skipping", _w, gNumberOfWorlds);
+            }
         }
     }
     mempool_free(gTempAssetTable);
