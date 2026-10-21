@@ -1,3 +1,4 @@
+#include "emulator/ptr_shim.h"
 #include <android/log.h>
 #include <stdlib.h>
 
@@ -11,7 +12,13 @@ void *mempool_alloc_safe(int size, int tag)  {
     __android_log_print(ANDROID_LOG_ERROR, "DKR-MPAS", "mempool_alloc_safe(%d) -> %p", size, p);
     return p;
 }
-void *mempool_alloc(int size, int tag)       { (void)tag; if (size <= 0) return NULL; return malloc((size_t)size); }
+void *mempool_alloc(int size, int tag) {
+    (void)tag;
+    if (size <= 0) return NULL;
+    void *p = malloc((size_t)size);
+    ptd_register_alloc(p, (size_t)size);
+    return p;
+}
 void *mempool_alloc_fixed(int size, int tag) { (void)tag; if (size <= 0) return NULL; return malloc((size_t)size); }
 void *mempool_alloc_pool(void *slots, int size) { (void)slots; if (size <= 0) return NULL; return malloc((size_t)size); }
 void *mempool_new_sub(int size, int slots)   { (void)slots; if (size <= 0) return NULL; return malloc((size_t)size); }

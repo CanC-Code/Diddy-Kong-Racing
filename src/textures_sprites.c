@@ -1,3 +1,4 @@
+#include "ptr_shim.h"
 #include "textures_sprites.h"
 #include <android/log.h>
 #include "memory.h"
@@ -344,7 +345,7 @@ Gfx dBasicRenderModes[][2] = {
 
 s32 *gTextureAssetTable[2];
 
-s32 *gTextureCache;
+uintptr_t *gTextureCache;
 
 u8 *gCiPalettes;
 s32 gNumberOfLoadedTextures;
@@ -381,7 +382,7 @@ s16 gUseDirectionalLighting;
 void tex_init_textures(void) {
     s32 i;
 
-    gTextureCache = mempool_alloc_safe(8 * MAX_NUM_TEXTURES, COLOUR_TAG_MAGENTA);
+    gTextureCache = (uintptr_t *)mempool_alloc_safe(sizeof(uintptr_t) * 2 * MAX_NUM_TEXTURES, COLOUR_TAG_MAGENTA);
     gCiPalettes = mempool_alloc_safe(MAX_TEX_PALETTE_SIZE, COLOUR_TAG_MAGENTA);
     gNumberOfLoadedTextures = 0;
     gCiPalettesSize = 0;
@@ -1525,6 +1526,8 @@ void sprite_init_frame(SpriteAsset *spriteAsset, Sprite *sprite, s32 frameId) {
  * Certain texture types will also have draw mode flag overrides.
  */
 void material_init(TextureHeader *tex, Gfx *_dList) {
+    ptd_suspect(tex, "material_init.tex");
+    ptd_suspect(_dList, "material_init.dList");
     s32 texFormat;
     s32 texRenderMode;
     s32 width;

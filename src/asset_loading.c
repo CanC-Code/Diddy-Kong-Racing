@@ -1,3 +1,4 @@
+#include "ptr_shim.h"
 #include <string.h>
 #include "dkr_embedded_lut.h"
 #include "asset_loading.h"
@@ -190,6 +191,7 @@ UNUSED s32 asset_table_load_addr(u32 assetIndex, void *address) {
  * Official name: piRomLoadSection
  */
 s32 asset_load(u32 assetIndex, void *address, s32 assetOffset, s32 size) {
+    ptd_suspect(address, "asset_load");
     __android_log_print(ANDROID_LOG_ERROR, "DKR-LOAD",
         "asset_load ENTRY id=%u address=%p size=%d", assetIndex, address, size);
     u32 *index;
