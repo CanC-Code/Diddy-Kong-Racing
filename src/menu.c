@@ -2475,8 +2475,16 @@ void init_save_data(void) {
         offset += saveFileSize;
     }
 
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SAVE", "about to call get_misc_asset");
     gCheatsAssetData = (u16(*)[30]) get_misc_asset(ASSET_MISC_MAGIC_CODES);
-    gNumberOfCheats = (*gCheatsAssetData)[0];
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SAVE", "gCheatsAssetData=%p", (void*)gCheatsAssetData);
+    if (gCheatsAssetData == NULL) { __android_log_print(ANDROID_LOG_ERROR, "DKR-SAVE", "NULL gCheatsAssetData — skipping cheats"); gNumberOfCheats = 0; goto skip_cheats; }
+    if (gCheatsAssetData != NULL) {
+        gNumberOfCheats = __builtin_bswap16((*gCheatsAssetData)[0]);
+    } else {
+        gNumberOfCheats = 0;
+    }
+skip_cheats:
 #if VERSION >= VERSION_79
     gMenuText = mempool_alloc_safe(1280 * sizeof(char *), COLOUR_TAG_WHITE);
 #else
