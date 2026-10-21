@@ -360,12 +360,19 @@ void main_game_loop(void) {
     // This is a good spot to place custom text if you want it to overlay it over ALL the
     // menus & gameplay.
 
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "enter post-switch");
     sound_update_queue(sLogicUpdateRate);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "after sound_update_queue");
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "before debug_text_print");
     debug_text_print(&gCurrDisplayList);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "after debug_text_print");
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "before render_dialogue_boxes");
     render_dialogue_boxes(&gCurrDisplayList, &gGameCurrMatrix, &gGameCurrVertexList);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "after render_dialogue_boxes");
     dialogue_close(4);
     dialogue_clear(4);
     // transition_update will perform the logic of transitions and return the transition ID.
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "before transition_update");
     if (transition_update(sLogicUpdateRate)) {
         transition_render(&gCurrDisplayList, &gGameCurrMatrix, &gGameCurrVertexList);
     }
@@ -376,16 +383,22 @@ void main_game_loop(void) {
     gDPFullSync(gCurrDisplayList++);
     gSPEndDisplayList(gCurrDisplayList++);
 
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "before copy_viewports_to_stack");
     copy_viewports_to_stack();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "after copy_viewports_to_stack, timer=%d", gDrawFrameTimer);
     if (gDrawFrameTimer != 1) {
         if (gSkipGfxTask == FALSE) {
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "before gfxtask_wait");
             gScreenStatus = gfxtask_wait();
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "after gfxtask_wait status=%d", gScreenStatus);
         }
     } else {
         gDrawFrameTimer = 0;
     }
     gSkipGfxTask = FALSE;
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "before mempool_free_queue_clear");
     mempool_free_queue_clear();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "after mempool_free_queue_clear");
     if (!gIsPaused) {
         disable_cutscene_camera();
     }
@@ -394,13 +407,17 @@ void main_game_loop(void) {
         if (osTvType == OS_TV_TYPE_PAL) {
             framebufferSize = (s32) ((SCREEN_WIDTH * SCREEN_HEIGHT * 2) * 1.1f);
         }
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "before dmacopy_doubleword src=%p dst=%p size=%d", (void*)gVideoLastFramebuffer, (void*)gVideoCurrFramebuffer, framebufferSize);
         dmacopy_doubleword(gVideoLastFramebuffer, gVideoCurrFramebuffer, (u32) gVideoCurrFramebuffer + framebufferSize);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "after dmacopy_doubleword");
     }
     // tempLogicUpdateRate will be set to a value 2 or higher, based on the framerate.
     // the mul factor is hardcapped at 6, which happens at 10FPS. The mul factor
     // affects frameskipping, to maintain consistent game speed, through the (many)
     // dropped frames in DKR.
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "before fb_update");
     tempLogicUpdateRate = fb_update(gScreenStatus);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "after fb_update rate=%d", tempLogicUpdateRate);
     sLogicUpdateRate = tempLogicUpdateRate;
     tempLogicUpdateRateMax = LOGIC_10FPS;
     if (tempLogicUpdateRate > tempLogicUpdateRateMax) {

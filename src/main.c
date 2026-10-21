@@ -53,6 +53,7 @@ void thread1_main(UNUSED void *unused) {
  * Official Name: bootCheckStack
  */
 void thread3_verify_stack(void) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-STACK", "verify_stack ENTERED");
     __android_log_print(ANDROID_LOG_ERROR, "DKR-STACK", "verify_stack ENTERED, top=%d bottom=%d",
         (int)gThread3Stack[STACKSIZE(STACK_GAME)], (int)gThread3Stack[0]);
     gThread3Stack[STACKSIZE(STACK_GAME)]++;
