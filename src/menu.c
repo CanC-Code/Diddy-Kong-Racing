@@ -2454,15 +2454,20 @@ void init_save_data(void) {
     s32 offset;
 
     level_count(&numLevels, &numWorlds);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SAVE", "LC numLevels=%d numWorlds=%d", numLevels, numWorlds);
     courseFlagsPtrSize = numLevels * sizeof(s32);
     saveFileSize = courseFlagsPtrSize;
     saveFileSize += numWorlds * sizeof(s16); // balloonsPtrSize;
     saveFileSize += sizeof(Settings);
     saveFileSize = (saveFileSize + 3) & ~3; // align to a 4-byte boundary
 
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SAVE", "saveFileSize=%d ptrSize=%d nW=%d alloc=%d", saveFileSize, courseFlagsPtrSize, numWorlds, (int)(saveFileSize * ARRAY_COUNT(gSavefileData)));
     *gSavefileData = mempool_alloc_safe(saveFileSize * ARRAY_COUNT(gSavefileData), COLOUR_TAG_WHITE);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SAVE", "alloc ptr=%p", (void*)*gSavefileData);
+    if (*gSavefileData == NULL) { __android_log_print(ANDROID_LOG_ERROR, "DKR-SAVE", "NULL alloc — abort"); return; }
 
     for (index = 0, offset = 0; index < ARRAY_COUNT(gSavefileData); index++) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-SAVE", "iter %d offset=%d", index, offset);
         gSavefileData[index] = (Settings *) ((u8 *) *gSavefileData + offset);
         gSavefileData[index]->courseFlagsPtr = (s32 *) ((u8 *) gSavefileData[index] + sizeof(Settings));
         gSavefileData[index]->balloonsPtr = (s16 *) ((u8 *) gSavefileData[index]->courseFlagsPtr + courseFlagsPtrSize);
