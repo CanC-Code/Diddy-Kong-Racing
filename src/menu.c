@@ -1949,6 +1949,17 @@ void load_menu_text(s32 language) {
 
     if (gMenuTextLangTable == NULL) {
         gMenuTextLangTable = (s32 *) asset_table_load(ASSET_MENU_TEXT_TABLE);
+        if (gMenuTextLangTable != NULL) {
+            s32 _cnt = (s32) __builtin_bswap32((u32) gMenuTextLangTable[0]);
+            if (_cnt > 0 && _cnt < 4096) {
+                for (s32 _i = 0; _i <= _cnt; _i++) {
+                    gMenuTextLangTable[_i] = (s32) __builtin_bswap32((u32) gMenuTextLangTable[_i]);
+                }
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "gMenuTextLangTable bswapped, count=%d", _cnt);
+            } else {
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "gMenuTextLangTable count INVALID: %d (skipping bswap)", _cnt);
+            }
+        }
     }
 
     switch (language) {

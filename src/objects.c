@@ -755,6 +755,10 @@ void allocate_object_pools(void) {
     while (-1 != gAssetsMiscTable[gAssetsMiscTableLength]) {
         gAssetsMiscTableLength++;
     }
+    /* ARM64: BE offset table needs byteswapping (-1 survives bswap) */
+    for (s32 _i = 0; _i < gAssetsMiscTableLength; _i++) {
+        gAssetsMiscTable[_i] = (s32) __builtin_bswap32((u32) gAssetsMiscTable[_i]);
+    }
 
     decrypt_magic_codes(
         &gAssetsMiscSection[gAssetsMiscTable[ASSET_MISC_MAGIC_CODES]],
