@@ -24,6 +24,7 @@ set(CPP_BRIDGE_SOURCES
     ultra/libm_vals.cpp ultra/exceptasm.cpp ultra/LinkerSymbols.cpp
     ultra/setintmask.cpp ultra/math_bridge.cpp ultra/audio_bridge.cpp
     ultra/lowlevel_bridge.cpp ultra/bka_trace_ff.cpp ultra/bka_memcpy_hook.cpp emulator/stubs.cpp emulator/pi_hle.cpp
+    emulator/ptr_shim.c
     emulator/resource_mgr.cpp
     emulator/gfx_interpreter.cpp
     native_main.cpp
