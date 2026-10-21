@@ -2482,7 +2482,10 @@ void init_save_data(void) {
 #else
     gMenuText = mempool_alloc_safe(1024 * sizeof(char *), COLOUR_TAG_WHITE);
 #endif
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SAVE", "cheats count=%d, gMenuText=%p", (int)gNumberOfCheats, (void*)gMenuText);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SAVE", "about to call load_menu_text");
     load_menu_text(LANGUAGE_ENGLISH);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SAVE", "load_menu_text RETURNED");
 
     // clang-format off
     for (i = 0; i < ARRAY_COUNT(gMenuAssets); i++) { \
