@@ -1,3 +1,4 @@
+#include <android/log.h>
 #include "menu.h"
 #include "asset_enums.h"
 #include "asset_loading.h"
