@@ -265,6 +265,7 @@ void init_particle_assets(void) {
         gParticlesAssetTableCount++;
     }
 
+    for (i = 0; i <= gParticlesAssetTableCount; i++) { gParticlesAssetTable[i] = (ParticleDescriptor *) (uintptr_t) __builtin_bswap32((u32) gParticlesAssetTable[i]); }
     gParticlesAssets = (s32 *) asset_table_load(ASSET_PARTICLES);
     for (i = 0; i < gParticlesAssetTableCount; i++) {
         gParticlesAssetTable[i] = (ParticleDescriptor *) (((u8 *) gParticlesAssets) + ((s32) gParticlesAssetTable[i]));
@@ -276,13 +277,15 @@ void init_particle_assets(void) {
         gParticleBehavioursAssetTableCount++;
     }
 
+    for (i = 0; i <= gParticleBehavioursAssetTableCount; i++) { gParticleBehavioursAssetTable[i] = (ParticleBehaviour *) (uintptr_t) __builtin_bswap32((u32) gParticleBehavioursAssetTable[i]); }
     gParticleBehavioursAssets = (s32 *) asset_table_load(ASSET_PARTICLE_BEHAVIORS);
     for (i = 0; i < gParticleBehavioursAssetTableCount; i++) {
         gParticleBehavioursAssetTable[i] =
             (ParticleBehaviour *) (((u8 *) gParticleBehavioursAssets) + ((s32) gParticleBehavioursAssetTable[i]));
-        if (((u32) gParticleBehavioursAssetTable[i]->colourLoop) != 0xFFFFFFFF) {
+        u32 cl = __builtin_bswap32((u32) gParticleBehavioursAssetTable[i]->colourLoop);
+        if (cl != 0xFFFFFFFF) {
             gParticleBehavioursAssetTable[i]->colourLoop =
-                (ColorLoopEntry *) get_misc_asset((s32) gParticleBehavioursAssetTable[i]->colourLoop);
+                (ColorLoopEntry *) get_misc_asset((s32) cl);
         }
     }
 }
