@@ -609,8 +609,16 @@ TextureHeader *load_texture(s32 id) {
         slotIndex = gNumberOfLoadedTextures;
         gNumberOfLoadedTextures++;
     }
+    if (slotIndex < 0 || slotIndex >= MAX_NUM_TEXTURES) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+            "CACHE SLOT OVERFLOW: slotIndex=%d max=%d", slotIndex, MAX_NUM_TEXTURES);
+        return NULL;
+    }
     gTextureCache[ASSETCACHE_ID(slotIndex)] = id;
     gTextureCache[ASSETCACHE_PTR(slotIndex)] = (uintptr_t) tex;
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+        "cache store: slot=%d id=%d tex=0x%lX",
+        (int) slotIndex, (int) id, (unsigned long) tex);
 
     // Load palettes if needed. If the texture has multiple frames, the palette is shared, so we only load it once.
     paletteOffset = -1;
@@ -635,13 +643,22 @@ TextureHeader *load_texture(s32 id) {
     gFirstTexIsLoaded = FALSE;
 
     // Initialize display lists for each frame of the texture
-    dlistPtr = (uintptr_t) align16((u8 *) ((uintptr_t) tex + assetSize));
+    /* ARM64: align16 may cast to s32 internally; bypass it entirely. */
+    dlistPtr = ((uintptr_t) tex + assetSize + 15) & ~(uintptr_t) 15;
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+        "dlistPtr = 0x%lX (tex=0x%lX + assetSize=%d)",
+        (unsigned long) dlistPtr, (unsigned long) tex, (int) assetSize);
     texTemp = tex;
     for (i = 0; i < numberOfTextures; i++) {
         __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
             "loop i=%d texTemp=%p dlistPtr=0x%lX palOff=%d",
             (int)i, (void*)texTemp, (unsigned long)dlistPtr, (int)paletteOffset);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+            "calling material_init(texTemp=0x%lX, dlist=0x%lX)",
+            (unsigned long) texTemp, (unsigned long) dlistPtr);
         material_init(texTemp, (Gfx *) dlistPtr);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+            "material_init returned OK");
         if (paletteOffset >= 0) {
             texTemp->ciPaletteOffset = paletteOffset;
             dlistPtr += PALETTE_GFX_SIZE;
