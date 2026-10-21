@@ -143,7 +143,7 @@ void load_fonts(void) {
     fontAssetData = asset_table_load(ASSET_FONTS);
 
     gFonts = (FontData *) (fontAssetData); // ???
-    gNumberOfFonts = *(fontAssetData);
+    gNumberOfFonts = __builtin_bswap32(*(fontAssetData));
     gFonts = (FontData *) (fontAssetData + 1);
 
     for (i = 0; i < gNumberOfFonts; i++) {
