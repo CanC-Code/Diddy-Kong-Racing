@@ -178,8 +178,8 @@ void thread3_main(UNUSED void *unused) {
         {
             static u32 s_bka_frame = 0;
             s_bka_frame++;
-            if ((s_bka_frame % 60) == 1) {
-                __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "game_loop frame=%u", s_bka_frame);
+            if (s_bka_frame <= 20 || (s_bka_frame % 60) == 1) {
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "game_loop frame=%u ts=%lld", s_bka_frame, (long long)get_time_us());
             }
         }
         main_game_loop();
@@ -277,6 +277,8 @@ void init_game(void) {
  * Contains all game logic, audio and graphics processing.
  */
 void main_game_loop(void) {
+    extern void ptd_register_alloc(void *, unsigned long);
+    extern int ptd_suspect(void *, const char *);
     s32 debugLoopCounter;
     s32 framebufferSize;
     s32 tempLogicUpdateRate, tempLogicUpdateRateMax;
@@ -291,7 +293,9 @@ void main_game_loop(void) {
         rsp_segment(&gCurrDisplayList, SEGMENT_FRAMEBUFFER_OFFSET, (s32) gVideoCurrFramebuffer - VI_OFFSET); // Unused
     }
     if (gDrawFrameTimer == 0) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-GFX", "before gfxtask_run_xbus task=%d", gSPTaskNum);
         gfxtask_run_xbus(gDisplayLists[gSPTaskNum], gCurrDisplayList, 0);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-GFX", "after gfxtask_run_xbus task=%d", gSPTaskNum);
         gSPTaskNum += 1;
         gSPTaskNum &= 1;
     }

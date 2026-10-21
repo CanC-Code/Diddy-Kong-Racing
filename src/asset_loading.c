@@ -202,7 +202,8 @@ s32 asset_load(u32 assetIndex, void *address, s32 assetOffset, s32 size) {
     osRecvMesg(&gDmaMutex, &msg, OS_MESG_BLOCK);
 #endif
 
-    if (size == 0 || gAssetsLookupTable[0] < assetIndex) {
+    if (size <= 0 || gAssetsLookupTable[0] < assetIndex) {
+        if (size < 0) __android_log_print(ANDROID_LOG_ERROR, "DKR-LOAD", "NEGATIVE size=%d asset=%u — skipped", size, assetIndex);
         return NULL;
     }
 
