@@ -179,7 +179,7 @@ void thread3_main(UNUSED void *unused) {
             static u32 s_bka_frame = 0;
             s_bka_frame++;
             if (s_bka_frame <= 20 || (s_bka_frame % 60) == 1) {
-                __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "game_loop frame=%u ts=%lld", s_bka_frame, (long long)get_time_us());
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "game_loop frame=%u", s_bka_frame);
             }
         }
         main_game_loop();
