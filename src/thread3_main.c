@@ -308,14 +308,20 @@ void main_game_loop(void) {
     gGameCurrVertexList = gVertexHeap[gSPTaskNum];
     gGameCurrTriList = gTriangleHeap[gSPTaskNum];
 
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "before rsp_segment x4");
     rsp_segment(&gCurrDisplayList, SEGMENT_MAIN, 0x00000000);
     rsp_segment(&gCurrDisplayList, SEGMENT_FRAMEBUFFER, (s32) gVideoLastFramebuffer);
     rsp_segment(&gCurrDisplayList, SEGMENT_ZBUFFER, (s32) gVideoLastDepthBuffer);
     rsp_segment(&gCurrDisplayList, SEGMENT_FRAMEBUFFER_OFFSET, (s32) gVideoLastFramebuffer - VI_OFFSET); // Unused
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "before rsp_init/rdp_init");
     rsp_init(&gCurrDisplayList);
     rdp_init(&gCurrDisplayList);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "before bgdraw_render");
     bgdraw_render(&gCurrDisplayList, &gGameCurrMatrix, TRUE);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "after bgdraw_render");
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "before input_update");
     gSaveDataFlags = input_update(gSaveDataFlags, sLogicUpdateRate);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "after input_update");
     if (get_lockup_status()) {
         render_epc_lock_up_display();
         gGameMode = GAMEMODE_LOCKUP;
@@ -330,9 +336,12 @@ void main_game_loop(void) {
         }
     }
 
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "before mode switch gGameMode=%d", (int)gGameMode);
     switch (gGameMode) {
         case GAMEMODE_INTRO: // Pre-boot screen
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "calling mode_intro");
             mode_intro();
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "mode_intro RETURNED, new mode=%d", (int)gGameMode);
             break;
         case GAMEMODE_MENU: // In a menu
             mode_menu(sLogicUpdateRate);
