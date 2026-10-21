@@ -1,3 +1,7 @@
+#if defined(__ANDROID__)
+#include <android/log.h>
+#endif
+
 #ifndef N64_TYPES_H
 #define N64_TYPES_H
 

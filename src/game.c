@@ -1,3 +1,4 @@
+#include <android/log.h>
 #include "game.h"
 
 #include "asset_enums.h"
