@@ -409,6 +409,7 @@ void main_game_loop(void) {
 #if REGION == REGION_JP
     func_800C78E0_C84E0();
 #endif
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "main_game_loop RETURNED");
 }
 
 /**
@@ -1616,19 +1617,15 @@ void set_frame_blackout_timer(void) {
  * Give the player 8 frames to enter the CPak menu with start, then load the intro sequence.
  */
 void mode_intro(void) {
-    s32 i;
-    s32 buttonInputs = 0;
-
-    for (i = 0; i < MAXCONTROLLERS; i++) {
-        buttonInputs |= input_held(i);
+    /* ARM64: stub DKR intro cutscene. On real N64 it plays the intro then
+       transitions to MENU. We skip it, going straight to MENU. */
+    static int _once = 0;
+    if (!_once) {
+        _once = 1;
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-INTRO",
+            "mode_intro STUBBED — transitioning to GAMEMODE_MENU");
     }
-    if (buttonInputs & START_BUTTON) {
-        gShowControllerPakMenu = TRUE;
-    }
-    sBootDelayTimer++;
-    if (sBootDelayTimer >= 8) {
-        load_menu_with_level_background(MENU_BOOT, ASSET_LEVEL_OPTIONSBACKGROUND, 2);
-    }
+    gGameMode = GAMEMODE_MENU;
 }
 
 /**
