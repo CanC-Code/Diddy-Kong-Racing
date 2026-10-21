@@ -163,7 +163,9 @@ void thread3_main(UNUSED void *unused) {
     sBootDelayTimer = 0;
     gGameMode = GAMEMODE_INTRO;
     while (1) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "before is_reset_pressed");
         if (is_reset_pressed()) {
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "is_reset_pressed RETURNED TRUE");
             rumble_kill();
             audioStopThread();
             bgload_kill();
@@ -175,6 +177,7 @@ void thread3_main(UNUSED void *unused) {
                 ; // Infinite loop
             }
         }
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "after is_reset_pressed block");
         {
             static u32 s_bka_frame = 0;
             s_bka_frame++;
