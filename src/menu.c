@@ -3355,6 +3355,7 @@ void menu_title_screen_init(void) {
     s32 numberOfPlayers;
 
     gTitleScreenLoaded = TRUE;
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT", "1 after gTitleScreenLoaded");
     gOptionBlinkTimer = 0;
     gMenuDelay = 0;
     reset_character_id_slots();
@@ -3362,8 +3363,11 @@ void menu_title_screen_init(void) {
     gTitleScreenCurrentOption = 0;
     gNumberOfActivePlayers = 4;
     input_assign_players();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT", "2 after input_assign_players");
     music_play(SEQUENCE_NONE2);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT", "3 after music_play");
     sMenuMusicVolume = music_volume();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT", "4 after music_volume");
     if (gResetTitleScale) {
         gTitleRevealTimer = 0;
         gResetTitleScale = FALSE;
@@ -3372,17 +3376,21 @@ void menu_title_screen_init(void) {
     }
     gTitleAudioCounter = 0;
     gMenuStage = TITLESCREEN_START;
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT", "5 after gMenuStage");
     menu_assetgroup_load(sGameTitleTileTextures);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT", "6 after menu_assetgroup_load");
     for (i = 0; i < ARRAY_COUNT(sGameTitleTileOffsets) - 1; i++) {
         sGameTitleTileOffsets[i].texture = gMenuAssets[sGameTitleTileTextures[i]];
     }
     music_voicelimit_set(27);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT", "7 after music_voicelimit_set");
     cam_shake_off();
     set_text_font(ASSET_FONTS_FUNFONT);
 #if REGION != REGION_JP
     load_font(ASSET_FONTS_BIGFONT);
 #endif
     sound_volume_reset(FALSE);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT", "8 after sound_volume_reset");
     set_time_trial_enabled(FALSE);
     gTitleDemoIndex = 0;
     sTitleScreenDemoIds = (s8 *) get_misc_asset(ASSET_MISC_TITLE_SCREEN_DEMO_IDS);
