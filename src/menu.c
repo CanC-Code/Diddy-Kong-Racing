@@ -3401,7 +3401,13 @@ void menu_title_screen_init(void) {
         numberOfPlayers = 0;
         gTitleDemoTimer = 600;
     }
+#ifdef PORT
+    /* Skip demo level load — level_load crashes on uninitialized data.
+       Title screen renders without demo background until level loading is fixed. */
+    (void)numberOfPlayers;
+#else
     load_level_for_menu(sTitleScreenDemoIds[DEMO_LEVEL_ID], numberOfPlayers, sTitleScreenDemoIds[DEMO_CUTSCENE_ID]);
+#endif
     D_801268D8 = 0;
     gOpeningNameID = 0;
     D_801268DC = 0;
