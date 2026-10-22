@@ -979,6 +979,11 @@ void unload_level_menu(void) {
  * In the tracks menu, this only runs if there's a track actively loaded.
  */
 void update_menu_scene(s32 updateRate) {
+#ifdef PORT
+    /* Skip scene render until level_load works — shadow_update crashes on NULL shadow ptr. */
+    (void)updateRate;
+    return;
+#endif
     if (bgload_active() == FALSE) {
         obj_update(updateRate);
         gParticlePtrList_flush();
