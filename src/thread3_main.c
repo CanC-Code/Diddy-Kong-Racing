@@ -369,12 +369,17 @@ void main_game_loop(void) {
     __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "before render_dialogue_boxes");
     render_dialogue_boxes(&gCurrDisplayList, &gGameCurrMatrix, &gGameCurrVertexList);
     __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "after render_dialogue_boxes");
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "before dialogue_close");
     dialogue_close(4);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "after dialogue_close");
     dialogue_clear(4);
     // transition_update will perform the logic of transitions and return the transition ID.
     __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "before transition_update");
     if (transition_update(sLogicUpdateRate)) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "transition_update returned TRUE");
         transition_render(&gCurrDisplayList, &gGameCurrMatrix, &gGameCurrVertexList);
+    } else {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-POST", "transition_update returned FALSE");
     }
     if (sBootDelayTimer >= 8 && is_controller_missing()) {
         menu_missing_controller(&gCurrDisplayList, sLogicUpdateRate);

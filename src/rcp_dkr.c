@@ -1,3 +1,4 @@
+#include <android/log.h>
 #include "rcp_dkr.h"
 #include "camera.h"
 #include "macros.h"
@@ -363,13 +364,17 @@ UNUSED void gfxtask_run_fifo2(Gfx *dlBegin, Gfx *dlEnd, s32 recvMesg) {
  * Official Name: rcpWaitDP
  */
 s32 gfxtask_wait(void) {
-    OSMesg *mesg = NULL;
-    if (gGfxTaskIsRunning == FALSE) {
-        return 0;
+    /* ARM64: RDP interpreter (gfx_interpreter.cpp) does not signal completion
+       for DKR's F3DDKR display lists. Stub returns immediately so the game
+       loop can advance. Rendering will be incorrect until the interpreter is
+       taught F3DDKR, but the loop iterates. */
+    static int _once = 0;
+    if (!_once) {
+        _once = 1;
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-RCP",
+            "gfxtask_wait STUBBED — returning MESG_SKIP_BUFFER_SWAP");
     }
-    osRecvMesg(&gGfxTaskMesgQueue, (OSMesg) &mesg, OS_MESG_BLOCK);
-    gGfxTaskIsRunning = FALSE;
-    return (s32) mesg[1];
+    return MESG_SKIP_BUFFER_SWAP;
 }
 
 /**
