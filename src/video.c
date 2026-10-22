@@ -284,6 +284,7 @@ s32 fb_update(s32 mesg) {
     /* Android: no VI hardware; original body blocks on vblank. */
     if (sBlackScreenTimer) { sBlackScreenTimer--; }
     gVideoDeltaCounter = 0;
+    fb_swap();  /* Android: swap RDRAM buffers so wrapper reads fresh frame */
     return LOGIC_60FPS;
 #endif
     u8 tempUpdateRate;

@@ -3467,7 +3467,12 @@ void render_title_screen(UNUSED s32 updateRate, f32 updateRateF) {
 #else
     } else if (sTitleScreenDemoIds[gTitleDemoIndex] == sTitleScreenDemoIds[0]) {
 #endif
+#ifdef PORT
+        /* Skip demo playback — no level loaded, draw_text crashes on NULL font ptr. */
+        (void)updateRateF;
+#else
         func_80083098(updateRateF);
+#endif
     }
 }
 
