@@ -1130,7 +1130,11 @@ void mode_menu(s32 updateRate) {
  */
 void load_level_for_menu(s32 levelId, s32 numberOfPlayers, s32 cutsceneId) {
     if (!gIsLoading) {
+#ifdef PORT
+        { static int fm_ = 1; if (!fm_) unload_level_menu(); fm_ = 0; }
+#else
         unload_level_menu();
+#endif
         if (bgload_active() == FALSE) {
             gCurrDisplayList = gDisplayLists[gSPTaskNum];
             gDPFullSync(gCurrDisplayList++);
