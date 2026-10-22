@@ -3425,6 +3425,7 @@ void render_title_screen(UNUSED s32 updateRate, f32 updateRateF) {
 #ifdef PORT
     /* Force title reveal — animation gate never fires under PORT (audio stubbed). */
     gTitleRevealTimer = 32;
+    return;  /* PORT diagnostic: skip render body, does heap crash go away? */
 #endif
     UNUSED u32 foo[2];
     s32 alpha;
