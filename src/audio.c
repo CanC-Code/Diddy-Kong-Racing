@@ -927,6 +927,11 @@ ALCSPlayer *sound_seqplayer_init(s32 maxVoices, s32 maxEvents) {
  * Stop the current sequence then set the parameters for the next sequence.
  */
 void music_sequence_start(u8 seqID, ALCSPlayer *seqPlayer) {
+#ifdef PORT
+    if (gSequenceTable == NULL || seqPlayer == NULL) {
+        return;
+    }
+#endif
     music_sequence_stop(seqPlayer);
     if (seqID < gSequenceTable->seqCount) {
         if (seqPlayer == gMusicPlayer) {
@@ -985,6 +990,11 @@ void music_sequence_init(ALCSPlayer *seqp, void *sequence, u8 *seqID, ALCSeq *se
  * Stops the current playing sequence for the given sequence player.
  */
 void music_sequence_stop(ALCSPlayer *seqPlayer) {
+#ifdef PORT
+    if (seqPlayer == NULL) {
+        return;
+    }
+#endif
     if (gMusicPlayer == seqPlayer && gMusicPlaying) {
         alCSPStop(seqPlayer);
         gMusicPlaying = FALSE;
