@@ -3422,10 +3422,6 @@ void menu_title_screen_init(void) {
  */
 void render_title_screen(UNUSED s32 updateRate, f32 updateRateF) {
     __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "render_title_screen gTitleRevealTimer=%d sTitleScreenDemoIds=%p", gTitleRevealTimer, (void*)sTitleScreenDemoIds);
-#ifdef PORT
-    /* Force title reveal — animation gate never fires under PORT (audio stubbed). */
-    gTitleRevealTimer = 32;
-#endif
     UNUSED u32 foo[2];
     s32 alpha;
     f32 scale;
