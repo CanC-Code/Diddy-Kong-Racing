@@ -2860,6 +2860,7 @@ static inline int bka_detect_stride(const uint8_t* p) {
 }
 
 void RSP_ProcessGfxTask(OSTask* tp) {
+    { static int s_wr = 0; if (s_wr++ < 10) __android_log_print(ANDROID_LOG_ERROR, "BKA-WALK-ENTRY", "task=%d size=%u", s_wr, tp ? tp->t.data_size : 0); }
     { static int s_once = 0; if (s_once++ == 0) bka_install_watch(); }
     { static int s_ent = 0; if (s_ent++ < 30) {
         uint8_t* dp = tp ? (uint8_t*)tp->t.data_ptr : nullptr;
