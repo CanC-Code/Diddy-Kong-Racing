@@ -199,7 +199,11 @@ s32 gfxtask_run_xbus(Gfx *dlBegin, Gfx *dlEnd, UNUSED s32 recvMesg) {
     dkrtask->unused60 = COLOUR_TAG_BLACK;
     dkrtask->unused64 = COLOUR_TAG_BLACK;
     osWritebackDCacheAll();
+#ifdef PORT
+    { extern void dkr_port_run_gfx_task(void *t); dkr_port_run_gfx_task(&dkrtask->task); }
+#else
     osSendMesg(osScInterruptQ, dkrtask, OS_MESG_BLOCK);
+#endif
     return 0;
 }
 

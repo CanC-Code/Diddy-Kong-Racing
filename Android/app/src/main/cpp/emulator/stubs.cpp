@@ -639,3 +639,14 @@ void core1_loadOTR(uint8_t* data, size_t size) {}
 //DISABLED_DUP: int  func_80258A4C(void)                    { return 0; }
 void func_8025A123(void)                    {}
 void initInterruptTables(void)              {}
+
+extern "C" void dkr_port_run_gfx_task(void *t_void) {
+    OSTask_t *t = (OSTask_t *)t_void;
+    if (t->type != M_GFXTASK) return;
+    OSTask wrapper;
+    memset(&wrapper, 0, sizeof(wrapper));
+    wrapper.t = *t;
+    RSP_ProcessGfxTask(&wrapper);
+    HLE_TriggerN64Event(OS_EVENT_SP);
+    HLE_TriggerN64Event(OS_EVENT_DP);
+}
