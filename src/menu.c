@@ -3462,6 +3462,12 @@ void render_title_screen(UNUSED s32 updateRate, f32 updateRateF) {
  * Fade music to make voice clips more audible.
  */
 s32 menu_title_screen_loop(s32 updateRate) {
+#ifdef PORT
+    if (sTitleScreenDemoIds == NULL) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "menu_title_screen_loop: sTitleScreenDemoIds NULL, skipping");
+        return -1;
+    }
+#endif
     UNUSED s32 temp_v0_5;
     s32 sp28;
     s8 *demo;

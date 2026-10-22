@@ -996,6 +996,16 @@ void update_menu_scene(s32 updateRate) {
  * Runs the menu code, with a simplified object update and scene rendering system.
  */
 void mode_menu(s32 updateRate) {
+#ifdef PORT
+    {
+        static int _dkr_menu_init_done = 0;
+        if (!_dkr_menu_init_done) {
+            _dkr_menu_init_done = 1;
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "mode_menu: one-shot menu_init(MENU_TITLE)");
+            menu_init(MENU_TITLE);
+        }
+    }
+#endif
     s32 menuLoopResult;
     s32 temp;
     s32 playerVehicle;
