@@ -97,6 +97,10 @@ void audio_init(OSSched *sc) {
  * volumes.
  */
 void sound_volume_reset(u8 skipReset) {
+#ifdef PORT
+    (void)skipReset;
+    return;
+#endif
     if (gAudioVolumeSetting == VOLUME_NORMAL) {
         gSkipResetChannels = skipReset;
         if (gSkipResetChannels == FALSE) {
