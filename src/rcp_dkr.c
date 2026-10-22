@@ -178,7 +178,7 @@ s32 gfxtask_run_xbus(Gfx *dlBegin, Gfx *dlEnd, UNUSED s32 recvMesg) {
     dkrtask->unused58 = COLOUR_TAG_RED;
     dkrtask->unused5C = COLOUR_TAG_RED;
     dkrtask->task.data_ptr = (u64 *) dlBegin;
-    dkrtask->task.data_size = dlEnd - dlBegin;
+    dkrtask->task.data_size = (s32)(dlEnd - dlBegin) * sizeof(Gfx);  /* PORT: commands -> bytes, matches other gfxtask variants */
     dkrtask->task.type = M_GFXTASK;
     dkrtask->task.flags = OS_TASK_DP_WAIT;
     dkrtask->task.ucode_boot = (u64 *) rspbootTextStart;
