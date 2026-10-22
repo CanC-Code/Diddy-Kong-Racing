@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class StreamServer {
     private static final String TAG = "BKA-Stream";
     static final int W = 292, H = 216;
-    private static final int PORT = 8080;
+    private static final int PORT = 8081;
     private static final int FPS = 30;
 
     private final ServerSocket server;

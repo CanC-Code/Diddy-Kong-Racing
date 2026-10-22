@@ -73,7 +73,7 @@ public class BkaService extends Service {
         }
 
         // Launch Chrome
-        Intent chrome = new Intent(Intent.ACTION_VIEW, Uri.parse("http://127.0.0.1:8080/"));
+        Intent chrome = new Intent(Intent.ACTION_VIEW, Uri.parse("http://127.0.0.1:8081/"));
         chrome.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             startActivity(chrome);
