@@ -3350,6 +3350,7 @@ void func_80083098(f32 updateRateF) {
  * Set the current level and demo.
  */
 void menu_title_screen_init(void) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "menu_title_screen_init ENTERED");
     s32 i;
     s32 numberOfPlayers;
 
@@ -3385,6 +3386,7 @@ void menu_title_screen_init(void) {
     set_time_trial_enabled(FALSE);
     gTitleDemoIndex = 0;
     sTitleScreenDemoIds = (s8 *) get_misc_asset(ASSET_MISC_TITLE_SCREEN_DEMO_IDS);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "sTitleScreenDemoIds set to %p", (void*)sTitleScreenDemoIds);
     numberOfPlayers = sTitleScreenDemoIds[DEMO_PLAYER_COUNT];
     gTitleDemoTimer = 0;
     if (numberOfPlayers == -2) {
@@ -3405,6 +3407,7 @@ void menu_title_screen_init(void) {
  * Also render the selection options.
  */
 void render_title_screen(UNUSED s32 updateRate, f32 updateRateF) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "render_title_screen gTitleRevealTimer=%d sTitleScreenDemoIds=%p", gTitleRevealTimer, (void*)sTitleScreenDemoIds);
     UNUSED u32 foo[2];
     s32 alpha;
     f32 scale;
@@ -3442,7 +3445,14 @@ void render_title_screen(UNUSED s32 updateRate, f32 updateRateF) {
                 i++;
             }
         }
+#ifdef PORT
+    } else if (sTitleScreenDemoIds == NULL) {
+        /* Port: get_misc_asset returned NULL (asset table not loaded); skip demo render. */
+        return;
     } else if (sTitleScreenDemoIds[gTitleDemoIndex] == sTitleScreenDemoIds[0]) {
+#else
+    } else if (sTitleScreenDemoIds[gTitleDemoIndex] == sTitleScreenDemoIds[0]) {
+#endif
         func_80083098(updateRateF);
     }
 }
