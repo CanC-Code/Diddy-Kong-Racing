@@ -292,7 +292,7 @@ static inline uint8_t* RDP_TranslateAddr(uint32_t addr) {
         }
     }
 
-    if (addr >= 0x60000000u && addr < 0xC0000000u) { uint64_t c = 0x7900000000ULL | (uint64_t)addr; if (bka_is_readable((void*)c)) return (uint8_t*)c; c = 0x7A00000000ULL | (uint64_t)addr; if (bka_is_readable((void*)c)) return (uint8_t*)c; }
+    if (addr >= 0x60000000u && addr < 0x80000000u) { uint64_t c = 0x7900000000ULL | (uint64_t)addr; if (bka_is_readable((void*)c)) return (uint8_t*)c; c = 0x7A00000000ULL | (uint64_t)addr; if (bka_is_readable((void*)c)) return (uint8_t*)c; }
     // Try exact-match mapping table first.
     void* p = bka_lookup_addr_mapping(addr);
     if (p) return (uint8_t*)p;
@@ -3270,6 +3270,33 @@ void RSP_ProcessGfxTask(OSTask* tp) {
         }
         g_bka_dl_cur = cur;
         uint8_t opcode = GFX_OPCODE(c);
+        {
+            static uint8_t *s_prev_cur = NULL;
+            static int s_stuck_count = 0;
+            static uint8_t *s_call_entry = NULL;
+            static int s_call_ops = 0;
+            if ((uint8_t*)tp->t.data_ptr != s_call_entry) {
+                s_call_entry = (uint8_t*)tp->t.data_ptr;
+                s_call_ops = 0;
+            }
+            if (s_prev_cur == cur) {
+                if (++s_stuck_count > 200) {
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-WALK-STUCK",
+                        "walker stuck: cur=%p %d iters last_op=0x%02X w0=0x%08X w1=0x%08X",
+                        (void*)cur, s_stuck_count, opcode, c.w0, c.w1);
+                    return;
+                }
+            } else {
+                s_prev_cur = cur;
+                s_stuck_count = 0;
+            }
+            if (++s_call_ops > 20000) {
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-WALK-STUCK",
+                    "walker runaway: %d ops this call, cur=%p last_op=0x%02X",
+                    s_call_ops, (void*)cur, opcode);
+                return;
+            }
+        }
 
         /* BKA-DLFLIP: structural encoding check for G_DL ambiguity.
          * BE G_TRI2 bytes (B1 XX XX XX) mis-read as LE become
