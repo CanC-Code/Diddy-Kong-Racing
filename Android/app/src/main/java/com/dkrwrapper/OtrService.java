@@ -63,7 +63,7 @@ public int onStartCommand(Intent intent, int flags, int startId) {
         if (version == null) version = "us";
         
         // CORRECTION: Update to match the exact YAML asset filename pattern in assets directory
-        final String manifestFilename = "decompressed." + version + ".v10.yaml";
+        final String manifestFilename = "decompressed." + version + ".v10.yaml";        try {
 
         startForeground(NOTIFICATION_ID,
             new NotificationCompat.Builder(this, CHANNEL_ID)
@@ -71,6 +71,9 @@ public int onStartCommand(Intent intent, int flags, int startId) {
                 .setSmallIcon(android.R.drawable.stat_sys_download)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build());
+        } catch (Exception e) {
+            Log.w("BKA-Otr", "startForeground failed: " + e.getMessage());
+        }  /* startForeground wrapped in try */
 
         new Thread(() -> {
             try (ParcelFileDescriptor pfd = openRomFd(uriString)) {

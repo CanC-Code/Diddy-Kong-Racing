@@ -133,7 +133,9 @@ public class BkaService extends Service {
         svc.putExtra("outDir", getFilesDir().getAbsolutePath());
         svc.putExtra("version", "us");
         if (Build.VERSION.SDK_INT >= 26) {
-            startForegroundService(svc);
+            try { startForegroundService(svc); } catch (Exception e) {
+                Log.w(TAG, "startForegroundService(Otr) failed: " + e.getMessage());
+            }
         } else {
             startService(svc);
         }

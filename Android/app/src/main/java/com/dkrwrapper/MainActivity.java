@@ -28,7 +28,9 @@ public class MainActivity extends Activity {
         // is already in files/auto_rom.z64 on this device).
         Intent svc = new Intent(this, BkaService.class);
         if (Build.VERSION.SDK_INT >= 26) {
-            startForegroundService(svc);
+            try { startForegroundService(svc); } catch (Exception e) {
+                Log.w("BKA-Main", "startForegroundService failed: " + e.getMessage());
+            }
         } else {
             startService(svc);
         }
