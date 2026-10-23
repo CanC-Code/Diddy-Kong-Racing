@@ -307,7 +307,7 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
               (int)env->GetArrayLength(outArr)); }
     uint16_t* src = (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
     const int W = 292, H = 216;
-    { int _nz = 0; for (int i = 0; i < W*H; i++) if (src[i]) _nz++; static int _s=0; if (_s++ < 5 || (_s % 600) == 0) __android_log_print(ANDROID_LOG_ERROR, "BKA-NZ", "nonblack=%d of %d [sample %d]", _nz, W*H, _s); }
+    { int _nz = 0; for (int i = 0; i < W*H; i++) if (src[i]) _nz++; static int _s=0; if (_s++ < 10 || (_s % 20) == 0) __android_log_print(ANDROID_LOG_ERROR, "BKA-NZ", "nonblack=%d of %d [sample %d]", _nz, W*H, _s); }
     for (int i = 0; i < W * H; i++) {
         uint16_t px = src[i];
         uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);

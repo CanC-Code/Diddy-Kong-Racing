@@ -241,6 +241,21 @@ static uint8_t* bka_scan_heap_for_vertex_base(uint32_t dl_addr) {
 }
 
 static inline uint8_t* RDP_TranslateAddr(uint32_t addr) {
+#ifdef PORT
+    {
+        extern uint8_t *gN64_RDRAM;
+        static uint32_t s_rd32 = 0;
+        if (s_rd32 == 0) s_rd32 = (uint32_t)(uintptr_t)gN64_RDRAM;
+        if (addr != 0 && s_rd32 != 0 && addr >= s_rd32 && (uint32_t)(addr - s_rd32) < 0x00800000u) {
+            static int s_rl = 0;
+            if (s_rl++ < 5)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-RDTR",
+                    "addr=0x%08X truncated_host->rddram off=0x%X", addr, addr - s_rd32);
+            return gN64_RDRAM + (addr - s_rd32);
+        }
+    }
+#endif
+
     // Prefer the 64-bit host pointer in the recomp's 16-byte DL entry payload.
 
     if (addr == 0x7A7B0620) {
