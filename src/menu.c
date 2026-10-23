@@ -13867,6 +13867,19 @@ void menu_asset_load(s32 assetID) {
 
     if (*gAssetsMenuElementIds == NULL) {
         *gAssetsMenuElementIds = (s16 *) asset_table_load(ASSET_MENU_ELEMENT_IDS);
+#ifdef PORT
+        /* PORT: ROM is BE, host is LE. Byteswap s16 table (same pattern as gTempAssetTable). */
+        {
+            s32 _n = 0;
+            while (_n < 512 && (*gAssetsMenuElementIds)[_n] != -1) _n++;
+            for (s32 _i = 0; _i <= _n; _i++) {
+                (*gAssetsMenuElementIds)[_i] = (s16)__builtin_bswap16((u16)(*gAssetsMenuElementIds)[_i]);
+            }
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-MELEM",
+                "gAssetsMenuElementIds bswapped, %d entries: [0]=0x%04X [1]=0x%04X [2]=0x%04X",
+                _n, (u16)(*gAssetsMenuElementIds)[0], (u16)(*gAssetsMenuElementIds)[1], (u16)(*gAssetsMenuElementIds)[2]);
+        }
+#endif
         for (gMenuElementIdCount = 0; (*gAssetsMenuElementIds)[gMenuElementIdCount] != -1; gMenuElementIdCount++) {}
         gMenuObjectsCount = 0;
         for (i = 0; i < gMenuElementIdCount; i++) {
@@ -13885,6 +13898,11 @@ void menu_asset_load(s32 assetID) {
 
         if ((i & ASSET_MASK_TEXTURE) == ASSET_MASK_TEXTURE) {
             gMenuAssets[assetID] = load_texture(i & 0x3FFF);
+#ifdef PORT
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-TEXLOAD",
+                "assetID=%d load_texture(0x%04X) = %p",
+                assetID, (u16)(i & 0x3FFF), gMenuAssets[assetID]);
+#endif
         } else if (i & ASSET_MASK_SPRITE) {
             gMenuAssets[assetID] = tex_load_sprite(i & 0x3FFF, 0);
         } else if (i & ASSET_MASK_OBJECT) {
