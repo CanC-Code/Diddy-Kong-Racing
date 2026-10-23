@@ -234,8 +234,20 @@ void fb_init_vi(void) {
  * already aligns by 16, it only needs 48 bits of alignment in addition.
  */
 void fb_alloc(s32 index) {
+#ifdef PORT
+    {
+        extern uint8_t *gN64_RDRAM;
+        gVideoFbWidths[index] = gVideoModeResolutions[gVideoModeIndex & NUM_RESOLUTION_MODES].width;
+        gVideoFbHeights[index] = gVideoModeResolutions[gVideoModeIndex & NUM_RESOLUTION_MODES].height;
+        gVideoFramebuffers[index] = gN64_RDRAM + 0x400000 + (index * 0x40000);
+        if (gVideoDepthBuffer == NULL) {
+            gVideoDepthBuffer = gN64_RDRAM + 0x480000;
+        }
+        return;
+    }
+#endif
     if (gVideoFramebuffers[index] != 0) {
-        mempool_locked_unset((u8 *) gVideoFramebuffers[index]); // Effectively unused.
+        mempool_locked_unset((u8 *) gVideoFramebuffers[index]);
         mempool_free(gVideoFramebuffers[index]);
     }
     gVideoFbWidths[index] = gVideoModeResolutions[gVideoModeIndex & NUM_RESOLUTION_MODES].width;
