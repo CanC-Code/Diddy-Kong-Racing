@@ -57,7 +57,11 @@ public class BkaService extends Service {
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setOngoing(true)
                 .build();
-        startForeground(NOTIF_ID, n);
+        try {
+            startForeground(NOTIF_ID, n);
+        } catch (Exception e) {
+            Log.w(TAG, "startForeground denied (background restart): " + e.getMessage());
+        }
 
         // Start HTTP server first so Chrome has something to connect to
         if (server == null) {
