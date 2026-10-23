@@ -81,7 +81,7 @@ public class BkaService extends Service {
 
         // NativeGameActivity renders to GameView; opening Chrome would background it and kill SurfaceView.
 
-        boolean noChrome = getIntent().getBooleanExtra("noChrome", false);
+        boolean noChrome = intent != null && intent.getBooleanExtra("noChrome", false);
 
         if (!noChrome) {
 
