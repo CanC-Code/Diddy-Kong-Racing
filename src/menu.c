@@ -3368,12 +3368,20 @@ void menu_title_screen_init(void) {
     __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT", "3 after music_play");
     sMenuMusicVolume = music_volume();
     __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT", "4 after music_volume");
+#ifdef PORT
+    /* PORT: force full reveal. Original animates 0 -> 32 via audio-gated
+       counter that never fires (audio stubbed). Set directly to 32 so
+       render_title_screen enters its draw branch immediately. */
+    gTitleRevealTimer = 32;
+    gResetTitleScale = FALSE;
+#else
     if (gResetTitleScale) {
         gTitleRevealTimer = 0;
         gResetTitleScale = FALSE;
     } else {
         gTitleRevealTimer = 1;
     }
+#endif
     gTitleAudioCounter = 0;
     gMenuStage = TITLESCREEN_START;
     __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT", "5 after gMenuStage");
