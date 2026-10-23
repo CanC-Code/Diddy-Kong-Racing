@@ -54,6 +54,7 @@ public class NativeGameActivity extends Activity {
         // alive as a foreground service. GameView above renders RDRAM frames.
         try {
             android.content.Intent svc = new android.content.Intent(this, BkaService.class);
+            svc.putExtra("noChrome", true);
             if (Build.VERSION.SDK_INT >= 26) {
                 startForegroundService(svc);
             } else {

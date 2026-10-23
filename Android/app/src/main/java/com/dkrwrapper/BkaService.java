@@ -77,7 +77,17 @@ public class BkaService extends Service {
         }
 
         // Launch Chrome
-        Intent chrome = new Intent(Intent.ACTION_VIEW, Uri.parse("http://127.0.0.1:8081/"));
+        // Skip Chrome when NativeGameActivity (native window launcher) started us.
+
+        // NativeGameActivity renders to GameView; opening Chrome would background it and kill SurfaceView.
+
+        boolean noChrome = getIntent().getBooleanExtra("noChrome", false);
+
+        if (!noChrome) {
+
+            Intent chrome = new Intent(Intent.ACTION_VIEW, Uri.parse("http://127.0.0.1:8081/"));
+
+        }
         chrome.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             startActivity(chrome);
