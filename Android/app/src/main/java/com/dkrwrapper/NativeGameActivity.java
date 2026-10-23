@@ -49,6 +49,18 @@ public class NativeGameActivity extends Activity {
             }
         });
 
-        Native.startEngine(getFilesDir().getAbsolutePath());
+        // Start BkaService which handles: extraction (first launch), engine
+        // boot (background thread, keeps UI responsive), and keeps process
+        // alive as a foreground service. GameView above renders RDRAM frames.
+        try {
+            android.content.Intent svc = new android.content.Intent(this, BkaService.class);
+            if (Build.VERSION.SDK_INT >= 26) {
+                startForegroundService(svc);
+            } else {
+                startService(svc);
+            }
+        } catch (Exception e) {
+            android.util.Log.w("BKA-Native", "startForegroundService failed: " + e.getMessage());
+        }
     }
 }
