@@ -292,28 +292,7 @@ static inline uint8_t* RDP_TranslateAddr(uint32_t addr) {
         }
     }
 
-    /* ARM64: truncated 64-bit host ptr reconstruction. Range extended from
-       0x60-0x80 to 0x60-0xC0 to cover G_DMADL targets where
-       gDkrDmaDisplayList casts 64-bit tex->cmd to 32-bit w1.
-       bka_is_readable gate prevents accepting garbage. */
-    if (addr >= 0x60000000u && addr < 0xC0000000u) {
-        uint64_t c = 0x7900000000ULL | (uint64_t)addr;
-        if (bka_is_readable((void*)c)) {
-            static int s_hp = 0;
-            if (s_hp++ < 5)
-                __android_log_print(ANDROID_LOG_ERROR, "BKA-HPTR",
-                    "reconstruct 0x%08X -> 0x%016llX (0x79)", addr, (unsigned long long)c);
-            return (uint8_t*)c;
-        }
-        c = 0x7A00000000ULL | (uint64_t)addr;
-        if (bka_is_readable((void*)c)) {
-            static int s_hp2 = 0;
-            if (s_hp2++ < 5)
-                __android_log_print(ANDROID_LOG_ERROR, "BKA-HPTR",
-                    "reconstruct 0x%08X -> 0x%016llX (0x7A)", addr, (unsigned long long)c);
-            return (uint8_t*)c;
-        }
-    }
+    if (addr >= 0x60000000u && addr < 0x80000000u) { uint64_t c = 0x7900000000ULL | (uint64_t)addr; if (bka_is_readable((void*)c)) return (uint8_t*)c; c = 0x7A00000000ULL | (uint64_t)addr; if (bka_is_readable((void*)c)) return (uint8_t*)c; }
     // Try exact-match mapping table first.
     void* p = bka_lookup_addr_mapping(addr);
     if (p) return (uint8_t*)p;
