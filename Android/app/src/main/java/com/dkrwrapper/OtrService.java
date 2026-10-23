@@ -45,9 +45,7 @@ public class OtrService extends Service {
         super.onCreate();
         createNotificationChannel();
     }
-
-    @Override
-        private ParcelFileDescriptor openRomFd(String uriString) throws Exception {
+    private ParcelFileDescriptor openRomFd(String uriString) throws Exception {
         android.net.Uri uri = android.net.Uri.parse(uriString);
         if ("file".equals(uri.getScheme())) {
             return ParcelFileDescriptor.open(new java.io.File(uri.getPath()), ParcelFileDescriptor.MODE_READ_ONLY);
