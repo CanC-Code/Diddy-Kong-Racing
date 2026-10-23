@@ -358,6 +358,17 @@ UNUSED s32 vi_refresh_rate(void) {
  */
 void fb_swap(void) {
     gVideoLastFramebuffer = gVideoFramebuffers[gVideoCurrFbIndex];
+#ifdef PORT
+    {
+        extern uint32_t g_active_fb_offset;
+        extern uint8_t *gN64_RDRAM;
+        if (gN64_RDRAM) {
+            /* PORT: sync g_active_fb_offset to track the last rendered framebuffer.
+               fillArgb reads gN64_RDRAM + g_active_fb_offset. */
+            g_active_fb_offset = (uint32_t)((uintptr_t)gVideoLastFramebuffer - (uintptr_t)gN64_RDRAM);
+        }
+    }
+#endif
     gVideoLastDepthBuffer = gVideoDepthBuffer;
     gVideoCurrFbIndex ^= 1;
     gVideoCurrFramebuffer = gVideoFramebuffers[gVideoCurrFbIndex];

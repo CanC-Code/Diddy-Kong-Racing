@@ -378,7 +378,11 @@ s32 gfxtask_wait(void) {
         __android_log_print(ANDROID_LOG_ERROR, "DKR-RCP",
             "gfxtask_wait STUBBED — returning MESG_SKIP_BUFFER_SWAP");
     }
-    return MESG_SKIP_BUFFER_SWAP;
+    // PORT: return non-SKIP so main_game_loop does NOT reset gCurrDisplayList.
+        // The reset path wipes the DL before the walker reads it, causing
+        // walker to only see 4 rsp_segment commands per frame (BC-only
+        // histogram). Real N64 returns other statuses most frames.
+        return 0;
 }
 
 /**
