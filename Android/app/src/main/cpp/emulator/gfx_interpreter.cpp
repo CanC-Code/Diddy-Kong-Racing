@@ -1,5 +1,3 @@
-#include <setjmp.h>
-#include <signal.h>
 /* BKA_FORCE_REBUILD_v4_2026_10_15 */
 #include <stdio.h>
 #include "gfx_interpreter.h"
@@ -2874,81 +2872,9 @@ static inline int bka_detect_stride(const uint8_t* p) {
             (void*)p, valid8, valid16, (valid16 >= valid8) ? 16 : 8);
     }
     return (valid16 >= valid8) ? 16 : 8;
-
-    /* PORT: SIGSEGV recovery for walker. Some F3DEX/F3DDKR opcodes trip on
-       us.v80-specific asset data (truncated pointers, non-exec pages).
-       Recover by returning from the task, skipping the bad frame. Game
-       continues on next frame. Set g_walker_in_fault=1 during walker so
-       double-faults (real crashes) still propagate. */
-    {
-        static sigjmp_buf s_recover;
-        static volatile sig_atomic_t s_in_fault = 0;
-        static int s_installed = 0;
-        struct sigaction sa;
-
-        if (!s_installed) {
-            s_installed = 1;
-            sa.sa_sigaction = [](int sig, siginfo_t *info, void *ctx) {
-                extern volatile sig_atomic_t g_walker_in_fault;
-                if (g_walker_in_fault) {
-                    signal(sig, SIG_DFL);
-                    raise(sig);
-                    return;
-                }
-                siglongjmp(*(sigjmp_buf*)&s_recover, 1);
-            };
-            sa.sa_flags = SA_SIGINFO | SA_NODEFER;
-            sigemptyset(&sa.sa_mask);
-            sigaction(SIGSEGV, &sa, NULL);
-            sigaction(SIGBUS, &sa, NULL);
-        }
-
-        if (sigsetjmp(s_recover, 1) != 0) {
-            __android_log_print(ANDROID_LOG_ERROR, "BKA-RECOVER",
-                "walker recovered from fault (frame skipped)");
-            return;
-        }
-        extern volatile sig_atomic_t g_walker_in_fault;
-        g_walker_in_fault = 0;
-    }
-}
-
-
-/* PORT: walker fault recovery */
-static sigjmp_buf g_walker_recover;
-static volatile sig_atomic_t g_walker_in_fault = 0;
-static int g_walker_recover_installed = 0;
-
-static void walker_recover_handler(int sig, siginfo_t *info, void *ctx) {
-    if (g_walker_in_fault) {
-        signal(sig, SIG_DFL);
-        raise(sig);
-        return;
-    }
-    siglongjmp(g_walker_recover, 1);
-}
-
-static void walker_recover_install(void) {
-    struct sigaction sa;
-    sa.sa_sigaction = walker_recover_handler;
-    sa.sa_flags = SA_SIGINFO | SA_NODEFER;
-    sigemptyset(&sa.sa_mask);
-    sigaction(SIGSEGV, &sa, NULL);
-    sigaction(SIGBUS, &sa, NULL);
 }
 
 void RSP_ProcessGfxTask(OSTask* tp) {
-    if (!g_walker_recover_installed) {
-        g_walker_recover_installed = 1;
-        walker_recover_install();
-    }
-    if (sigsetjmp(g_walker_recover, 1) != 0) {
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-RECOVER",
-            "walker recovered from fault (frame skipped)");
-        return;
-    }
-    g_walker_in_fault = 0;
-
     { static int s_wr = 0; if (s_wr++ < 10) __android_log_print(ANDROID_LOG_ERROR, "BKA-WALK-ENTRY", "task=%d size=%u", s_wr, tp ? tp->t.data_size : 0); }
     { static int s_once = 0; if (s_once++ == 0) bka_install_watch(); }
     { static int s_ent = 0; if (s_ent++ < 30) {
