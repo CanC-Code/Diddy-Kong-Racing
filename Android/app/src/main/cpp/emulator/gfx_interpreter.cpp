@@ -1,4 +1,7 @@
 /* BKA_FORCE_REBUILD_v4_2026_10_15 */
+#include <setjmp.h>
+#include <signal.h>
+#include <unistd.h>
 #include <stdio.h>
 #include "gfx_interpreter.h"
 
@@ -2874,7 +2877,48 @@ static inline int bka_detect_stride(const uint8_t* p) {
     return (valid16 >= valid8) ? 16 : 8;
 }
 
+/* PORT: walker SIGSEGV recovery. Only recover faults on the walker's own
+   thread (gettid check). Faults on HWUI/art/other threads MUST propagate
+   normally — cross-thread siglongjmp is UB and corrupts HWUI state,
+   causing EGL_BAD_CONTEXT aborts seconds later. */
+static sigjmp_buf g_walker_recover;
+static volatile sig_atomic_t g_walker_in_fault = 0;
+static volatile sig_atomic_t g_recover_count = 0;
+static int g_walker_recover_installed = 0;
+static pid_t g_walker_tid = 0;
+
+static void walker_recover_handler(int sig, siginfo_t *info, void *ctx) {
+    if (gettid() != g_walker_tid || g_walker_in_fault || g_recover_count > 200) {
+        signal(sig, SIG_DFL);
+        raise(sig);
+        return;
+    }
+    g_recover_count++;
+    siglongjmp(g_walker_recover, 1);
+}
+
+static void walker_recover_install(void) {
+    struct sigaction sa;
+    sa.sa_sigaction = walker_recover_handler;
+    sa.sa_flags = SA_SIGINFO | SA_NODEFER;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGBUS, &sa, NULL);
+}
+
 void RSP_ProcessGfxTask(OSTask* tp) {
+    if (!g_walker_recover_installed) {
+        g_walker_recover_installed = 1;
+        g_walker_tid = gettid();
+        walker_recover_install();
+    }
+    if (sigsetjmp(g_walker_recover, 1) != 0) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-RECOVER",
+            "walker recovered fault #%d (frame skipped)", (int)g_recover_count);
+        return;
+    }
+    g_walker_in_fault = 0;
+
     { static int s_wr = 0; if (s_wr++ < 10) __android_log_print(ANDROID_LOG_ERROR, "BKA-WALK-ENTRY", "task=%d size=%u", s_wr, tp ? tp->t.data_size : 0); }
     { static int s_once = 0; if (s_once++ == 0) bka_install_watch(); }
     { static int s_ent = 0; if (s_ent++ < 30) {
