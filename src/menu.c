@@ -3387,6 +3387,12 @@ void menu_title_screen_init(void) {
     __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT", "5 after gMenuStage");
     menu_assetgroup_load(sGameTitleTileTextures);
     __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT", "6 after menu_assetgroup_load");
+#ifdef PORT
+    __android_log_print(ANDROID_LOG_ERROR, "BKA-ASSETS",
+        "after group load: [0]=%p [1]=%p [2]=%p [3]=%p [4]=%p [5]=%p [6]=%p [7]=%p",
+        gMenuAssets[0], gMenuAssets[1], gMenuAssets[2], gMenuAssets[3],
+        gMenuAssets[4], gMenuAssets[5], gMenuAssets[6], gMenuAssets[7]);
+#endif
     for (i = 0; i < ARRAY_COUNT(sGameTitleTileOffsets) - 1; i++) {
         sGameTitleTileOffsets[i].texture = gMenuAssets[sGameTitleTileTextures[i]];
     }
