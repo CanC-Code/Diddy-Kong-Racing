@@ -366,6 +366,14 @@ void fb_swap(void) {
             /* PORT: sync g_active_fb_offset to track the last rendered framebuffer.
                fillArgb reads gN64_RDRAM + g_active_fb_offset. */
             g_active_fb_offset = (uint32_t)((uintptr_t)gVideoLastFramebuffer - (uintptr_t)gN64_RDRAM);
+            static int s_swap = 0;
+            if (s_swap++ < 12 || (s_swap % 60) == 0) {
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-SWAP",
+                    "swap=%d fbIndex=%d last=%p rdram=%p offset=0x%X fb0=%p fb1=%p",
+                    s_swap, gVideoCurrFbIndex, (void*)gVideoLastFramebuffer,
+                    (void*)gN64_RDRAM, g_active_fb_offset,
+                    (void*)gVideoFramebuffers[0], (void*)gVideoFramebuffers[1]);
+            }
         }
     }
 #endif
