@@ -256,6 +256,13 @@ void free_particle_assets(void) {
  * Load all assets related to particles.
  */
 void init_particle_assets(void) {
+#ifdef PORT
+    /* PORT: us.v80 asset data doesn't match what decomp expects for the
+       colourLoop sub-asset pointers. Crashes with SEGV_ACCERR writing to
+       gParticleBehavioursAssetTable[i]->colourLoop. Skipped on aarch64 port
+       until particle asset loading is properly debugged with bounds checks. */
+    return;
+#endif
     s32 i;
 
     free_particle_assets();
