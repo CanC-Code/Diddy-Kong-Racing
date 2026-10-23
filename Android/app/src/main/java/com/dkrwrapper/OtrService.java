@@ -47,7 +47,15 @@ public class OtrService extends Service {
     }
 
     @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
+        private ParcelFileDescriptor openRomFd(String uriString) throws Exception {
+        android.net.Uri uri = android.net.Uri.parse(uriString);
+        if ("file".equals(uri.getScheme())) {
+            return ParcelFileDescriptor.open(new java.io.File(uri.getPath()), ParcelFileDescriptor.MODE_READ_ONLY);
+        }
+        return getContentResolver().openFileDescriptor(uri, "r");
+    }
+
+public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null) return START_NOT_STICKY;
 
         String uriString = intent.getStringExtra("uri");
@@ -61,13 +69,13 @@ public class OtrService extends Service {
 
         startForeground(NOTIFICATION_ID,
             new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Preparing Banjo-Kazooie Assets")
+                .setContentTitle("Preparing Diddy Kong Racing Assets")
                 .setSmallIcon(android.R.drawable.stat_sys_download)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build());
 
         new Thread(() -> {
-            try (ParcelFileDescriptor pfd = getContentResolver().openFileDescriptor(Uri.parse(uriString), "r")) {
+            try (ParcelFileDescriptor pfd = openRomFd(uriString)) {
                 if (pfd == null) throw new Exception("Could not open ROM file descriptor.");
 
                 // 1. Extract the manifest from Assets to FilesDir so C++ can fopen() it

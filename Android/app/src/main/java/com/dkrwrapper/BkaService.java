@@ -47,12 +47,12 @@ public class BkaService extends Service {
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel ch = new NotificationChannel(CHANNEL,
-                "Banjo-Kazooie stream", NotificationManager.IMPORTANCE_LOW);
+                "Diddy Kong Racing stream", NotificationManager.IMPORTANCE_LOW);
             ch.setShowBadge(false);
             nm.createNotificationChannel(ch);
         }
         Notification n = new Notification.Builder(this, CHANNEL)
-                .setContentTitle("Banjo-Kazooie")
+                .setContentTitle("Diddy Kong Racing")
                 .setContentText("Preparing engine...")
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setOngoing(true)
@@ -99,7 +99,7 @@ public class BkaService extends Service {
                 launchExtraction(rom);
             } else {
                 Log.e(TAG, "no ROM found in any known location");
-                notifyUser("Place Banjo-Kazooie.n64 in Downloads, then relaunch");
+                notifyUser("Place auto_rom.z64 in app files, then relaunch");
             }
         }
 
@@ -110,13 +110,8 @@ public class BkaService extends Service {
         File files = getFilesDir();
         String[] candidates = new String[] {
             new File(files, "auto_rom.z64").getAbsolutePath(),
-            "/storage/emulated/0/Download/Banjo-Kazooie.n64",
-            "/storage/emulated/0/Download/Banjo-Kazooie.z64",
-            "/storage/emulated/0/Download/diddy-kazooie.n64",
-            "/storage/emulated/0/Download/diddy-kazooie.z64",
-            "/sdcard/Download/Banjo-Kazooie.n64",
-            "/sdcard/Download/Banjo-Kazooie.z64",
-            new File(files, "Banjo-Kazooie.n64").getAbsolutePath(),
+            new File(files, "diddy-kong-racing.z64").getAbsolutePath(),
+            new File(files, "rom.z64").getAbsolutePath(),
         };
         for (String p : candidates) {
             File f = new File(p);
@@ -153,7 +148,7 @@ public class BkaService extends Service {
     private void notifyUser(String text) {
         NotificationManager nm = getSystemService(NotificationManager.class);
         Notification n = new Notification.Builder(this, CHANNEL)
-                .setContentTitle("Banjo-Kazooie")
+                .setContentTitle("Diddy Kong Racing")
                 .setContentText(text)
                 .setSmallIcon(android.R.drawable.ic_dialog_alert)
                 .setOngoing(true)
