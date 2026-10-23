@@ -87,12 +87,12 @@ public class BkaService extends Service {
 
             Intent chrome = new Intent(Intent.ACTION_VIEW, Uri.parse("http://127.0.0.1:8081/"));
 
-        }
         chrome.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             startActivity(chrome);
         } catch (Exception e) {
             Log.e(TAG, "chrome launch failed", e);
+        }
         }
 
         // Register for OtrService broadcasts
