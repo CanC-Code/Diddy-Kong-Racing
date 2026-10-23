@@ -2883,6 +2883,23 @@ static inline int bka_detect_stride(const uint8_t* p) {
    causing EGL_BAD_CONTEXT aborts seconds later. */
 static sigjmp_buf g_walker_recover;
 static volatile sig_atomic_t g_walker_in_fault = 0;
+
+    /* PORT TEST: force-write white to framebuffer 0. If Chrome shows white,
+       fillArgb works and walker writes nowhere. If Chrome stays black,
+       fillArgb reads wrong address. */
+    {
+        extern uint8_t *gN64_RDRAM;
+        static int s_tf = 0;
+        if (s_tf++ < 60 && gN64_RDRAM) {
+            uint16_t *fb0 = (uint16_t*)(gN64_RDRAM + 0x400000);
+            for (int i = 0; i < 292*216; i++) fb0[i] = 0xFFFF;
+            static int s_tfl = 0;
+            if (s_tfl++ < 3)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-TESTFILL",
+                    "wrote 0xFFFF to fb0=%p (first 4 bytes now: %04X %04X)",
+                    (void*)fb0, fb0[0], fb0[1]);
+        }
+    }
 static volatile sig_atomic_t g_recover_count = 0;
 static int g_walker_recover_installed = 0;
 static pid_t g_walker_tid = 0;
