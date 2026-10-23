@@ -13878,6 +13878,10 @@ void menu_asset_load(s32 assetID) {
     } // Fakematch
     if (!gMenuAssetActive[assetID]) {
         i = (*gAssetsMenuElementIds)[assetID];
+#ifdef PORT
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-MLOAD",
+            "assetID=%d raw_id=0x%04X masked=0x%04X", assetID, (u16)i, (u16)(i & 0x3FFF));
+#endif
 
         if ((i & ASSET_MASK_TEXTURE) == ASSET_MASK_TEXTURE) {
             gMenuAssets[assetID] = load_texture(i & 0x3FFF);
