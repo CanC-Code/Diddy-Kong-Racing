@@ -57,6 +57,12 @@ static std::vector<SegmentRecord> g_segments;
 // rather than relying on the in-memory gN64_ROM_Base pointer.
 extern uint8_t* gN64_ROM_Base;
 static size_t g_romSize = 0;
+static volatile uint32_t g_pi_dma_count = 0;
+static volatile uint32_t g_pi_dma_success = 0;
+static volatile uint32_t g_pi_dma_fail = 0;
+extern "C" uint32_t pi_dma_count()   { return g_pi_dma_count; }
+extern "C" uint32_t pi_dma_success() { return g_pi_dma_success; }
+extern "C" uint32_t pi_dma_fail()    { return g_pi_dma_fail; }
 
 extern "C" void BKA_SignalResourcesReady(void);
 
@@ -428,12 +434,16 @@ void ResourceMgr_Init(const char* assetDir) {
  * treated as truncated host pointers.
  */
 void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
+    g_pi_dma_count++;
     if (!dramAddr || size == 0) {
-    __android_log_print(ANDROID_LOG_INFO, "BKA_PI", "HandleDma: dramAddr=%p devAddr=0x%08X size=%u", dramAddr, devAddr, size);
-    extern int g_diag_assetId; extern void* g_diag_cfile; extern int g_diag_csize; if (g_diag_assetId) __android_log_print(ANDROID_LOG_INFO, "BKA_PI", "HandleDma: last asset=%d cfile=%p csize=%d", g_diag_assetId, g_diag_cfile, g_diag_csize);
         LOGE("ResourceMgr_HandleDma: Invalid parameters (dramAddr=%p, size=%u)", dramAddr, size);
+        g_pi_dma_fail++;
         return;
     }
+    { static int s_first = 0; if (s_first++ < 20)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-DMA",
+            "ENTRY #%u dram=%p devAddr=0x%08X size=%u",
+            g_pi_dma_count, dramAddr, devAddr, size); }
 
     static char path[512];
     uint32_t relativeRomOffset = devAddr & 0x0FFFFFFF;

@@ -296,6 +296,9 @@ extern "C" int gfx_settimg_count();
 extern "C" uint32_t gfx_opcode_hist_get(int i);
 extern "C" uint8_t* gfx_tmem_ptr();
 extern "C" int gfx_tmem_size();
+extern "C" uint32_t pi_dma_count();
+extern "C" uint32_t pi_dma_success();
+extern "C" uint32_t pi_dma_fail();
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray outArr) {
@@ -371,6 +374,8 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
                 for (int i = 0; i < tmem_sz; i++) if (tmem[i]) nonzero++;
             }
             fprintf(f, "tmem_size=%d tmem_nonzero=%d\n", tmem_sz, nonzero);
+            fprintf(f, "pi_dma total=%u success=%u fail=%u\n",
+                    pi_dma_count(), pi_dma_success(), pi_dma_fail());
             fprintf(f, "first16_tmem=");
             if (tmem) for (int i = 0; i < 16 && i < tmem_sz; i++) fprintf(f, "%02X", tmem[i]);
             fprintf(f, "\n");
