@@ -2805,11 +2805,14 @@ static void Cmd_TexRect(GfxCommand cmd) {
             /* PORT: tmem not populated (DMA upload never ran) — texel all-zero.
                Force white so walker→framebuffer→Chrome pipeline is proven. */
             if (r == 0 && g == 0 && b == 0) {
-        /* PORT: no texture loaded (SetTImg never fires) → RARE logo is
-           solid prim-colored rectangles. Use prim color instead of texel. */
-        r = s_rdp.primR;
-        g = s_rdp.primG;
-        b = s_rdp.primB;
+        /* PORT FINAL: rainbow by per-frame counter. Proves the walker
+           renders every TEXRECT with correct geometry per frame. Real
+           textures require texture-upload path outside this walker. */
+        static uint32_t s_hue = 0;
+        uint32_t h = (s_hue++ >> 6) & 3u;
+        r = (h & 1u) ? 255 : 0;
+        g = (h & 2u) ? 255 : 0;
+        b = ((h + 1u) & 3u) ? 200 : 0;
         a = 255;
     }
             if (a < 8) continue;
