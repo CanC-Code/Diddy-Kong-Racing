@@ -1374,6 +1374,7 @@ static void Cmd_SetTileSize(GfxCommand cmd) {
 }
 
 static void Cmd_SetTImg(GfxCommand cmd) {
+    s_gfx_sti_count++;
     /* ARM64 port 2026-10-14: reject bogus SetTImg BEFORE it clobbers
        s_rdp.texAddr. w1==0xFFFFFFFF is a walker-drift artifact: the
        walker lost byte alignment and decoded non-command bytes as
@@ -1571,6 +1572,7 @@ static void Cmd_SetTImg(GfxCommand cmd) {
 }
 
 static void Cmd_LoadTile(GfxCommand cmd) {
+    s_gfx_lt_count++;
     uint32_t tile = (cmd.w1 >> 24) & 0x7;
     { static int s_lt = 0; if (s_lt++ < 20) __android_log_print(ANDROID_LOG_ERROR, "BKA-LOADTILE", "ENTRY tile=%u w0=%08X w1=%08X texAddr=%p", tile, cmd.w0, cmd.w1, (void*)s_rdp.texAddr); }
     if (tile >= 8) return;
@@ -1702,7 +1704,15 @@ static void Cmd_LoadTLUT(GfxCommand cmd) {
 
 }
 
+static int s_gfx_lb_count = 0;
+static int s_gfx_lt_count = 0;
+static int s_gfx_sti_count = 0;
+extern "C" int gfx_loadblock_count() { return s_gfx_lb_count; }
+extern "C" int gfx_loadtile_count() { return s_gfx_lt_count; }
+extern "C" int gfx_settimg_count() { return s_gfx_sti_count; }
+
 static void Cmd_LoadBlock(GfxCommand cmd) {
+    s_gfx_lb_count++;
     /* Fix T: F3DEX LoadBlock.  Tile field is bits 16-23 of w0, NOT low 3.
      * Contiguous transfer; sh encodes 16-bit word count - 1. */
     uint32_t tile = (cmd.w1 >> 24) & 0x7;

@@ -323,6 +323,41 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         env->ReleaseIntArrayElements(outArr, out, 0);
         return;
     }
+    /* PORT probe: top-left 4 pixels of framebuffer.
+       px[0] white = LoadBlock fired, black = never
+       px[1] white = LoadTile  fired, black = never
+       px[2] white = SetTImg  fired, black = never
+       px[3] red-blink = fillArgb running (frame counter toggling) */
+    extern "C" int gfx_loadblock_count();
+    extern "C" int gfx_loadtile_count();
+    extern "C" int gfx_settimg_count();
+    static int s_frame_count = 0;
+    s_frame_count++;
+    int lb = gfx_loadblock_count();
+    int lt = gfx_loadtile_count();
+    int sti = gfx_settimg_count();
+    {
+        uint16_t* pa = (uint16_t*)gVideoLastFramebuffer;
+        uint16_t* pb = (uint16_t*)gVideoCurrFramebuffer;
+        if (pa) {
+            pa[0] = (lb > 0)  ? 0xFFFF : 0x0000;
+            pa[1] = (lt > 0)  ? 0xFFFF : 0x0000;
+            pa[2] = (sti > 0) ? 0xFFFF : 0x0000;
+            pa[3] = (s_frame_count & 1) ? 0xF800 : 0x0000;
+        }
+        if (pb) {
+            pb[0] = (lb > 0)  ? 0xFFFF : 0x0000;
+            pb[1] = (lt > 0)  ? 0xFFFF : 0x0000;
+            pb[2] = (sti > 0) ? 0xFFFF : 0x0000;
+            pb[3] = (s_frame_count & 1) ? 0xF800 : 0x0000;
+        }
+    }
+    if (s_frame_count % 30 == 0) {
+        FILE* f = fopen("/data/data/com.dkrwrapper/files/probe.txt", "w");
+        if (f) { fprintf(f, "frame=%d lb=%d lt=%d sti=%d\n",
+                          s_frame_count, lb, lt, sti); fclose(f); }
+    }
+
     uint16_t* src_a = (uint16_t*)gVideoLastFramebuffer;
     uint16_t* src_b = (uint16_t*)gVideoCurrFramebuffer;
     int nb_a = 0, nb_b = 0;
