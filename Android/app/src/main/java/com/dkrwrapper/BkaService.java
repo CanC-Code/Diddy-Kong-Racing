@@ -54,7 +54,7 @@ public class BkaService extends Service {
                 try {
                     Native.fillArgb(scratch);
                     int nonBlack = 0;
-                    for (int i = 0; i < scratch.length; i++) if ((scratch[i] & 0x00FFFFFF) != 0) nonBlack++;
+                    for (int i = 0; i < scratch.length; i++) if (scratch[i] != 0) nonBlack++;
                     Log.i("BKA-KEEPALIVE", "fillArgb nonBlack=" + nonBlack + "/" + scratch.length + " iter=" + n);
                 } catch (Throwable t) {
                     Log.e("BKA-KEEPALIVE", "fillArgb failed: " + t);
