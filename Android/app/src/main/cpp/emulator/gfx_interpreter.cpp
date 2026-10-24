@@ -2797,8 +2797,8 @@ static void Cmd_TexRect(GfxCommand cmd) {
            If we see checkerboard shaped like RARE logo → sampler math WORKS,
            only G_LOADBLOCK is missing. If still flat → fetch is broken too.
            Use small cells (>>2) so any scale/offset error is obvious. */
-        int cx = (int)(u >> 2) & 1;
-        int cy = (int)(v >> 2) & 1;
+        int cx = (int)(uuc >> 2) & 1;
+        int cy = (int)(vvc >> 2) & 1;
         int chk = cx ^ cy;
         r = chk ? 255 : 40;
         g = chk ? 255 : 40;
