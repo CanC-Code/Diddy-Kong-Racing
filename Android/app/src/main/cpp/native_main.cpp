@@ -364,8 +364,6 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
             fprintf(f, "frame=%d lb=%d lt=%d sti=%d\n",
                     s_frame_count, lb, lt, sti);
             /* TMEM occupancy: how many of 4096 bytes are non-zero */
-            extern "C" uint8_t* gfx_tmem_ptr();
-            extern "C" int gfx_tmem_size();
             uint8_t* tmem = gfx_tmem_ptr();
             int tmem_sz = gfx_tmem_size();
             int nonzero = 0;
