@@ -1591,11 +1591,10 @@ static void Cmd_LoadTile(GfxCommand cmd) {
         if (srcLineStride == 0) srcLineStride = 1;
         for (uint32_t row = 0; row < texHeight; row++) {
             uint32_t srcOffset = (tl + row) * srcLineStride + (sl * bppBits) / 8;
-            uint32_t dstOffset = tmemBase + row * lineWords * 8;
+            uint32_t dstOffset = tmemBase + row * t.line * 8;
             if (dstOffset + lineBytes <= 4096)
                 memcpy(s_rdp.tmem + dstOffset, s_rdp.texAddr + srcOffset, lineBytes);
         }
-        t.line = lineWords;
     }
 }
 
@@ -1710,14 +1709,14 @@ static void Cmd_LoadBlock(GfxCommand cmd) {
     if (tile >= 8) return;
     auto& t = s_rdp.tiles[tile];
     uint32_t sl = (cmd.w0 >> 12) & 0xFFF, tl = cmd.w0 & 0xFFF;
-    uint32_t sh = (cmd.w1 >> 12) & 0xFFF, th = cmd.w1 & 0xFFF;
-    t.sl = sl; t.tl = tl; t.sh = sh; t.th = th;
-    { static int s_lb = 0; if (s_lb++ < 2000) __android_log_print(ANDROID_LOG_ERROR, "BKA-LOADBLK", "ENTRY tile=%u w0=%08X w1=%08X sl=%u tl=%u sh=%u th=%u tmemAddr=%u line=%u texAddr=%p", tile, cmd.w0, cmd.w1, sl, tl, sh, th, t.tmemAddr, t.line, (void*)s_rdp.texAddr); }
+    uint32_t sh = (cmd.w1 >> 12) & 0xFFF, dxt = cmd.w1 & 0xFFF;
+    t.sl = sl; t.tl = tl;
+    /* DO NOT overwrite t.sh, t.th, or t.line here! G_SETTILE handles that. */
+    { static int s_lb = 0; if (s_lb++ < 2000) __android_log_print(ANDROID_LOG_ERROR, "BKA-LOADBLK", "ENTRY tile=%u w0=%08X w1=%08X sl=%u tl=%u sh=%u dxt=%u tmemAddr=%u line=%u texAddr=%p", tile, cmd.w0, cmd.w1, sl, tl, sh, dxt, t.tmemAddr, t.line, (void*)s_rdp.texAddr); }
 
     uint32_t texSizeBytes = (sh + 1) * 8; // G_LOADBLOCK fix: sh is 64-bit word count - 1
     if (texSizeBytes == 0) texSizeBytes = 1;
     uint32_t tmemBase = t.tmemAddr * 8;
-    t.line = (texSizeBytes + 7) / 8;
 
     /* ARM64 port 2026-10-13: scope the 2KB reject to ASCII-only.
        The guard was added to filter a misparse whose SetTImg resolved
