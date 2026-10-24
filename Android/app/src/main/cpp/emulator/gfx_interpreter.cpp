@@ -244,6 +244,30 @@ static uint8_t* bka_scan_heap_for_vertex_base(uint32_t dl_addr) {
 }
 
 static inline uint8_t* RDP_TranslateAddr(uint32_t addr) {
+    /* PORT: framebuffer pointer reconstruction */
+    {
+        extern uint8_t *gVideoLastFramebuffer;
+        extern uint8_t *gVideoCurrFramebuffer;
+        if (gVideoLastFramebuffer) {
+            uint32_t lo = (uint32_t)(uintptr_t)gVideoLastFramebuffer;
+            if (addr >= lo && (uint32_t)(addr - lo) < 0x80000u) {
+                static int s1 = 0; if (s1++ < 5)
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-FBCHECK",
+                        "last addr=0x%08X off=0x%X", addr, addr - lo);
+                return gVideoLastFramebuffer + (addr - lo);
+            }
+        }
+        if (gVideoCurrFramebuffer) {
+            uint32_t lo = (uint32_t)(uintptr_t)gVideoCurrFramebuffer;
+            if (addr >= lo && (uint32_t)(addr - lo) < 0x80000u) {
+                static int s2 = 0; if (s2++ < 5)
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-FBCHECK",
+                        "curr addr=0x%08X off=0x%X", addr, addr - lo);
+                return gVideoCurrFramebuffer + (addr - lo);
+            }
+        }
+    }
+
 #ifdef PORT
     {
         extern uint8_t *gN64_RDRAM;
