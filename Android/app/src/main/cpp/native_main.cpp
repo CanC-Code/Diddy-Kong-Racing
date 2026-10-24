@@ -293,6 +293,7 @@ extern "C" int gfx_loadblock_count();
 extern "C" int gfx_loadtile_count();
 extern "C" int gfx_settimg_count();
 
+extern "C" uint32_t gfx_opcode_hist_get(int i);
 extern "C" JNIEXPORT void JNICALL
 Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray outArr) {
 
@@ -356,8 +357,16 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     }
     if (s_frame_count % 30 == 0) {
         FILE* f = fopen("/data/data/com.dkrwrapper/files/probe.txt", "w");
-        if (f) { fprintf(f, "frame=%d lb=%d lt=%d sti=%d\n",
-                          s_frame_count, lb, lt, sti); fclose(f); }
+        if (f) {
+            fprintf(f, "frame=%d lb=%d lt=%d sti=%d\n",
+                    s_frame_count, lb, lt, sti);
+            fprintf(f, "opcode histogram:\n");
+            for (int i = 0; i < 256; i++) {
+                uint32_t n = gfx_opcode_hist_get(i);
+                if (n > 0) fprintf(f, "  %02X: %u\n", i, n);
+            }
+            fclose(f);
+        }
     }
 
     uint16_t* src_a = (uint16_t*)gVideoLastFramebuffer;

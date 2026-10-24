@@ -2964,6 +2964,11 @@ static volatile sig_atomic_t g_recover_count = 0;
 static int g_walker_recover_installed = 0;
 static pid_t g_walker_tid = 0;
 
+/* PORT: per-opcode histogram for diagnosing dispatch gaps */
+static uint32_t g_opcode_hist[256] = {0};
+extern "C" uint32_t gfx_opcode_hist_get(int i) { return (i >= 0 && i < 256) ? g_opcode_hist[i] : 0u; }
+extern "C" void gfx_opcode_hist_reset(void) { for (int i = 0; i < 256; i++) g_opcode_hist[i] = 0; }
+
 static void walker_recover_handler(int sig, siginfo_t *info, void *ctx) {
     if (gettid() != g_walker_tid || g_walker_in_fault || g_recover_count > 5000) {
         signal(sig, SIG_DFL);
@@ -3634,7 +3639,8 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                 }
                 /* BKA-CMDENTRY: disabled 2026-10-11 — per-opcode logcat was starving the render loop */
                 /* BKA-CMDENTRY line removed */
-                switch (opcode) {
+                g_opcode_hist[opcode]++;
+            switch (opcode) {
             case 0xAF: // G_LOAD_UCODE - not needed for software RDP
             case 0xB3: // G_RDPHALF_2
             case 0xB5: // G_LINE3D
