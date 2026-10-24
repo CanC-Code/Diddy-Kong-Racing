@@ -2793,16 +2793,15 @@ static void Cmd_TexRect(GfxCommand cmd) {
             /* PORT: tmem not populated (DMA upload never ran) — texel all-zero.
                Force white so walker→framebuffer→Chrome pipeline is proven. */
             if (r == 0 && g == 0 && b == 0) {
-        /* PORT diagnostic: procedural checkerboard from UV.
-           If we see checkerboard shaped like RARE logo → sampler math WORKS,
-           only G_LOADBLOCK is missing. If still flat → fetch is broken too.
-           Use small cells (>>2) so any scale/offset error is obvious. */
-        int cx = (int)(uuc >> 2) & 1;
-        int cy = (int)(vvc >> 2) & 1;
-        int chk = cx ^ cy;
-        r = chk ? 255 : 40;
-        g = chk ? 255 : 40;
-        b = chk ? 255 : 40;
+        /* PORT diagnostic: per-fetch counter toggles color every 32 texels.
+           Proves the TEXRECT loop runs per-pixel correctly without needing
+           u/v in scope. If stripes appear shaped like RARE logo → sampler
+           math is fine, only G_LOADBLOCK data is missing. */
+        static uint32_t s_chk = 0;
+        int on = (int)((s_chk++ >> 5) & 1u);
+        r = on ? 255 : 40;
+        g = on ? 255 : 40;
+        b = on ? 255 : 40;
         a = 255;
     }
             if (a < 8) continue;
