@@ -288,6 +288,11 @@ void android_main(android_app* app) {
 }
 
 
+/* PORT: file-scope C-linkage decls for probe counters defined in gfx_interpreter.cpp */
+extern "C" int gfx_loadblock_count();
+extern "C" int gfx_loadtile_count();
+extern "C" int gfx_settimg_count();
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray outArr) {
 
@@ -328,9 +333,6 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
        px[1] white = LoadTile  fired, black = never
        px[2] white = SetTImg  fired, black = never
        px[3] red-blink = fillArgb running (frame counter toggling) */
-    extern "C" int gfx_loadblock_count();
-    extern "C" int gfx_loadtile_count();
-    extern "C" int gfx_settimg_count();
     static int s_frame_count = 0;
     s_frame_count++;
     int lb = gfx_loadblock_count();

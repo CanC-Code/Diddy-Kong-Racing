@@ -1277,6 +1277,15 @@ static void TransformVertex(const BKVertex* v, float* sx, float* sy) {
 // Command Handlers
 // =======================================================================
 
+/* PORT probe counters — must be declared before any Cmd_* function
+   that increments them (Cmd_SetTImg is at ~1377, well before Cmd_LoadBlock). */
+static int s_gfx_lb_count = 0;
+static int s_gfx_lt_count = 0;
+static int s_gfx_sti_count = 0;
+extern "C" int gfx_loadblock_count() { return s_gfx_lb_count; }
+extern "C" int gfx_loadtile_count() { return s_gfx_lt_count; }
+extern "C" int gfx_settimg_count() { return s_gfx_sti_count; }
+
 static void Cmd_SetPrimColor(GfxCommand cmd) {
     s_rdp.primR = (cmd.w1 >> 24) & 0xFF;
     s_rdp.primG = (cmd.w1 >> 16) & 0xFF;
@@ -1703,13 +1712,6 @@ static void Cmd_LoadTLUT(GfxCommand cmd) {
             ((u16)s_rdp.tmem[(tmemBase+30)&0xFFF]<<8)|s_rdp.tmem[(tmemBase+31)&0xFFF]); }
 
 }
-
-static int s_gfx_lb_count = 0;
-static int s_gfx_lt_count = 0;
-static int s_gfx_sti_count = 0;
-extern "C" int gfx_loadblock_count() { return s_gfx_lb_count; }
-extern "C" int gfx_loadtile_count() { return s_gfx_lt_count; }
-extern "C" int gfx_settimg_count() { return s_gfx_sti_count; }
 
 static void Cmd_LoadBlock(GfxCommand cmd) {
     s_gfx_lb_count++;
