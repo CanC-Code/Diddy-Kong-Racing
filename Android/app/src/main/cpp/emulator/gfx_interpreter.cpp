@@ -3138,23 +3138,33 @@ void RSP_ProcessGfxTask(OSTask* tp) {
         }
     }
 
-    { static int s_rd = 0; if (s_rd++ < 5) {
+    { static int s_rd = 0; if (s_rd++ < 3) {
         extern uint8_t* gN64_RDRAM;
-        if (gN64_RDRAM) {
-            /* Sample 8 spots across the 12MB RDRAM to see where data landed */
-            uint32_t samples[8] = {0x0, 0x400000, 0x800000, 0xC00000,
-                                   0x200000, 0x600000, 0xA00000, 0xE00000};
-            for (int i = 0; i < 8; i++) {
-                uint32_t off = samples[i];
-                int nz = 0;
-                for (int k = 0; k < 4096; k++) if (gN64_RDRAM[off + k]) nz++;
-                __android_log_print(ANDROID_LOG_ERROR, "BKA-RDRAM",
-                    "off=%07X nonzero=%d/4096 first=%02X%02X%02X%02X",
-                    off, nz,
-                    gN64_RDRAM[off], gN64_RDRAM[off+1],
-                    gN64_RDRAM[off+2], gN64_RDRAM[off+3]);
-            }
-        }
+        uint8_t* dp = (uint8_t*)tp->t.data_ptr;
+        uintptr_t rddram_u = (uintptr_t)gN64_RDRAM;
+        uintptr_t dp_u = (uintptr_t)dp;
+        int dp_in_rddram = (dp && gN64_RDRAM && dp_u >= rddram_u && dp_u < rddram_u + 0x1000000);
+        uint32_t dp_off = dp_in_rddram ? (uint32_t)(dp_u - rddram_u) : 0;
+        /* First 32 bytes of the display list itself */
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-DLINFO",
+            "task=%p rddram=%p dp=%p in_rddram=%d off=%07X f16=%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
+            (void*)tp, (void*)gN64_RDRAM, (void*)dp, dp_in_rddram, dp_off,
+            dp?dp[0]:0,dp?dp[1]:0,dp?dp[2]:0,dp?dp[3]:0,
+            dp?dp[4]:0,dp?dp[5]:0,dp?dp[6]:0,dp?dp[7]:0,
+            dp?dp[8]:0,dp?dp[9]:0,dp?dp[10]:0,dp?dp[11]:0,
+            dp?dp[12]:0,dp?dp[13]:0,dp?dp[14]:0,dp?dp[15]:0);
+        /* Framebuffer regions from current/last */
+        extern uint8_t* gVideoCurrFramebuffer;
+        extern uint8_t* gVideoLastFramebuffer;
+        int64_t off_curr = (gVideoCurrFramebuffer && gN64_RDRAM) ? (gVideoCurrFramebuffer - gN64_RDRAM) : -1;
+        int64_t off_last = (gVideoLastFramebuffer && gN64_RDRAM) ? (gVideoLastFramebuffer - gN64_RDRAM) : -1;
+        int curr_nz = 0, last_nz = 0;
+        if (gVideoCurrFramebuffer) for (int k = 0; k < 4096; k++) if (gVideoCurrFramebuffer[k]) curr_nz++;
+        if (gVideoLastFramebuffer) for (int k = 0; k < 4096; k++) if (gVideoLastFramebuffer[k]) last_nz++;
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FB",
+            "curr_fb=%p off=%lld nz=%d | last_fb=%p off=%lld nz=%d",
+            (void*)gVideoCurrFramebuffer, (long long)off_curr, curr_nz,
+            (void*)gVideoLastFramebuffer, (long long)off_last, last_nz);
     } }
     
     if (!tp || !tp->t.data_ptr || tp->t.data_size == 0) {
