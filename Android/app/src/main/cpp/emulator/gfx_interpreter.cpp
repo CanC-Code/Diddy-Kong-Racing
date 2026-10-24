@@ -295,6 +295,34 @@ static inline uint8_t* RDP_TranslateAddr(uint32_t addr) {
         }
     }
 
+    /* PORT: rsp_segment(SEGMENT_FRAMEBUFFER, gVideoLastFramebuffer) truncates
+       64-bit host ptr to 32-bit. Detect when addr is a truncated form of one
+       of the framebuffers and return the full pointer directly. Targeted —
+       no range extension, no false positives on other heap/read-only pages. */
+    {
+        extern uint8_t *gVideoLastFramebuffer;
+        extern uint8_t *gVideoCurrFramebuffer;
+        if (gVideoLastFramebuffer) {
+            uint32_t lo = (uint32_t)(uintptr_t)gVideoLastFramebuffer;
+            if (addr >= lo && (uint64_t)addr < (uint64_t)lo + 0x80000) {
+                static int s_fb1 = 0;
+                if (s_fb1++ < 5)
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-FBCHECK",
+                        "last: addr=0x%08X -> +0x%X", addr, addr - lo);
+                return gVideoLastFramebuffer + (addr - lo);
+            }
+        }
+        if (gVideoCurrFramebuffer) {
+            uint32_t lo = (uint32_t)(uintptr_t)gVideoCurrFramebuffer;
+            if (addr >= lo && (uint64_t)addr < (uint64_t)lo + 0x80000) {
+                static int s_fb2 = 0;
+                if (s_fb2++ < 5)
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-FBCHECK",
+                        "curr: addr=0x%08X -> +0x%X", addr, addr - lo);
+                return gVideoCurrFramebuffer + (addr - lo);
+            }
+        }
+    }
     if (addr >= 0x60000000u && addr < 0x80000000u) { uint64_t c = 0x7900000000ULL | (uint64_t)addr; if (bka_is_readable((void*)c)) return (uint8_t*)c; c = 0x7A00000000ULL | (uint64_t)addr; if (bka_is_readable((void*)c)) return (uint8_t*)c; }
     // Try exact-match mapping table first.
     void* p = bka_lookup_addr_mapping(addr);
