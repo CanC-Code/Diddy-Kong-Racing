@@ -2836,7 +2836,11 @@ static void* RSP_ResolveGfxAddress(uint32_t addr) {
     uint32_t seg = (addr >> 28) & 0x0F;
     uint32_t offset = addr & 0x0FFFFFFF;
     if (seg != 0 && seg < 16 && s_rdp.segmentBase[seg] != 0) {
-        return (uint8_t*)s_rdp.segmentBase[seg] + offset;
+        uint32_t base = s_rdp.segmentBase[seg];
+        /* PORT FIX: segmentBase holds an N64 physical/virtual base, not a
+           host pointer. Force KSEG0 (0x80000000) then translate to host. */
+        if (base < 0x80000000) base |= 0x80000000;
+        return RDP_TranslateAddr(base + offset);
     }
     return RDP_TranslateAddr(addr);
 }
@@ -3693,32 +3697,31 @@ void RSP_ProcessGfxTask(OSTask* tp) {
             case 0xF4: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F4 SetTileSize w0=%08X w1=%08X", c.w0, c.w1); /* ARM64 port 2026-10-13: F4 is SetTileSize in F3DEX1 */ Cmd_SetTileSize(c); break; }
             case 0xF6: Cmd_FillRect(c); break;
             case 0x07: {
-                /* PORT: opcode 0x07 fires 1:1 with TEXRECT — custom Rare
-                   SetTextureImage. Address is fully in w1. w0 low byte (0x38)
-                   is likely fmt/size. Log segment state, validate bounds,
-                   and set texAddr safely. */
+                /* PORT: opcode 0x07 = Rare SetTextureImage. Log + safely set
+                   texAddr only when the translated host pointer is in RDRAM. */
                 static int s_07 = 0;
                 uint32_t seg = (c.w1 >> 28) & 0x0F;
-                uint32_t offset = c.w1 & 0x0FFFFFFF;
                 uint32_t base = s_rdp.segmentBase[seg];
                 uint8_t* addr = (uint8_t*)RSP_ResolveGfxAddress(c.w1);
                 
-                if (s_07 < 40) {
+                if (s_07 < 20) {
+                    int in_rd = (gN64_RDRAM && addr && addr >= gN64_RDRAM &&
+                                 addr < gN64_RDRAM + 0x1000000);
                     __android_log_print(ANDROID_LOG_ERROR, "BKA-07",
-                        "#%d w0=%08X w1=%08X seg=%u base=%08X off=%08X addr=%p rddram=%p readable=%d",
-                        s_07, c.w0, c.w1, seg, base, offset, (void*)addr,
-                        (void*)gN64_RDRAM, bka_is_readable(addr) ? 1 : 0);
+                        "#%d w0=%08X w1=%08X seg=%u base=%08X addr=%p in_rdram=%d first8=%02X%02X%02X%02X%02X%02X%02X%02X",
+                        s_07, c.w0, c.w1, seg, base, (void*)addr, in_rd,
+                        in_rd?addr[0]:0, in_rd?addr[1]:0, in_rd?addr[2]:0, in_rd?addr[3]:0,
+                        in_rd?addr[4]:0, in_rd?addr[5]:0, in_rd?addr[6]:0, in_rd?addr[7]:0);
                     s_07++;
                 }
                 
-                /* Only set texAddr if the resolved pointer is in RDRAM bounds */
                 if (gN64_RDRAM && addr &&
                     addr >= gN64_RDRAM && addr < gN64_RDRAM + 0x1000000) {
                     s_rdp.texAddr = addr;
-                    /* w0 low byte 0x38 → texWidth = 56 (typical for Rare CI4 tiles) */
-                    uint32_t w = c.w0 & 0xFFF;
-                    if (w > 0) s_rdp.texWidth = (w + 1);
+                    uint32_t w = (c.w0 & 0xFFF);
+                    if (w > 0) s_rdp.texWidth = w;
                     else if (s_rdp.texWidth == 0) s_rdp.texWidth = 56;
+                    if (s_rdp.texSize == 0) s_rdp.texSize = 1;
                 }
                 break;
             }
