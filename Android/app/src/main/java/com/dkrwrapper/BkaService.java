@@ -43,6 +43,26 @@ public class BkaService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.i(TAG, "onStartCommand");
 
+        // PORT: keepalive thread proves fillArgb works independent of display.
+        // Reads framebuffer every 500ms, logs non-black pixel count. If this
+        // shows nonBlack > 0, walker renders correctly and pipeline is proven.
+        new Thread(() -> {
+            int[] scratch = new int[292 * 216];
+            int n = 0;
+            while (n++ < 200) {
+                try { Thread.sleep(500); } catch (InterruptedException e) {}
+                try {
+                    Native.fillArgb(scratch);
+                    int nonBlack = 0;
+                    for (int i = 0; i < scratch.length; i++) if (scratch[i] != 0) nonBlack++;
+                    Log.i("BKA-KEEPALIVE", "fillArgb nonBlack=" + nonBlack + "/" + scratch.length + " iter=" + n);
+                } catch (Throwable t) {
+                    Log.e("BKA-KEEPALIVE", "fillArgb failed: " + t);
+                }
+            }
+        }, "BKA-FillArgb-Keepalive").start();
+
+
         // Foreground service so Android doesn't kill us
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (Build.VERSION.SDK_INT >= 26) {
