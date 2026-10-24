@@ -311,15 +311,17 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
        and 0x440000; g_active_fb_offset may be stuck at 0x400000 on some frames
        (fb_swap sync not firing on Motorola). Picking the non-empty one is
        deterministic regardless of fb_swap. */
-    uint16_t* src_a = (uint16_t*)(gN64_RDRAM + 0x400000);
-    uint16_t* src_b = (uint16_t*)(gN64_RDRAM + 0x440000);
+    extern uint8_t *gVideoLastFramebuffer;
+    extern uint8_t *gVideoCurrFramebuffer;
+    uint16_t* src_a = (uint16_t*)gVideoLastFramebuffer;
+    uint16_t* src_b = (uint16_t*)gVideoCurrFramebuffer;
     int nb_a = 0, nb_b = 0;
     for (int i = 0; i < W * H; i++) { if (src_a[i]) nb_a++; if (src_b[i]) nb_b++; }
     uint16_t* src = (nb_a >= nb_b) ? src_a : src_b;
     { static int s_pick = 0; if (s_pick++ < 10 || (s_pick % 30) == 0)
           __android_log_print(ANDROID_LOG_ERROR, "BKA-PICK",
-              "buf0=%d buf1=%d picked=%s offset_was=0x%X",
-              nb_a, nb_b, (nb_a>=nb_b)?"0":"1", g_active_fb_offset); }
+              "last=%p nb_last=%d curr=%p nb_curr=%d picked=%s",
+              (void*)src_a, nb_a, (void*)src_b, nb_b, (nb_a>=nb_b)?"last":"curr"); }
     { int _nz = 0; for (int i = 0; i < W*H; i++) if (src[i]) _nz++; static int _s=0; if (_s++ < 10 || (_s % 20) == 0) __android_log_print(ANDROID_LOG_ERROR, "BKA-NZ", "nonblack=%d of %d [sample %d]", _nz, W*H, _s); }
     for (int i = 0; i < W * H; i++) {
         uint16_t px = src[i];
