@@ -2805,14 +2805,13 @@ static void Cmd_TexRect(GfxCommand cmd) {
             /* PORT: tmem not populated (DMA upload never ran) — texel all-zero.
                Force white so walker→framebuffer→Chrome pipeline is proven. */
             if (r == 0 && g == 0 && b == 0) {
-        /* PORT FINAL: rainbow by per-frame counter. Proves the walker
-           renders every TEXRECT with correct geometry per frame. Real
-           textures require texture-upload path outside this walker. */
-        static uint32_t s_hue = 0;
-        uint32_t h = (s_hue++ >> 6) & 3u;
-        r = (h & 1u) ? 255 : 0;
-        g = (h & 2u) ? 255 : 0;
-        b = ((h + 1u) & 3u) ? 200 : 0;
+        /* PORT: no texture in TMEM (SetTImg never fires → texAddr null).
+           RARE logo draws via FILLRECT + SetFillColor (histogram 1:1:1).
+           Use fill color so TEXRECT matches the logo palette instead of
+           rainbow artifacts. */
+        r = s_rdp.fillR;
+        g = s_rdp.fillG;
+        b = s_rdp.fillB;
         a = 255;
     }
             if (a < 8) continue;
