@@ -290,6 +290,16 @@ void android_main(android_app* app) {
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray outArr) {
+    /* PORT: Chrome can connect before first frame is rendered.
+       gVideoCurrFramebuffer (or streamFb) is still NULL at that point.
+       Guard so the stream thread returns a black frame instead of SIGSEGV. */
+    if (!gVideoCurrFramebuffer || !gVideoLastFramebuffer) {
+        if (env && dst && size > 0) {
+            memset(dst, 0, (size_t)size);
+        }
+        return;
+    }
+
     extern uint8_t* gN64_RDRAM;
     extern uint32_t g_active_fb_offset;
     { static int s_fa = 0;
