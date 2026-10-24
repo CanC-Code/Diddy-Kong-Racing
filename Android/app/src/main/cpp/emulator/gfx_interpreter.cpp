@@ -3693,23 +3693,32 @@ void RSP_ProcessGfxTask(OSTask* tp) {
             case 0xF4: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F4 SetTileSize w0=%08X w1=%08X", c.w0, c.w1); /* ARM64 port 2026-10-13: F4 is SetTileSize in F3DEX1 */ Cmd_SetTileSize(c); break; }
             case 0xF6: Cmd_FillRect(c); break;
             case 0x07: {
-                /* PORT: opcode 0x07 fires 1:1 with TEXRECT. Log-only until
-                   we verify address format — previous hijack to texAddr
-                   crashed (likely bad pointer). Never crash here; just observe. */
+                /* PORT: opcode 0x07 fires 1:1 with TEXRECT — custom Rare
+                   SetTextureImage. Address is fully in w1. w0 low byte (0x38)
+                   is likely fmt/size. Log segment state, validate bounds,
+                   and set texAddr safely. */
                 static int s_07 = 0;
+                uint32_t seg = (c.w1 >> 28) & 0x0F;
+                uint32_t offset = c.w1 & 0x0FFFFFFF;
+                uint32_t base = s_rdp.segmentBase[seg];
+                uint8_t* addr = (uint8_t*)RSP_ResolveGfxAddress(c.w1);
+                
                 if (s_07 < 40) {
-                    uint8_t* addr = (uint8_t*)RSP_ResolveGfxAddress(c.w1);
-                    int rd = bka_is_readable(addr) ? 1 : 0;
-                    uint32_t b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0,b7=0;
-                    if (rd) {
-                        b0=addr[0]; b1=addr[1]; b2=addr[2]; b3=addr[3];
-                        b4=addr[4]; b5=addr[5]; b6=addr[6]; b7=addr[7];
-                    }
                     __android_log_print(ANDROID_LOG_ERROR, "BKA-07",
-                        "#%d w0=%08X w1=%08X addr=%p readable=%d b0..7=%02X%02X%02X%02X%02X%02X%02X%02X texAddr_old=%p",
-                        s_07, c.w0, c.w1, (void*)addr, rd,
-                        b0,b1,b2,b3,b4,b5,b6,b7, (void*)s_rdp.texAddr);
+                        "#%d w0=%08X w1=%08X seg=%u base=%08X off=%08X addr=%p rddram=%p readable=%d",
+                        s_07, c.w0, c.w1, seg, base, offset, (void*)addr,
+                        (void*)gN64_RDRAM, bka_is_readable(addr) ? 1 : 0);
                     s_07++;
+                }
+                
+                /* Only set texAddr if the resolved pointer is in RDRAM bounds */
+                if (gN64_RDRAM && addr &&
+                    addr >= gN64_RDRAM && addr < gN64_RDRAM + 0x1000000) {
+                    s_rdp.texAddr = addr;
+                    /* w0 low byte 0x38 → texWidth = 56 (typical for Rare CI4 tiles) */
+                    uint32_t w = c.w0 & 0xFFF;
+                    if (w > 0) s_rdp.texWidth = (w + 1);
+                    else if (s_rdp.texWidth == 0) s_rdp.texWidth = 56;
                 }
                 break;
             }
