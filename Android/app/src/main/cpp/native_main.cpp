@@ -326,7 +326,7 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     {
         int _nb = 0;
         for (int _i = 0; _i < W * H; _i++) if (src[_i]) _nb++;
-        if (_nb == 0) {
+        if (0 && _nb == 0) {
             /* PORT: synthetic test pattern — proves display pipeline.
                If Chrome shows striped colors, DKR walker draws elsewhere. */
             for (int _i = 0; _i < W * H; _i++) {

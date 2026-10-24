@@ -46,7 +46,7 @@ public class BkaService extends Service {
         // PORT: keepalive thread proves fillArgb works independent of display.
         // Reads framebuffer every 500ms, logs non-black pixel count. If this
         // shows nonBlack > 0, walker renders correctly and pipeline is proven.
-        new Thread(() -> {
+        if (false) new Thread(() -> {
             int[] scratch = new int[292 * 216];
             int n = 0;
             while (n++ < 200) {
