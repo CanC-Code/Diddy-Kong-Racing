@@ -2792,7 +2792,7 @@ static void Cmd_TexRect(GfxCommand cmd) {
             uint8_t a = (uint8_t)(((uint16_t)texel[3] * s_rdp.primA) / 255);
             /* PORT: tmem not populated (DMA upload never ran) — texel all-zero.
                Force white so walker→framebuffer→Chrome pipeline is proven. */
-            if (r == 0 && g == 0 && b == 0) { r = 255; g = 255; b = 255; a = 255; }
+            if (r == 0 && g == 0 && b == 0) { r = 255; g = 0; b = 255; a = 255; /* MAGENTA = empty TMEM */ }
             if (a < 8) continue;
             
             int32_t px = xl + dx, py = yl + dy;
@@ -3763,6 +3763,10 @@ void RSP_ProcessGfxTask(OSTask* tp) {
             case 0xBF:
             case 0xB1:
             case 0xC4:
+            case 0x33: // G_LOADBLOCK
+            case 0xF3: // F3DEX G_LOADBLOCK macro
+                Cmd_LoadBlock(cmd);
+                break;
             case 0x34:
                 LOGV(
                     "DISPATCH TRI opcode=0x%02X", opcode);
