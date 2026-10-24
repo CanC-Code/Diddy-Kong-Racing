@@ -2805,15 +2805,11 @@ static void Cmd_TexRect(GfxCommand cmd) {
             /* PORT: tmem not populated (DMA upload never ran) — texel all-zero.
                Force white so walker→framebuffer→Chrome pipeline is proven. */
             if (r == 0 && g == 0 && b == 0) {
-        /* PORT diagnostic: per-fetch counter toggles color every 32 texels.
-           Proves the TEXRECT loop runs per-pixel correctly without needing
-           u/v in scope. If stripes appear shaped like RARE logo → sampler
-           math is fine, only G_LOADBLOCK data is missing. */
-        static uint32_t s_chk = 0;
-        int on = (int)((s_chk++ >> 5) & 1u);
-        r = on ? 255 : 40;
-        g = on ? 255 : 40;
-        b = on ? 255 : 40;
+        /* PORT: no texture loaded (SetTImg never fires) → RARE logo is
+           solid prim-colored rectangles. Use prim color instead of texel. */
+        r = s_rdp.primR;
+        g = s_rdp.primG;
+        b = s_rdp.primB;
         a = 255;
     }
             if (a < 8) continue;
