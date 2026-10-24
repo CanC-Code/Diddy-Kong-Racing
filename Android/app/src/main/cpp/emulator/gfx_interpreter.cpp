@@ -3692,6 +3692,19 @@ void RSP_ProcessGfxTask(OSTask* tp) {
             case 0xF3: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F3 LoadBlock w0=%08X w1=%08X", c.w0, c.w1); Cmd_LoadBlock(c); break; }
             case 0xF4: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F4 SetTileSize w0=%08X w1=%08X", c.w0, c.w1); /* ARM64 port 2026-10-13: F4 is SetTileSize in F3DEX1 */ Cmd_SetTileSize(c); break; }
             case 0xF6: Cmd_FillRect(c); break;
+            case 0x07: {
+                /* PORT: opcode 0x07 fires 1:1 with TEXRECT — compressed
+                   SetTextureImage. Populate s_rdp.texAddr from w1 (segmented).
+                   Log first 20 for layout verification. */
+                static int s_07 = 0;
+                if (s_07++ < 20)
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-07",
+                        "w0=%08X w1=%08X texAddr_old=%p", c.w0, c.w1, (void*)s_rdp.texAddr);
+                s_rdp.texAddr = (uint8_t*)RSP_ResolveGfxAddress(c.w1);
+                if (s_rdp.texWidth == 0) s_rdp.texWidth = 32;
+                if (s_rdp.texSize  == 0) s_rdp.texSize  = 1;
+                break;
+            }
             case 0xB2: Cmd_LoadTile(c); break;   /* F3DEX1 quick LoadTile */
             case 0xB3: Cmd_SetTile(c); break;    /* F3DEX1 quick SetTile */
             case 0xE4: case 0xE5: Cmd_TexRect(c); break;
