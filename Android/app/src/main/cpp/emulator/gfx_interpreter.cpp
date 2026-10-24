@@ -3141,7 +3141,15 @@ void RSP_ProcessGfxTask(OSTask* tp) {
 
     // Hex dump removed to reduce log overhead.
 
-    RDP_InitState();
+    /* PORT: RDP_InitState must run ONCE at boot, not every frame.
+       Otherwise boot-time texture uploads (TMEM) are wiped before the
+       first render task samples them. Static flag makes this one-shot. */
+    static bool s_rdp_state_inited = false;
+    if (!s_rdp_state_inited) {
+        s_rdp_state_inited = true;
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-RDP", "FIRST-CALL RDP_InitState()");
+        RDP_InitState();
+    }
 
     // ---- DL_DUMP_ADDED ----
     {
@@ -3682,8 +3690,8 @@ void RSP_ProcessGfxTask(OSTask* tp) {
             case 0xF3: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F3 LoadBlock w0=%08X w1=%08X", c.w0, c.w1); Cmd_LoadBlock(c); break; }
             case 0xF4: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F4 SetTileSize w0=%08X w1=%08X", c.w0, c.w1); /* ARM64 port 2026-10-13: F4 is SetTileSize in F3DEX1 */ Cmd_SetTileSize(c); break; }
             case 0xF6: Cmd_FillRect(c); break;
-            case 0xB2: Cmd_SetTile(c); break;
-            case 0xB3: Cmd_SetTileSize(c); break;
+            case 0xB2: Cmd_LoadTile(c); break;   /* F3DEX1 quick LoadTile */
+            case 0xB3: Cmd_SetTile(c); break;    /* F3DEX1 quick SetTile */
             case 0xE4: case 0xE5: Cmd_TexRect(c); break;
 
             case 0x01: Cmd_Mtx(c); break;
