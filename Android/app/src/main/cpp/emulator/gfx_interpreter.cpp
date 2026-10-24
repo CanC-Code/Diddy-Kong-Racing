@@ -2805,13 +2805,13 @@ static void Cmd_TexRect(GfxCommand cmd) {
             /* PORT: tmem not populated (DMA upload never ran) — texel all-zero.
                Force white so walker→framebuffer→Chrome pipeline is proven. */
             if (r == 0 && g == 0 && b == 0) {
-        /* PORT: no texture in TMEM (SetTImg never fires → texAddr null).
-           RARE logo draws via FILLRECT + SetFillColor (histogram 1:1:1).
-           Use fill color so TEXRECT matches the logo palette instead of
-           rainbow artifacts. */
-        r = s_rdp.fillR;
-        g = s_rdp.fillG;
-        b = s_rdp.fillB;
+        /* PORT: rainbow fallback — TMEM has no texture data (SetTImg never
+           fires → texAddr null). Proves walker/rasterizer/fb pipeline works. */
+        static uint32_t s_hue = 0;
+        uint32_t h = (s_hue++ >> 6) & 3u;
+        r = (h & 1u) ? 255 : 0;
+        g = (h & 2u) ? 255 : 0;
+        b = ((h + 1u) & 3u) ? 200 : 0;
         a = 255;
     }
             if (a < 8) continue;
@@ -2966,6 +2966,9 @@ static pid_t g_walker_tid = 0;
 static uint32_t g_opcode_hist[256] = {0};
 extern "C" uint32_t gfx_opcode_hist_get(int i) { return (i >= 0 && i < 256) ? g_opcode_hist[i] : 0u; }
 extern "C" void gfx_opcode_hist_reset(void) { for (int i = 0; i < 256; i++) g_opcode_hist[i] = 0; }
+
+extern "C" uint8_t* gfx_tmem_ptr() { return s_rdp.tmem; }
+extern "C" int gfx_tmem_size() { return 4096; }
 
 static void walker_recover_handler(int sig, siginfo_t *info, void *ctx) {
     if (gettid() != g_walker_tid || g_walker_in_fault || g_recover_count > 5000) {

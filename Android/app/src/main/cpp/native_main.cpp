@@ -294,6 +294,9 @@ extern "C" int gfx_loadtile_count();
 extern "C" int gfx_settimg_count();
 
 extern "C" uint32_t gfx_opcode_hist_get(int i);
+extern "C" uint8_t* gfx_tmem_ptr();
+extern "C" int gfx_tmem_size();
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray outArr) {
 
@@ -360,6 +363,19 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         if (f) {
             fprintf(f, "frame=%d lb=%d lt=%d sti=%d\n",
                     s_frame_count, lb, lt, sti);
+            /* TMEM occupancy: how many of 4096 bytes are non-zero */
+            extern "C" uint8_t* gfx_tmem_ptr();
+            extern "C" int gfx_tmem_size();
+            uint8_t* tmem = gfx_tmem_ptr();
+            int tmem_sz = gfx_tmem_size();
+            int nonzero = 0;
+            if (tmem) {
+                for (int i = 0; i < tmem_sz; i++) if (tmem[i]) nonzero++;
+            }
+            fprintf(f, "tmem_size=%d tmem_nonzero=%d\n", tmem_sz, nonzero);
+            fprintf(f, "first16_tmem=");
+            if (tmem) for (int i = 0; i < 16 && i < tmem_sz; i++) fprintf(f, "%02X", tmem[i]);
+            fprintf(f, "\n");
             fprintf(f, "opcode histogram:\n");
             for (int i = 0; i < 256; i++) {
                 uint32_t n = gfx_opcode_hist_get(i);
