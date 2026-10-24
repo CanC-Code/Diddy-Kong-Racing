@@ -295,6 +295,13 @@ static inline uint8_t* RDP_TranslateAddr(uint32_t addr) {
         }
     }
 
+    {
+        static int s_dst = 0;
+        if (s_dst++ < 60 && (addr >= 0x79000000u || (addr >= 0x99000000u && addr < 0xC0000000u))) {
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-DRAWDST",
+                "translate addr=0x%08X", addr);
+        }
+    }
     if (addr >= 0x60000000u && addr < 0x80000000u) { uint64_t c = 0x7900000000ULL | (uint64_t)addr; if (bka_is_readable((void*)c)) return (uint8_t*)c; c = 0x7A00000000ULL | (uint64_t)addr; if (bka_is_readable((void*)c)) return (uint8_t*)c; }
     // Try exact-match mapping table first.
     void* p = bka_lookup_addr_mapping(addr);
