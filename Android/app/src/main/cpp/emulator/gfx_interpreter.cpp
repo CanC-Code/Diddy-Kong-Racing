@@ -1572,6 +1572,7 @@ static void Cmd_SetTImg(GfxCommand cmd) {
 
 static void Cmd_LoadTile(GfxCommand cmd) {
     uint32_t tile = (cmd.w1 >> 24) & 0x7;
+    { static int s_lt = 0; if (s_lt++ < 20) __android_log_print(ANDROID_LOG_ERROR, "BKA-LOADTILE", "ENTRY tile=%u w0=%08X w1=%08X texAddr=%p", tile, cmd.w0, cmd.w1, (void*)s_rdp.texAddr); }
     if (tile >= 8) return;
     auto& t = s_rdp.tiles[tile];
     uint32_t sl = (cmd.w0 >> 12) & 0xFFF, tl = cmd.w0 & 0xFFF;
@@ -1713,7 +1714,7 @@ static void Cmd_LoadBlock(GfxCommand cmd) {
     t.sl = sl; t.tl = tl; t.sh = sh; t.th = th;
     { static int s_lb = 0; if (s_lb++ < 2000) __android_log_print(ANDROID_LOG_ERROR, "BKA-LOADBLK", "ENTRY tile=%u w0=%08X w1=%08X sl=%u tl=%u sh=%u th=%u tmemAddr=%u line=%u texAddr=%p", tile, cmd.w0, cmd.w1, sl, tl, sh, th, t.tmemAddr, t.line, (void*)s_rdp.texAddr); }
 
-    uint32_t texSizeBytes = ((sh + 1) * (4u << (t.size & 3))) / 8;
+    uint32_t texSizeBytes = (sh + 1) * 8; // G_LOADBLOCK fix: sh is 64-bit word count - 1
     if (texSizeBytes == 0) texSizeBytes = 1;
     uint32_t tmemBase = t.tmemAddr * 8;
     t.line = (texSizeBytes + 7) / 8;
@@ -1722,7 +1723,7 @@ static void Cmd_LoadBlock(GfxCommand cmd) {
        The guard was added to filter a misparse whose SetTImg resolved
        to a debug string ("ewPosX"); but it also rejects legitimate
        LoadBlock from model bins (RARE badge, code_59780.c:112). */
-    if (texSizeBytes > 512 && tmemBase == 0 && s_rdp.texAddr) {
+    if (0) { // Bypassed ASCII guard
         int ascii = 0;
         for (int _i = 0; _i < 8; _i++) {
             uint8_t _b = s_rdp.texAddr[_i];
