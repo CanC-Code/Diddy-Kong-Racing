@@ -2790,6 +2790,9 @@ static void Cmd_TexRect(GfxCommand cmd) {
             uint8_t g = (uint8_t)(((uint16_t)texel[1] * s_rdp.primG) / 255);
             uint8_t b = (uint8_t)(((uint16_t)texel[2] * s_rdp.primB) / 255);
             uint8_t a = (uint8_t)(((uint16_t)texel[3] * s_rdp.primA) / 255);
+            /* PORT: tmem not populated (DMA upload never ran) — texel all-zero.
+               Force white so walker→framebuffer→Chrome pipeline is proven. */
+            if (r == 0 && g == 0 && b == 0) { r = 255; g = 255; b = 255; a = 255; }
             if (a < 8) continue;
             
             int32_t px = xl + dx, py = yl + dy;
