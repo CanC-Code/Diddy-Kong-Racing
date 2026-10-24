@@ -2883,6 +2883,25 @@ static inline int bka_detect_stride(const uint8_t* p) {
    causing EGL_BAD_CONTEXT aborts seconds later. */
 static sigjmp_buf g_walker_recover;
 static volatile sig_atomic_t g_walker_in_fault = 0;
+
+    /* PORT TEST: on first task, fill gVideoLastFramebuffer with green 0x07E0.
+       If Chrome shows green, display pipeline works and DKR rendering is
+       the bug. If Chrome still shows black, display pipeline is the bug. */
+    {
+        extern uint8_t *gVideoLastFramebuffer;
+        extern uint8_t *gVideoCurrFramebuffer;
+        static int s_gt = 0;
+        if (s_gt++ < 60) {  // first 60 tasks (~1 second)
+            uint16_t *buf = (uint16_t*)gVideoLastFramebuffer;
+            if (buf) {
+                for (int _i = 0; _i < 292*216; _i++) buf[_i] = 0x07E0;
+                static int s_gtl = 0;
+                if (s_gtl++ < 3)
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-GREENTEST",
+                        "filled %p with 0x07E0 (last_fb)", (void*)buf);
+            }
+        }
+    }
 static volatile sig_atomic_t g_recover_count = 0;
 static int g_walker_recover_installed = 0;
 static pid_t g_walker_tid = 0;

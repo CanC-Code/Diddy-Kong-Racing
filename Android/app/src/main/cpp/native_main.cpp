@@ -325,6 +325,13 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     { int _nz = 0; for (int i = 0; i < W*H; i++) if (src[i]) _nz++; static int _s=0; if (_s++ < 10 || (_s % 20) == 0) __android_log_print(ANDROID_LOG_ERROR, "BKA-NZ", "nonblack=%d of %d [sample %d]", _nz, W*H, _s); }
     for (int i = 0; i < W * H; i++) {
         uint16_t px = src[i];
+        { static int s_ph = 0; static int s_ph_frame = 0;
+          if (s_ph_frame == 0 && (i % 1024) == 0 && s_ph < 64) {
+              __android_log_print(ANDROID_LOG_ERROR, "BKA-PIXHEX",
+                  "i=%d px=0x%04X", i, px);
+              s_ph++;
+              if (s_ph == 64) s_ph_frame = 1;
+          } }
         uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
         uint8_t g = (px >> 5)  & 0x3F; g = (g << 2) | (g >> 4);
         uint8_t b = px & 0x1F;         b = (b << 3) | (b >> 2);
