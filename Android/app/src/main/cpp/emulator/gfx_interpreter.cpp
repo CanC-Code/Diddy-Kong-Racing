@@ -2888,7 +2888,7 @@ static int g_walker_recover_installed = 0;
 static pid_t g_walker_tid = 0;
 
 static void walker_recover_handler(int sig, siginfo_t *info, void *ctx) {
-    if (gettid() != g_walker_tid || g_walker_in_fault || g_recover_count > 200) {
+    if (gettid() != g_walker_tid || g_walker_in_fault || g_recover_count > 5000) {
         signal(sig, SIG_DFL);
         raise(sig);
         return;
