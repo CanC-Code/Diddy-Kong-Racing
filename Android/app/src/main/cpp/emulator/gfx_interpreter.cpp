@@ -2747,13 +2747,13 @@ static void Cmd_TexRect(GfxCommand cmd) {
     { static int s_tr = 0; if (s_tr++ < 10 || (s_tr % 200) == 0)
         __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
             "TEXRECT-ENTRY #%d w0=0x%08X w1=0x%08X", s_tr, cmd.w0, cmd.w1); }
-    int32_t xh = (int32_t)((cmd.w0 >> 12) & 0xFFF);
-    int32_t yh = (int32_t)(cmd.w0 & 0xFFF);
-    int32_t xl = (int32_t)((cmd.w1 >> 12) & 0xFFF);
-    int32_t yl = (int32_t)(cmd.w1 & 0xFFF);
+    int32_t xh = (int32_t)((cmd.w0 >> 12) & 0xFFF) >> 2;
+    int32_t yh = (int32_t)(cmd.w0 & 0xFFF) >> 2;
+    int32_t xl = (int32_t)((cmd.w1 >> 12) & 0xFFF) >> 2;
+    int32_t yl = (int32_t)(cmd.w1 & 0xFFF) >> 2;
     int tile = (cmd.w1 >> 24) & 0x7;
     
-    // Coordinates in pixels directly (no .2 fixed-point).
+    // Coordinates are .2 fixed-point; >>2 converts to pixels.
     if (xl < 0) xl = 0; if (yl < 0) yl = 0;
     if (xh > FB_WIDTH) xh = FB_WIDTH; if (yh > FB_HEIGHT) yh = FB_HEIGHT;
     if (xl >= xh || yl >= yh) return;
