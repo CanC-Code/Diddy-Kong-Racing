@@ -2792,7 +2792,19 @@ static void Cmd_TexRect(GfxCommand cmd) {
             uint8_t a = (uint8_t)(((uint16_t)texel[3] * s_rdp.primA) / 255);
             /* PORT: tmem not populated (DMA upload never ran) — texel all-zero.
                Force white so walker→framebuffer→Chrome pipeline is proven. */
-            if (r == 0 && g == 0 && b == 0) { r = 255; g = 0; b = 255; a = 255; /* MAGENTA = empty TMEM */ }
+            if (r == 0 && g == 0 && b == 0) {
+        /* PORT diagnostic: procedural checkerboard from UV.
+           If we see checkerboard shaped like RARE logo → sampler math WORKS,
+           only G_LOADBLOCK is missing. If still flat → fetch is broken too.
+           Use small cells (>>2) so any scale/offset error is obvious. */
+        int cx = (int)(u >> 2) & 1;
+        int cy = (int)(v >> 2) & 1;
+        int chk = cx ^ cy;
+        r = chk ? 255 : 40;
+        g = chk ? 255 : 40;
+        b = chk ? 255 : 40;
+        a = 255;
+    }
             if (a < 8) continue;
             
             int32_t px = xl + dx, py = yl + dy;
