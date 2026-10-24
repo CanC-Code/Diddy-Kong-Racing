@@ -986,7 +986,16 @@ static void RasterizeTriangle(
     if (iy0 >= iy2) return;
 
     int activeFb = getActiveFramebuffer();
-    uint16_t* fb = (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
+    /* PORT: force walker to write to gVideoCurrFramebuffer (what fb_swap
+       will promote to gVideoLastFramebuffer, which fillArgb reads).
+       g_active_fb_offset is stale; doesn't track fb_swap alternation. */
+    extern uint8_t *gVideoCurrFramebuffer;
+    uint16_t* fb = gVideoCurrFramebuffer
+                   ? (uint16_t*)gVideoCurrFramebuffer
+                   : (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
+    { static int _bfc = 0; if (_bfc++ < 3)
+          __android_log_print(ANDROID_LOG_ERROR, "BKA-FBFORCE",
+              "walker fb=%p (curr=%p)", (void*)fb, (void*)gVideoCurrFramebuffer); }
     static int s_pix_total = 0;
     static int s_call = 0;
     s_call++;
@@ -2700,7 +2709,16 @@ static void Cmd_FillRect(GfxCommand cmd) {
     { static int s_fr = 0; if (s_fr++ < 100) __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX", "FILLPRE fillRGB=(%d,%d,%d) ulx=%d uly=%d lrx=%d lry=%d w0=%08X w1=%08X", s_rdp.fillR, s_rdp.fillG, s_rdp.fillB, (int)ulx, (int)uly, (int)lrx, (int)lry, cmd.w0, cmd.w1); }
     uint16_t color = RGBA8_TO_RGB565(s_rdp.fillR, s_rdp.fillG, s_rdp.fillB);
     int activeFb = getActiveFramebuffer();
-    uint16_t* fb = (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
+    /* PORT: force walker to write to gVideoCurrFramebuffer (what fb_swap
+       will promote to gVideoLastFramebuffer, which fillArgb reads).
+       g_active_fb_offset is stale; doesn't track fb_swap alternation. */
+    extern uint8_t *gVideoCurrFramebuffer;
+    uint16_t* fb = gVideoCurrFramebuffer
+                   ? (uint16_t*)gVideoCurrFramebuffer
+                   : (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
+    { static int _bfc = 0; if (_bfc++ < 3)
+          __android_log_print(ANDROID_LOG_ERROR, "BKA-FBFORCE",
+              "walker fb=%p (curr=%p)", (void*)fb, (void*)gVideoCurrFramebuffer); }
     { static int s_wr = 0; if (s_wr++ < 3)
         __android_log_print(ANDROID_LOG_ERROR, "BKA-WRITE",
             "FILL-WRITE rdr=%p ofs=0x%X fb=%p", (void*)gN64_RDRAM, g_active_fb_offset, (void*)fb); }
@@ -2750,7 +2768,16 @@ static void Cmd_TexRect(GfxCommand cmd) {
     
     int32_t sBase = (tdesc.sl >> 5), tBase = (tdesc.tl >> 5);
     int activeFb = getActiveFramebuffer();
-    uint16_t* fb = (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
+    /* PORT: force walker to write to gVideoCurrFramebuffer (what fb_swap
+       will promote to gVideoLastFramebuffer, which fillArgb reads).
+       g_active_fb_offset is stale; doesn't track fb_swap alternation. */
+    extern uint8_t *gVideoCurrFramebuffer;
+    uint16_t* fb = gVideoCurrFramebuffer
+                   ? (uint16_t*)gVideoCurrFramebuffer
+                   : (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
+    { static int _bfc = 0; if (_bfc++ < 3)
+          __android_log_print(ANDROID_LOG_ERROR, "BKA-FBFORCE",
+              "walker fb=%p (curr=%p)", (void*)fb, (void*)gVideoCurrFramebuffer); }
     uint8_t texel[4];
     
     for (int32_t dy = 0; dy < rectH; dy++) {
