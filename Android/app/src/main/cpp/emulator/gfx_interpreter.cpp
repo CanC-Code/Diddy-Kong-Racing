@@ -3697,27 +3697,45 @@ void RSP_ProcessGfxTask(OSTask* tp) {
             case 0xF4: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F4 SetTileSize w0=%08X w1=%08X", c.w0, c.w1); /* ARM64 port 2026-10-13: F4 is SetTileSize in F3DEX1 */ Cmd_SetTileSize(c); break; }
             case 0xF6: Cmd_FillRect(c); break;
             case 0x07: {
-                /* PORT: opcode 0x07 = Rare SetTextureImage. Log + safely set
-                   texAddr only when the translated host pointer is in RDRAM. */
+                /* PORT: opcode 0x07 = Rare SetTextureImage (fires 1:1 with
+                   TEXRECT). Try 28-bit offset (standard) AND 24-bit offset
+                   (looks more likely given base+off values), pick whichever
+                   lands on non-zero data in RDRAM. Log rddram + delta + bytes. */
                 static int s_07 = 0;
                 uint32_t seg = (c.w1 >> 28) & 0x0F;
                 uint32_t base = s_rdp.segmentBase[seg];
-                uint8_t* addr = (uint8_t*)RSP_ResolveGfxAddress(c.w1);
+                uint32_t base_k = base ? (base | 0x80000000u) : 0x80000000u;
+                uint32_t off28 = c.w1 & 0x0FFFFFFFu;
+                uint32_t off24 = c.w1 & 0x00FFFFFFu;
                 
-                if (s_07 < 20) {
-                    int in_rd = (gN64_RDRAM && addr && addr >= gN64_RDRAM &&
-                                 addr < gN64_RDRAM + 0x1000000);
+                uint8_t* a28 = (uint8_t*)RDP_TranslateAddr(base_k + off28);
+                uint8_t* a24 = (uint8_t*)RDP_TranslateAddr(base_k + off24);
+                
+                int in28 = (gN64_RDRAM && a28 >= gN64_RDRAM && a28 < gN64_RDRAM + 0x1000000);
+                int in24 = (gN64_RDRAM && a24 >= gN64_RDRAM && a24 < gN64_RDRAM + 0x1000000);
+                
+                if (s_07 < 12) {
                     __android_log_print(ANDROID_LOG_ERROR, "BKA-07",
-                        "#%d w0=%08X w1=%08X seg=%u base=%08X addr=%p in_rdram=%d first8=%02X%02X%02X%02X%02X%02X%02X%02X",
-                        s_07, c.w0, c.w1, seg, base, (void*)addr, in_rd,
-                        in_rd?addr[0]:0, in_rd?addr[1]:0, in_rd?addr[2]:0, in_rd?addr[3]:0,
-                        in_rd?addr[4]:0, in_rd?addr[5]:0, in_rd?addr[6]:0, in_rd?addr[7]:0);
+                        "#%d w0=%08X w1=%08X seg=%u base=%08X rddram=%p | 28: off=%07X addr=%p in=%d d=%08X f8=%02X%02X%02X%02X | 24: off=%06X addr=%p in=%d d=%08X f8=%02X%02X%02X%02X",
+                        s_07, c.w0, c.w1, seg, base, (void*)gN64_RDRAM,
+                        off28, (void*)a28, in28,
+                        in28 ? (uint32_t)((uintptr_t)a28 - (uintptr_t)gN64_RDRAM) : 0,
+                        in28?a28[0]:0, in28?a28[1]:0, in28?a28[2]:0, in28?a28[3]:0,
+                        off24, (void*)a24, in24,
+                        in24 ? (uint32_t)((uintptr_t)a24 - (uintptr_t)gN64_RDRAM) : 0,
+                        in24?a24[0]:0, in24?a24[1]:0, in24?a24[2]:0, in24?a24[3]:0);
                     s_07++;
                 }
                 
-                if (gN64_RDRAM && addr &&
-                    addr >= gN64_RDRAM && addr < gN64_RDRAM + 0x1000000) {
-                    s_rdp.texAddr = addr;
+                /* Choose whichever has non-zero data */
+                uint8_t* chosen = NULL;
+                if (in24 && (a24[0] | a24[1] | a24[2] | a24[3])) chosen = a24;
+                else if (in28 && (a28[0] | a28[1] | a28[2] | a28[3])) chosen = a28;
+                else if (in24) chosen = a24;   /* fall back to 24-bit if in bounds */
+                else if (in28) chosen = a28;
+                
+                if (chosen) {
+                    s_rdp.texAddr = chosen;
                     uint32_t w = (c.w0 & 0xFFF);
                     if (w > 0) s_rdp.texWidth = w;
                     else if (s_rdp.texWidth == 0) s_rdp.texWidth = 56;
