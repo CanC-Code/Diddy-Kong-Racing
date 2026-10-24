@@ -3642,6 +3642,7 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                 g_opcode_hist[opcode]++;
             switch (opcode) {
             case 0xAF: // G_LOAD_UCODE - not needed for software RDP
+            case 0xB3: // G_RDPHALF_2
             case 0xB5: // G_LINE3D
             case 0xBD: // G_POPMTX - accepted, not implemented
             case 0x00:
@@ -3683,9 +3684,6 @@ void RSP_ProcessGfxTask(OSTask* tp) {
             case 0xF3: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F3 LoadBlock w0=%08X w1=%08X", c.w0, c.w1); Cmd_LoadBlock(c); break; }
             case 0xF4: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F4 SetTileSize w0=%08X w1=%08X", c.w0, c.w1); /* ARM64 port 2026-10-13: F4 is SetTileSize in F3DEX1 */ Cmd_SetTileSize(c); break; }
             case 0xF6: Cmd_FillRect(c); break;
-            case 0xB1: Cmd_LoadBlock(c); break;  /* G_SPECIAL_1 quick LoadBlock */
-            case 0xB2: Cmd_LoadTile(c); break;   /* G_SPECIAL_2 quick LoadTile */
-            case 0xB3: Cmd_SetTile(c); break;    /* G_SPECIAL_3 quick SetTile */
             case 0xE4: case 0xE5: Cmd_TexRect(c); break;
 
             case 0x01: Cmd_Mtx(c); break;
