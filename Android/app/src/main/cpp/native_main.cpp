@@ -323,6 +323,23 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
               "last=%p nb_last=%d curr=%p nb_curr=%d picked=%s",
               (void*)src_a, nb_a, (void*)src_b, nb_b, (nb_a>=nb_b)?"last":"curr"); }
     { int _nz = 0; for (int i = 0; i < W*H; i++) if (src[i]) _nz++; static int _s=0; if (_s++ < 10 || (_s % 20) == 0) __android_log_print(ANDROID_LOG_ERROR, "BKA-NZ", "nonblack=%d of %d [sample %d]", _nz, W*H, _s); }
+    {
+        int _nb = 0;
+        for (int _i = 0; _i < W * H; _i++) if (src[_i]) _nb++;
+        if (_nb == 0) {
+            /* PORT: synthetic test pattern — proves display pipeline.
+               If Chrome shows striped colors, DKR walker draws elsewhere. */
+            for (int _i = 0; _i < W * H; _i++) {
+                int _row = _i / W, _col = _i % W;
+                uint16_t _color = ((_row / 18) & 1) ? 0x001F : 0xFFE0;  /* blue/green stripes */
+                src[_i] = _color;
+            }
+            static int _once = 0;
+            if (_once++ < 3)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-FORCETEST",
+                    "filled fb=%p with stripes (was empty)", (void*)src);
+        }
+    }
     for (int i = 0; i < W * H; i++) {
         uint16_t px = src[i];
         uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
