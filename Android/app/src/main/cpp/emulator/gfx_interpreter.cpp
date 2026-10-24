@@ -3138,6 +3138,25 @@ void RSP_ProcessGfxTask(OSTask* tp) {
         }
     }
 
+    { static int s_rd = 0; if (s_rd++ < 5) {
+        extern uint8_t* gN64_RDRAM;
+        if (gN64_RDRAM) {
+            /* Sample 8 spots across the 12MB RDRAM to see where data landed */
+            uint32_t samples[8] = {0x0, 0x400000, 0x800000, 0xC00000,
+                                   0x200000, 0x600000, 0xA00000, 0xE00000};
+            for (int i = 0; i < 8; i++) {
+                uint32_t off = samples[i];
+                int nz = 0;
+                for (int k = 0; k < 4096; k++) if (gN64_RDRAM[off + k]) nz++;
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-RDRAM",
+                    "off=%07X nonzero=%d/4096 first=%02X%02X%02X%02X",
+                    off, nz,
+                    gN64_RDRAM[off], gN64_RDRAM[off+1],
+                    gN64_RDRAM[off+2], gN64_RDRAM[off+3]);
+            }
+        }
+    } }
+    
     if (!tp || !tp->t.data_ptr || tp->t.data_size == 0) {
         __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
             "early return: tp=%p data=%p size=%u",
