@@ -2825,6 +2825,15 @@ static void Cmd_TexRect(GfxCommand cmd) {
           __android_log_print(ANDROID_LOG_ERROR, "BKA-FBFORCE",
               "walker fb=%p (curr=%p)", (void*)fb, (void*)gVideoCurrFramebuffer); }
     uint8_t texel[4];
+
+    /* BKA-TEXUV: log raw cmd2 values + interp state */
+    { static int _tuv = 0; if (_tuv++ < 8) {
+        auto& td = s_rdp.tiles[tile];
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-TEXUV",
+            "tile=%d rectW=%d rectH=%d sBase=%d tBase=%d dsdx=%d dtdy=%d | sh=%u th=%u tmemAddr=%u fmt=%u sz=%u",
+            tile, rectW, rectH, sBase, tBase, dsdx, dtdy,
+            td.sh, td.th, td.tmemAddr, td.format, td.size);
+    } }
     
     for (int32_t dy = 0; dy < rectH; dy++) {
         for (int32_t dx = 0; dx < rectW; dx++) {
