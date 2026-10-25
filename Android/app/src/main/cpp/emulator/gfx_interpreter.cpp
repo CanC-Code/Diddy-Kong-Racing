@@ -802,7 +802,7 @@ static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
     /* PORT: DKR passes 16.16 fixed-point texture coordinates.
        Shifting by 5 (10.5 format) caused rapid wrapping (stripes).
        Shift by 16 for correct pixel mapping. */
-    uint32_t u = s >> 16, v = t >> 16;
+    uint32_t u = s >> 5, v = t >> 5;
     auto& tdesc = s_rdp.tiles[tile];
     uint32_t texW = (tdesc.sh >> 2) + 1, texH = (tdesc.th >> 2) + 1;
     if (texW == 0) texW = 1;
@@ -2808,7 +2808,12 @@ static void Cmd_TexRect(GfxCommand cmd) {
     int32_t rectW = xh - xl, rectH = yh - yl;
     if (rectW <= 0 || rectH <= 0) return;
     
-    int32_t sBase = (tdesc.sl >> 5), tBase = (tdesc.tl >> 5);
+    GfxCommand* cmd2 = (GfxCommand*)((uint8_t*)s_current_cmd + 8);
+    GfxCommand* cmd3 = (GfxCommand*)((uint8_t*)s_current_cmd + 16);
+    int32_t sBase = (int16_t)(cmd2->w0 >> 16);
+    int32_t tBase = (int16_t)(cmd2->w0 & 0xFFFF);
+    int32_t dsdx = (int16_t)(cmd3->w0 >> 16);
+    int32_t dtdy = (int16_t)(cmd3->w0 & 0xFFFF);
     int activeFb = getActiveFramebuffer();
     /* PORT: force walker to write to gVideoCurrFramebuffer (what fb_swap
        will promote to gVideoLastFramebuffer, which fillArgb reads).
@@ -2824,9 +2829,9 @@ static void Cmd_TexRect(GfxCommand cmd) {
     
     for (int32_t dy = 0; dy < rectH; dy++) {
         for (int32_t dx = 0; dx < rectW; dx++) {
-            int32_t s = sBase + (dx * texW) / rectW;
-            int32_t t = tBase + (dy * texH) / rectH;
-            RDP_FetchTexel(tile, s << 5, t << 5, texel);
+            int32_t curr_s = sBase + dx * dsdx;
+                int32_t curr_t = tBase + dy * dtdy;
+                RDP_FetchTexel(tile, curr_s, curr_t, texel);
             
             uint8_t r = (uint8_t)(((uint16_t)texel[0] * s_rdp.primR) / 255);
             uint8_t g = (uint8_t)(((uint16_t)texel[1] * s_rdp.primG) / 255);
