@@ -3805,9 +3805,20 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                 
                 if (chosen) {
                     s_rdp.texAddr = chosen;
-                    uint32_t w = (c.w0 & 0xFFF);
-                    if (w > 0) s_rdp.texWidth = w;
-                    else if (s_rdp.texWidth == 0) s_rdp.texWidth = 56;
+                    
+                    /* PORT: 0x07 is Rare's SetTextureImage. w0=07070038
+                       means width/height = 0x38 (56). Decode it into the
+                       active tile descriptor so Cmd_LoadTile copies a real block. */
+                    uint32_t size_param = (c.w0 & 0xFF);
+                    if (size_param > 0) {
+                        auto& t = s_rdp.tiles[0]; // Rare always uses tile 0 for these
+                        t.sh = (size_param << 2) - 4;
+                        t.th = (size_param << 2) - 4;
+                        t.size = 0;      // 4bpp (CI4/I4)
+                        t.format = 2;    // CI (Color Indexed) - confirm via TLUT
+                        t.tmemAddr = 0;  // bank 0
+                        t.line = 0;      // calculated in LoadTile
+                    }
                     if (s_rdp.texSize == 0) s_rdp.texSize = 1;
                 }
                 break;
