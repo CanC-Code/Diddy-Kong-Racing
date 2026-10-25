@@ -1632,7 +1632,7 @@ static void Cmd_LoadTile(GfxCommand cmd) {
         uint32_t tmemBase = t.tmemAddr * 8;
         /* PORT: DKR ROM pads rows to word boundary (32B for 56x56 CI4).
            Use lineWords*8 as source stride to read correct row data. */
-        uint32_t srcLineStride = lineWords * 8;
+        uint32_t srcLineStride = (texWidth * bppBits + 7) / 8; // Packed stride (28 bytes)
         if (srcLineStride == 0) srcLineStride = 1;
         for (uint32_t row = 0; row < texHeight; row++) {
             uint32_t srcOffset = (tl + row) * srcLineStride + (sl * bppBits) / 8;
