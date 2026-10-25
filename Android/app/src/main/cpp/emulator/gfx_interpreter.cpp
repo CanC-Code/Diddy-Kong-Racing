@@ -3779,6 +3779,11 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                 int in24 = (gN64_RDRAM && a24 >= gN64_RDRAM && a24 < gN64_RDRAM + 0x1000000);
                 
                 if (s_07 < 12) {
+                    auto& _t = s_rdp.tiles[s_rdp.activeTile];
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEFMT",
+                        "#%d activeTile=%d fmt=%u size=%u palette=%u line=%u sh=%u th=%u tmemAddr=%u",
+                        s_07, s_rdp.activeTile, _t.format, _t.size, _t.palette,
+                        _t.line, _t.sh, _t.th, _t.tmemAddr);
                     __android_log_print(ANDROID_LOG_ERROR, "BKA-07",
                         "#%d w0=%08X w1=%08X seg=%u base=%08X rddram=%p | 28: off=%07X addr=%p in=%d d=%08X f8=%02X%02X%02X%02X | 24: off=%06X addr=%p in=%d d=%08X f8=%02X%02X%02X%02X",
                         s_07, c.w0, c.w1, seg, base, (void*)gN64_RDRAM,
