@@ -2831,15 +2831,7 @@ static void Cmd_TexRect(GfxCommand cmd) {
             uint8_t a = (uint8_t)(((uint16_t)texel[3] * s_rdp.primA) / 255);
             /* PORT: tmem not populated (DMA upload never ran) — texel all-zero.
                Force white so walker→framebuffer→Chrome pipeline is proven. */
-            if (r == 0 && g == 0 && b == 0) {
-        /* PORT: if texel byte is 0 (unloaded region of TMEM), fall back to
-           fill color so we can see which TEXRECTs have real texture data
-           and which don't. Real texels render natively. */
-        r = s_rdp.fillR;
-        g = s_rdp.fillG;
-        b = s_rdp.fillB;
-        a = 255;
-    }
+            /* Fallback disabled: we have real texture data now */
             if (a < 8) continue;
             
             int32_t px = xl + dx, py = yl + dy;
@@ -3846,6 +3838,16 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                         t.format = 2;    // CI (Color Indexed)
                         t.tmemAddr = 0;  // bank 0
                         s_rdp.texWidth = size_param;
+
+                        /* Load the 16-color palette from RDRAM to TMEM byte 2048.
+                           Rare stores the CI4 palette immediately after the texture data. */
+                        uint32_t tex_bytes = (size_param * size_param) / 2;
+                        uint8_t* pal_src = chosen + tex_bytes;
+                        if (bka_is_readable(pal_src)) {
+                            /* 16 colors * 2 bytes (RGBA5551) = 32 bytes */
+                            memcpy(s_rdp.tmem + 2048, pal_src, 32);
+                            t.palette = 0; // Use bank 0
+                        }
                     }
                     if (s_rdp.texSize == 0) s_rdp.texSize = 1;
                 }
