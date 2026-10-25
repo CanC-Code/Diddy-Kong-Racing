@@ -808,8 +808,10 @@ static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
     if (texW == 0) texW = 1;
     if (texH == 0) texH = 1;
 
-    if (tdesc.clampS) { if (u >= texW) u = texW - 1; } else { u &= (texW - 1); }
-    if (tdesc.clampT) { if (v >= texH) v = texH - 1; } else { v &= (texH - 1); }
+    /* PORT: texW is 56 (not a power of 2). Bitwise AND aliases heavily.
+       Use modulo for correct wrapping. */
+    if (tdesc.clampS) { if (u >= texW) u = texW - 1; } else { u %= texW; }
+    if (tdesc.clampT) { if (v >= texH) v = texH - 1; } else { v %= texH; }
 
     uint32_t bppBits = 4u << (tdesc.size & 3);
 
@@ -2870,7 +2872,14 @@ static void Cmd_TexRect(GfxCommand cmd) {
             
             int32_t px = xl + dx, py = yl + dy;
             if (px >= 0 && px < FB_WIDTH && py >= 0 && py < FB_HEIGHT)
-                fb[py * FB_WIDTH + px] = RGBA8_TO_RGB565(r, g, b);
+                /* PORT: Basic Z-buffer test (using interpolation, WIP) */
+                int z_idx = py * FB_WIDTH + px;
+                uint16_t* zbuf = (uint16_t*)(gN64_RDRAM + 0x3F0000);
+                uint16_t z_val = 0x8000; // Placeholder for interpolated Z
+                if (z_val <= zbuf[z_idx]) {
+                    zbuf[z_idx] = z_val;
+                    fb[py * FB_WIDTH + px] = RGBA8_TO_RGB565(r, g, b);
+                }
         }
     }
 }
@@ -3236,6 +3245,12 @@ void RSP_ProcessGfxTask(OSTask* tp) {
         s_rdp_state_inited = true;
         __android_log_print(ANDROID_LOG_ERROR, "BKA-RDP", "FIRST-CALL RDP_InitState()");
         RDP_InitState();
+    
+    /* PORT: Initialize Z-buffer at RDRAM 0x3F0000 (320*240*2 bytes) */
+    extern uint8_t* gN64_RDRAM;
+    if (gN64_RDRAM) {
+        memset(gN64_RDRAM + 0x3F0000, 0xFF, 320 * 240 * 2); // 0xFFFF = far plane
+    }
         
         /* PORT DIAGNOSTIC: mirror ROM to RDRAM at init (skip framebuffers).
            Theory: game DMAs to heap, but RDP samples from RDRAM. Bridge by
