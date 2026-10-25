@@ -2811,6 +2811,8 @@ static void Cmd_TexRect(GfxCommand cmd) {
         tdesc.format = 2; // CI4
         tdesc.size = 0;   // 4bpp
         tdesc.line = (s_rdp.texWidth * 4 + 63) / 64; // words per row (56*4+63)/64 = 4
+        tdesc.palette = 0;  /* PORT: force palette bank 0 */
+        tdesc.tmemAddr = 0; /* PORT: force TMEM base 0 */
     }
 
     int32_t texW = (tdesc.sh >> 2) + 1, texH = (tdesc.th >> 2) + 1;
