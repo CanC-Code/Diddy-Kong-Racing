@@ -2872,6 +2872,7 @@ static void Cmd_TexRect(GfxCommand cmd) {
             
             int32_t px = xl + dx, py = yl + dy;
             if (px >= 0 && px < FB_WIDTH && py >= 0 && py < FB_HEIGHT)
+                fb[py * FB_WIDTH + px] = RGBA8_TO_RGB565(r, g, b);
         }
     }
 }
