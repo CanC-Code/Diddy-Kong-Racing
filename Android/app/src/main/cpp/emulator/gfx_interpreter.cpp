@@ -2812,8 +2812,12 @@ static void Cmd_TexRect(GfxCommand cmd) {
     if (s_rdp.texWidth > 0) {
         tdesc.sh = (s_rdp.texWidth - 1) << 2;
         tdesc.th = (s_rdp.texWidth - 1) << 2;
-        /* PORT: Do NOT force format/size. Let the game choose I4 or CI4. */
-        tdesc.line = (s_rdp.texWidth * 4 + 63) / 64; // words per row
+        /* PORT: FORCE CI4 - B3 overwrites fmt to 0 (RGBA) which misinterprets */
+        tdesc.format = 2;
+        tdesc.size = 0;
+        tdesc.line = (s_rdp.texWidth * 4 + 63) / 64;
+        tdesc.palette = 0;
+        tdesc.tmemAddr = 0;
         tdesc.palette = 0;  /* PORT: force palette bank 0 */
         tdesc.tmemAddr = 0; /* PORT: force TMEM base 0 */
     }
