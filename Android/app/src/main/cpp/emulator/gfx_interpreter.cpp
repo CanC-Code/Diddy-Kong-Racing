@@ -2810,9 +2810,8 @@ static void Cmd_TexRect(GfxCommand cmd) {
     if (s_rdp.texWidth > 0) {
         tdesc.sh = (s_rdp.texWidth - 1) << 2;
         tdesc.th = (s_rdp.texWidth - 1) << 2;
-        tdesc.format = 2; // CI4
-        tdesc.size = 0;   // 4bpp
-        tdesc.line = (s_rdp.texWidth * 4 + 63) / 64; // words per row (56*4+63)/64 = 4
+        /* PORT: Do NOT force format/size. Let the game choose I4 or CI4. */
+        tdesc.line = (s_rdp.texWidth * 4 + 63) / 64; // words per row
         tdesc.palette = 0;  /* PORT: force palette bank 0 */
         tdesc.tmemAddr = 0; /* PORT: force TMEM base 0 */
     }
@@ -2862,7 +2861,12 @@ static void Cmd_TexRect(GfxCommand cmd) {
             /* PORT: tmem not populated (DMA upload never ran) — texel all-zero.
                Force white so walker→framebuffer→Chrome pipeline is proven. */
             /* Fallback disabled: we have real texture data now */
-            if (a < 8) continue;
+            if (a < 8) {
+                r = s_rdp.fillR;
+                g = s_rdp.fillG;
+                b = s_rdp.fillB;
+                a = 255;
+            }
             
             int32_t px = xl + dx, py = yl + dy;
             if (px >= 0 && px < FB_WIDTH && py >= 0 && py < FB_HEIGHT)
@@ -3883,10 +3887,20 @@ void RSP_ProcessGfxTask(OSTask* tp) {
 
                         /* Load the 16-color palette from RDRAM to TMEM byte 2048.
                            Rare stores the CI4 palette immediately after the texture data. */
-                        /* PORT: palette follows padded texel data (lineWords*8*height = 1792) */
+                        /* PORT: Auto-detect palette (padded 1792, packed 1568, or aligned 2048) */
                         uint32_t _lw = (size_param * 4 + 63) / 64;
-                        uint32_t tex_bytes = _lw * 8 * size_param;
-                        uint8_t* pal_src = chosen + tex_bytes;
+                        uint32_t padded_bytes = _lw * 8 * size_param;
+                        uint32_t packed_bytes = (size_param * size_param) / 2;
+                        
+                        uint8_t* pal_src = chosen + padded_bytes;
+                        int nz = 0;
+                        for (int i=0; i<32; i++) if (pal_src[i]) nz++;
+                        if (nz == 0) {
+                            pal_src = chosen + packed_bytes;
+                            nz = 0;
+                            for (int i=0; i<32; i++) if (pal_src[i]) nz++;
+                        }
+                        if (nz == 0) pal_src = chosen + 2048; // try aligned
                         if (bka_is_readable(pal_src)) {
                             /* 16 colors * 2 bytes (RGBA5551) = 32 bytes */
                             memcpy(s_rdp.tmem + 2048, pal_src, 32);
