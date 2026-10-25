@@ -150,7 +150,7 @@ static inline bool bka_is_f3dex_opcode(uint8_t op) {
      * ambiguous for sub-DLs whose first command starts with 0x00 (as N64
      * BE bytes) or ends with 0x00 (as port-emitted LE bytes). */
     if (op == 0x01 || op == 0x03 ||
-        op == 0x04 || op == 0x06) return true;
+        op == 0x04 || op == 0x06 || op == 0x07) return true; /* 0x07 = Rare SetTextureImage (DKR) */
     if (op >= 0xAF && op <= 0xBF) return true;
     if (op >= 0xE4) return true;
     return false;
@@ -1631,6 +1631,7 @@ static void Cmd_LoadTile(GfxCommand cmd) {
         /* PORT: DKR ROM pads rows to word boundary (32B for 56x56 CI4).
            Use lineWords*8 as source stride to read correct row data. */
         uint32_t srcLineStride = lineWords * 8;
+        if (srcLineStride == 0) srcLineStride = 1;
         for (uint32_t row = 0; row < texHeight; row++) {
             uint32_t srcOffset = (tl + row) * srcLineStride + (sl * bppBits) / 8;
             uint32_t dstOffset = tmemBase + row * t.line * 8;
@@ -3889,6 +3890,21 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                         if (bka_is_readable(pal_src)) {
                             /* 16 colors * 2 bytes (RGBA5551) = 32 bytes */
                             memcpy(s_rdp.tmem + 2048, pal_src, 32);
+
+                        /* DIAG: dump 5 candidate palette locations */
+                        static int _paldiag = 0;
+                        if (_paldiag++ < 2) {
+                            uint8_t* _c = chosen;
+                            uint8_t* _p1568 = chosen + 1568;
+                            uint8_t* _p1792 = chosen + 1792;
+                            uint8_t* _pm32  = chosen - 32;
+                            uint8_t* _pm64  = chosen - 64;
+                            __android_log_print(ANDROID_LOG_ERROR, "BKA-PALDIAG", "TEXEL_0   @%p: %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", _c, _c[0],_c[1],_c[2],_c[3],_c[4],_c[5],_c[6],_c[7], _c[8],_c[9],_c[10],_c[11],_c[12],_c[13],_c[14],_c[15]);
+                            __android_log_print(ANDROID_LOG_ERROR, "BKA-PALDIAG", "PLUS1568  @%p: %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", _p1568, _p1568[0],_p1568[1],_p1568[2],_p1568[3],_p1568[4],_p1568[5],_p1568[6],_p1568[7], _p1568[8],_p1568[9],_p1568[10],_p1568[11],_p1568[12],_p1568[13],_p1568[14],_p1568[15]);
+                            __android_log_print(ANDROID_LOG_ERROR, "BKA-PALDIAG", "PLUS1792  @%p: %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", _p1792, _p1792[0],_p1792[1],_p1792[2],_p1792[3],_p1792[4],_p1792[5],_p1792[6],_p1792[7], _p1792[8],_p1792[9],_p1792[10],_p1792[11],_p1792[12],_p1792[13],_p1792[14],_p1792[15]);
+                            __android_log_print(ANDROID_LOG_ERROR, "BKA-PALDIAG", "MINUS32   @%p: %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", _pm32, _pm32[0],_pm32[1],_pm32[2],_pm32[3],_pm32[4],_pm32[5],_pm32[6],_pm32[7], _pm32[8],_pm32[9],_pm32[10],_pm32[11],_pm32[12],_pm32[13],_pm32[14],_pm32[15]);
+                            __android_log_print(ANDROID_LOG_ERROR, "BKA-PALDIAG", "MINUS64   @%p: %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", _pm64, _pm64[0],_pm64[1],_pm64[2],_pm64[3],_pm64[4],_pm64[5],_pm64[6],_pm64[7], _pm64[8],_pm64[9],_pm64[10],_pm64[11],_pm64[12],_pm64[13],_pm64[14],_pm64[15]);
+                        }
                             /* palette=0 already set on all tiles above */
                         }
                     }
