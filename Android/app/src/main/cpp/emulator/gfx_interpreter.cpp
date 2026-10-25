@@ -1628,8 +1628,9 @@ static void Cmd_LoadTile(GfxCommand cmd) {
 
     if (s_rdp.texAddr && texSize <= 4096) {
         uint32_t tmemBase = t.tmemAddr * 8;
-        uint32_t srcLineStride = (s_rdp.texWidth * bppBits) / 8;
-        if (srcLineStride == 0) srcLineStride = 1;
+        /* PORT: DKR ROM pads rows to word boundary (32B for 56x56 CI4).
+           Use lineWords*8 as source stride to read correct row data. */
+        uint32_t srcLineStride = lineWords * 8;
         for (uint32_t row = 0; row < texHeight; row++) {
             uint32_t srcOffset = (tl + row) * srcLineStride + (sl * bppBits) / 8;
             uint32_t dstOffset = tmemBase + row * t.line * 8;
@@ -3881,7 +3882,9 @@ void RSP_ProcessGfxTask(OSTask* tp) {
 
                         /* Load the 16-color palette from RDRAM to TMEM byte 2048.
                            Rare stores the CI4 palette immediately after the texture data. */
-                        uint32_t tex_bytes = (size_param * size_param) / 2;
+                        /* PORT: palette follows padded texel data (lineWords*8*height = 1792) */
+                        uint32_t _lw = (size_param * 4 + 63) / 64;
+                        uint32_t tex_bytes = _lw * 8 * size_param;
                         uint8_t* pal_src = chosen + tex_bytes;
                         if (bka_is_readable(pal_src)) {
                             /* 16 colors * 2 bytes (RGBA5551) = 32 bytes */
