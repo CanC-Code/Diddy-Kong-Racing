@@ -2809,11 +2809,10 @@ static void Cmd_TexRect(GfxCommand cmd) {
     if (rectW <= 0 || rectH <= 0) return;
     
     GfxCommand* cmd2 = (GfxCommand*)((uint8_t*)s_current_cmd + 8);
-    GfxCommand* cmd3 = (GfxCommand*)((uint8_t*)s_current_cmd + 16);
     int32_t sBase = (int16_t)(cmd2->w0 >> 16);
     int32_t tBase = (int16_t)(cmd2->w0 & 0xFFFF);
-    int32_t dsdx = (int16_t)(cmd3->w0 >> 16);
-    int32_t dtdy = (int16_t)(cmd3->w0 & 0xFFFF);
+    int32_t dsdx = (int16_t)(cmd2->w1 >> 16);
+    int32_t dtdy = (int16_t)(cmd2->w1 & 0xFFFF);
     int activeFb = getActiveFramebuffer();
     /* PORT: force walker to write to gVideoCurrFramebuffer (what fb_swap
        will promote to gVideoLastFramebuffer, which fillArgb reads).
