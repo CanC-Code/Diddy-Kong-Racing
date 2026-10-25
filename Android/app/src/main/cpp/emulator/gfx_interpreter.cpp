@@ -3831,12 +3831,18 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                            (07 = tile 7 = G_TX_LOADTILE). Prior code hardcoded tile 0
                            but B2 loads into tile 7, so sh/th never reached the copy. */
                         uint32_t tile_idx = (c.w0 >> 16) & 0x7;
-                        auto& t = s_rdp.tiles[tile_idx];
-                        t.sh = (size_param << 2) - 4;
-                        t.th = (size_param << 2) - 4;
-                        t.size = 0;      // 4bpp (CI4/I4)
-                        t.format = 2;    // CI (Color Indexed)
-                        t.tmemAddr = 0;  // bank 0
+                        /* PORT: set CI4 format on ALL tiles so whichever
+                           render tile TEXRECT uses finds format=2 (palette lookup)
+                           instead of falling into the I4 grayscale branch. */
+                        for (int _i = 0; _i < 8; _i++) {
+                            auto& _tile = s_rdp.tiles[_i];
+                            _tile.sh = (size_param << 2) - 4;
+                            _tile.th = (size_param << 2) - 4;
+                            _tile.size = 0;      // 4bpp CI4
+                            _tile.format = 2;    // CI (Color Indexed)
+                            _tile.tmemAddr = 0;  // bank 0
+                            _tile.palette = 0;
+                        }
                         s_rdp.texWidth = size_param;
 
                         /* Load the 16-color palette from RDRAM to TMEM byte 2048.
