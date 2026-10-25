@@ -2872,14 +2872,6 @@ static void Cmd_TexRect(GfxCommand cmd) {
             
             int32_t px = xl + dx, py = yl + dy;
             if (px >= 0 && px < FB_WIDTH && py >= 0 && py < FB_HEIGHT)
-                /* PORT: Basic Z-buffer test (using interpolation, WIP) */
-                int z_idx = py * FB_WIDTH + px;
-                uint16_t* zbuf = (uint16_t*)(gN64_RDRAM + 0x3F0000);
-                uint16_t z_val = 0x8000; // Placeholder for interpolated Z
-                if (z_val <= zbuf[z_idx]) {
-                    zbuf[z_idx] = z_val;
-                    fb[py * FB_WIDTH + px] = RGBA8_TO_RGB565(r, g, b);
-                }
         }
     }
 }
