@@ -1591,17 +1591,23 @@ static void Cmd_LoadTile(GfxCommand cmd) {
     uint32_t sl = (cmd.w0 >> 12) & 0xFFF, tl = cmd.w0 & 0xFFF;
     uint32_t sh = (cmd.w1 >> 12) & 0xFFF, th = cmd.w1 & 0xFFF;
 
-    /* PORT: Rare B2 quick LoadTile passes w1=0. 
-       Use tile's sh/th if set, otherwise fall back to global s_rdp.texWidth 
-       (set by 0x07), because Rare sets the size on tile 7 but loads into tile 0. */
-    if (sh == 0) {
-        if (t.sh != 0) sh = t.sh;
-        else if (s_rdp.texWidth > 0) sh = (s_rdp.texWidth - 1) << 2;
+    /* PORT: Rare B2 quick LoadTile passes w1=0. We bypass tile 0's stale
+       descriptors entirely and force the size from s_rdp.texWidth (set by 0x07). */
+    if (cmd.w1 == 0) {
+        if (s_rdp.texWidth > 0) {
+            sh = (s_rdp.texWidth - 1) << 2;
+            th = (s_rdp.texWidth - 1) << 2;
+        }
+    } else {
+        if (sh == 0) sh = t.sh;
+        if (th == 0) th = t.th;
     }
-    if (th == 0) {
-        if (t.th != 0) th = t.th;
-        else if (s_rdp.texWidth > 0) th = (s_rdp.texWidth - 1) << 2;
-    }
+    
+    /* Diagnostic: trace the first 5 copy attempts */
+    { static int s_copy = 0; if (s_copy++ < 5)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-COPY",
+            "tile=%u sh=%u th=%u texWidth=%u texAddr=%p", 
+            tile, sh, th, (sh >> 2) + 1, (void*)s_rdp.texAddr); }
     t.sl = sl; t.tl = tl; t.sh = sh; t.th = th;
     /* PORT: compute lineWords so TEXRECT sampling uses the correct row stride */
     {
