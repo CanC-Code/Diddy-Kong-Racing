@@ -1591,11 +1591,17 @@ static void Cmd_LoadTile(GfxCommand cmd) {
     uint32_t sl = (cmd.w0 >> 12) & 0xFFF, tl = cmd.w0 & 0xFFF;
     uint32_t sh = (cmd.w1 >> 12) & 0xFFF, th = cmd.w1 & 0xFFF;
 
-    /* PORT: Rare B2 quick LoadTile passes w1=0. Preserve sh/th set by 0x07 */
-
-    if (sh == 0) sh = t.sh;
-
-    if (th == 0) th = t.th;
+    /* PORT: Rare B2 quick LoadTile passes w1=0. 
+       Use tile's sh/th if set, otherwise fall back to global s_rdp.texWidth 
+       (set by 0x07), because Rare sets the size on tile 7 but loads into tile 0. */
+    if (sh == 0) {
+        if (t.sh != 0) sh = t.sh;
+        else if (s_rdp.texWidth > 0) sh = (s_rdp.texWidth - 1) << 2;
+    }
+    if (th == 0) {
+        if (t.th != 0) th = t.th;
+        else if (s_rdp.texWidth > 0) th = (s_rdp.texWidth - 1) << 2;
+    }
     t.sl = sl; t.tl = tl; t.sh = sh; t.th = th;
     /* PORT: compute lineWords so TEXRECT sampling uses the correct row stride */
     {
