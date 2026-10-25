@@ -2808,11 +2808,10 @@ static void Cmd_TexRect(GfxCommand cmd) {
     int32_t rectW = xh - xl, rectH = yh - yl;
     if (rectW <= 0 || rectH <= 0) return;
     
-    GfxCommand* cmd2 = (GfxCommand*)((uint8_t*)s_current_cmd + 8);
-    int32_t sBase = (int16_t)(cmd2->w0 >> 16);
-    int32_t tBase = (int16_t)(cmd2->w0 & 0xFFFF);
-    int32_t dsdx = (int16_t)(cmd2->w1 >> 16);
-    int32_t dtdy = (int16_t)(cmd2->w1 & 0xFFFF);
+    /* PORT: DKR passes dsdx=0 in these commands. We stretch the texture
+       from 0..texW and 0..texH over the rectangle to get full coverage. */
+    int32_t sBase = 0, tBase = 0;
+    int32_t dsdx = 0, dtdy = 0;
     int activeFb = getActiveFramebuffer();
     /* PORT: force walker to write to gVideoCurrFramebuffer (what fb_swap
        will promote to gVideoLastFramebuffer, which fillArgb reads).
@@ -2830,16 +2829,16 @@ static void Cmd_TexRect(GfxCommand cmd) {
     { static int _tuv = 0; if (_tuv++ < 8) {
         auto& td = s_rdp.tiles[tile];
         __android_log_print(ANDROID_LOG_ERROR, "BKA-TEXUV",
-            "tile=%d rectW=%d rectH=%d sBase=%d tBase=%d dsdx=%d dtdy=%d | sh=%u th=%u tmemAddr=%u fmt=%u sz=%u",
+            "tile=%d rectW=%d rectH=%d sBase=%d tBase=%d dsdx=%d dtdy=%d | sh=%u th=%u tmemAddr=%u line=%u fmt=%u sz=%u",
             tile, rectW, rectH, sBase, tBase, dsdx, dtdy,
-            td.sh, td.th, td.tmemAddr, td.format, td.size);
+            td.sh, td.th, td.tmemAddr, td.line, td.format, td.size);
     } }
     
     for (int32_t dy = 0; dy < rectH; dy++) {
         for (int32_t dx = 0; dx < rectW; dx++) {
-            int32_t curr_s = sBase + dx * dsdx;
-                int32_t curr_t = tBase + dy * dtdy;
-                RDP_FetchTexel(tile, curr_s, curr_t, texel);
+            int32_t s = sBase + (dx * texW) / rectW;
+                int32_t t = tBase + (dy * texH) / rectH;
+                RDP_FetchTexel(tile, s << 5, t << 5, texel);
             
             uint8_t r = (uint8_t)(((uint16_t)texel[0] * s_rdp.primR) / 255);
             uint8_t g = (uint8_t)(((uint16_t)texel[1] * s_rdp.primG) / 255);
@@ -3858,6 +3857,12 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                             _tile.format = 2;    // CI (Color Indexed)
                             _tile.tmemAddr = 0;  // bank 0
                             _tile.palette = 0;
+                            uint32_t _lb = (size_param * 4 + 7) / 8;
+                            uint32_t _lw = (_lb + 7) / 8;
+                            if (_lw == 0) _lw = 1;
+                            _tile.line = _lw;
+                            _tile.sl = 0;
+                            _tile.tl = 0;
                         }
                         s_rdp.texWidth = size_param;
 
