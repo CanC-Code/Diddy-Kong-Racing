@@ -799,7 +799,10 @@ static void Matrix_LoadFromN64(BKMatrix* out, const void* src) {
 // =======================================================================
 
 static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
-    uint32_t u = s >> 5, v = t >> 5;
+    /* PORT: DKR passes 16.16 fixed-point texture coordinates.
+       Shifting by 5 (10.5 format) caused rapid wrapping (stripes).
+       Shift by 16 for correct pixel mapping. */
+    uint32_t u = s >> 16, v = t >> 16;
     auto& tdesc = s_rdp.tiles[tile];
     uint32_t texW = (tdesc.sh >> 2) + 1, texH = (tdesc.th >> 2) + 1;
     if (texW == 0) texW = 1;
