@@ -2803,17 +2803,14 @@ static void Cmd_TexRect(GfxCommand cmd) {
     
     auto& tdesc = s_rdp.tiles[tile];
     
-    /* PORT: B3/F5 SetTile overwrites fmt/line with 0 right before draw.
-       Force CI4 and recompute line if we have a valid texture loaded. */
+    /* PORT: Force the render tile to use the full texture loaded by 0x07,
+       ignoring whatever B3/F5 SetTile tried to set. */
     if (s_rdp.texWidth > 0) {
-        tdesc.format = 2;
-        tdesc.size = 0;
-        uint32_t bpp = 4u << (tdesc.size & 3);
-        uint32_t w = (tdesc.sh >> 2) + 1;
-        uint32_t lb = (w * bpp + 7) / 8;
-        uint32_t lw = (lb + 7) / 8;
-        if (lw == 0) lw = 1;
-        tdesc.line = lw;
+        tdesc.sh = (s_rdp.texWidth - 1) << 2;
+        tdesc.th = (s_rdp.texWidth - 1) << 2;
+        tdesc.format = 2; // CI4
+        tdesc.size = 0;   // 4bpp
+        tdesc.line = (s_rdp.texWidth * 4 + 63) / 64; // words per row (56*4+63)/64 = 4
     }
 
     int32_t texW = (tdesc.sh >> 2) + 1, texH = (tdesc.th >> 2) + 1;
