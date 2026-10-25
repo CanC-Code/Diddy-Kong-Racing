@@ -3852,7 +3852,7 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                         if (bka_is_readable(pal_src)) {
                             /* 16 colors * 2 bytes (RGBA5551) = 32 bytes */
                             memcpy(s_rdp.tmem + 2048, pal_src, 32);
-                            t.palette = 0; // Use bank 0
+                            /* palette=0 already set on all tiles above */
                         }
                     }
                     if (s_rdp.texSize == 0) s_rdp.texSize = 1;
