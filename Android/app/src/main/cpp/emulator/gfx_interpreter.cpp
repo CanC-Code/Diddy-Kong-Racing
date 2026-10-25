@@ -1590,7 +1590,22 @@ static void Cmd_LoadTile(GfxCommand cmd) {
     auto& t = s_rdp.tiles[tile];
     uint32_t sl = (cmd.w0 >> 12) & 0xFFF, tl = cmd.w0 & 0xFFF;
     uint32_t sh = (cmd.w1 >> 12) & 0xFFF, th = cmd.w1 & 0xFFF;
+
+    /* PORT: Rare B2 quick LoadTile passes w1=0. Preserve sh/th set by 0x07 */
+
+    if (sh == 0) sh = t.sh;
+
+    if (th == 0) th = t.th;
     t.sl = sl; t.tl = tl; t.sh = sh; t.th = th;
+    /* PORT: compute lineWords so TEXRECT sampling uses the correct row stride */
+    {
+        uint32_t _bpp = 4u << (t.size & 3);
+        uint32_t _w = (sh >> 2) + 1;
+        uint32_t _lb = (_w * _bpp + 7) / 8;
+        uint32_t _lw = (_lb + 7) / 8;
+        if (_lw == 0) _lw = 1;
+        t.line = _lw;
+    }
 
     uint32_t bppBits = 4u << (t.size & 3);
     uint32_t texWidth = (sh >> 2) + 1, texHeight = (th >> 2) + 1;
