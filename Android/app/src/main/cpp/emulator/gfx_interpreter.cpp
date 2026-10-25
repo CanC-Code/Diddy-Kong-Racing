@@ -2807,13 +2807,12 @@ static void Cmd_TexRect(GfxCommand cmd) {
             /* PORT: tmem not populated (DMA upload never ran) — texel all-zero.
                Force white so walker→framebuffer→Chrome pipeline is proven. */
             if (r == 0 && g == 0 && b == 0) {
-        /* PORT: rainbow fallback — TMEM has no texture data (SetTImg never
-           fires → texAddr null). Proves walker/rasterizer/fb pipeline works. */
-        static uint32_t s_hue = 0;
-        uint32_t h = (s_hue++ >> 6) & 3u;
-        r = (h & 1u) ? 255 : 0;
-        g = (h & 2u) ? 255 : 0;
-        b = ((h + 1u) & 3u) ? 200 : 0;
+        /* PORT: if texel byte is 0 (unloaded region of TMEM), fall back to
+           fill color so we can see which TEXRECTs have real texture data
+           and which don't. Real texels render natively. */
+        r = s_rdp.fillR;
+        g = s_rdp.fillG;
+        b = s_rdp.fillB;
         a = 255;
     }
             if (a < 8) continue;
@@ -3817,7 +3816,7 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                         t.size = 0;      // 4bpp (CI4/I4)
                         t.format = 2;    // CI (Color Indexed) - confirm via TLUT
                         t.tmemAddr = 0;  // bank 0
-                        t.line = 0;      // calculated in LoadTile
+                        /* line is computed by LoadTile once sh is known */
                     }
                     if (s_rdp.texSize == 0) s_rdp.texSize = 1;
                 }
