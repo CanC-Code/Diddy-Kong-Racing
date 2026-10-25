@@ -6,15 +6,12 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 
+import java.io.File;
+
 /**
- * Bootstrap. Uses Theme.NoDisplay so it never creates a surface; starts
- * the foreground service and finishes immediately. All the real work
- * runs in BkaService.
- *
- * This is required because Motorola's libgui has a UAF on the buffer
- * transaction callback. Any visible window in our process — even one
- * with no rendering — triggers it. Only a NoDisplay activity that
- * finishes in onCreate avoids the surface entirely.
+ * Bootstrap. Uses Theme.NoDisplay (Motorola libgui UAF workaround) and
+ * finishes immediately. If the ROM is missing, launches RomPickerActivity
+ * so the user can choose a .z64 via the system file picker.
  */
 public class MainActivity extends Activity {
     private static final String TAG = "BKA-Main";
@@ -22,18 +19,31 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.i(TAG, "bootstrap -> startForegroundService");
+        Log.i(TAG, "bootstrap");
 
-        // Seed ROM if bundled (see previous MainActivity logic — ROM
-        // is already in files/auto_rom.z64 on this device).
+        File romFile = new File(getFilesDir(), "auto_rom.z64");
+        if (!romFile.exists() || romFile.length() < 1024) {
+            Log.w(TAG, "ROM missing or too small — launching picker");
+            Intent picker = new Intent(this, RomPickerActivity.class);
+            picker.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try { startActivity(picker); } catch (Exception e) {
+                Log.e(TAG, "picker launch failed: " + e.getMessage());
+            }
+            finish();
+            return;
+        }
+
+        startBkaService();
+        finish();
+    }
+
+    private void startBkaService() {
         Intent svc = new Intent(this, BkaService.class);
         if (Build.VERSION.SDK_INT >= 26) {
-            try { startForegroundService(svc); } catch (Exception e) {
-                Log.w("BKA-Main", "startForegroundService failed: " + e.getMessage());
-            }
+            try { startForegroundService(svc); }
+            catch (Exception e) { Log.w(TAG, "startForegroundService failed: " + e.getMessage()); }
         } else {
             startService(svc);
         }
-        finish();
     }
 }
