@@ -1591,13 +1591,11 @@ static void Cmd_LoadTile(GfxCommand cmd) {
     uint32_t sl = (cmd.w0 >> 12) & 0xFFF, tl = cmd.w0 & 0xFFF;
     uint32_t sh = (cmd.w1 >> 12) & 0xFFF, th = cmd.w1 & 0xFFF;
 
-    /* PORT: Rare B2 quick LoadTile passes w1=0. We bypass tile 0's stale
-       descriptors entirely and force the size from s_rdp.texWidth (set by 0x07). */
-    if (cmd.w1 == 0) {
-        if (s_rdp.texWidth > 0) {
-            sh = (s_rdp.texWidth - 1) << 2;
-            th = (s_rdp.texWidth - 1) << 2;
-        }
+    /* PORT: Rare's B2 (LoadTile) passes garbage w1 (e.g. 0x04000400).
+       We always override sh/th with s_rdp.texWidth set by 0x07. */
+    if (s_rdp.texWidth > 0) {
+        sh = (s_rdp.texWidth - 1) << 2;
+        th = (s_rdp.texWidth - 1) << 2;
     } else {
         if (sh == 0) sh = t.sh;
         if (th == 0) th = t.th;
