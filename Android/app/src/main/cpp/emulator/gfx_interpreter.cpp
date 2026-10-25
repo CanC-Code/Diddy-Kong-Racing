@@ -3184,6 +3184,40 @@ void RSP_ProcessGfxTask(OSTask* tp) {
         s_rdp_state_inited = true;
         __android_log_print(ANDROID_LOG_ERROR, "BKA-RDP", "FIRST-CALL RDP_InitState()");
         RDP_InitState();
+        
+        /* PORT DIAGNOSTIC: mirror ROM to RDRAM at init (skip framebuffers).
+           Theory: game DMAs to heap, but RDP samples from RDRAM. Bridge by
+           copying ROM content to RDRAM at same offsets. If RARE logo appears
+           with real textures, the bridge is the fix. */
+        extern "C" size_t resource_rom_size(void);
+        extern uint8_t* gN64_ROM_Base;
+        extern uint8_t* gN64_RDRAM;
+        size_t rom_sz = resource_rom_size();
+        if (gN64_ROM_Base && gN64_RDRAM && rom_sz > 0) {
+            size_t max_copy = rom_sz < 0x1000000 ? rom_sz : 0x1000000;
+            size_t fb_start = 0x400000;
+            size_t fb_end   = 0x480000;
+            size_t copied = 0;
+            if (max_copy <= fb_start) {
+                memcpy(gN64_RDRAM, gN64_ROM_Base, max_copy);
+                copied = max_copy;
+            } else {
+                memcpy(gN64_RDRAM, gN64_ROM_Base, fb_start);
+                copied += fb_start;
+                if (max_copy > fb_end) {
+                    memcpy(gN64_RDRAM + fb_end, gN64_ROM_Base + fb_end, max_copy - fb_end);
+                    copied += max_copy - fb_end;
+                }
+            }
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-ROM2RAM",
+                "Copied %zu/%zu bytes ROM->RDRAM. ROM[2FE8C0]=%02X%02X%02X%02X RDRAM[2FE8C0]=%02X%02X%02X%02X",
+                copied, rom_sz,
+                gN64_ROM_Base[0x2FE8C0], gN64_ROM_Base[0x2FE8C1], gN64_ROM_Base[0x2FE8C2], gN64_ROM_Base[0x2FE8C3],
+                gN64_RDRAM[0x2FE8C0], gN64_RDRAM[0x2FE8C1], gN64_RDRAM[0x2FE8C2], gN64_RDRAM[0x2FE8C3]);
+        } else {
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-ROM2RAM",
+                "Skipped (ROM=%p RDRAM=%p size=%zu)", (void*)gN64_ROM_Base, (void*)gN64_RDRAM, rom_sz);
+        }
     }
 
     // ---- DL_DUMP_ADDED ----

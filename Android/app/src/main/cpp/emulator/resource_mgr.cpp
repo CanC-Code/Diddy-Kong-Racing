@@ -57,6 +57,7 @@ static std::vector<SegmentRecord> g_segments;
 // rather than relying on the in-memory gN64_ROM_Base pointer.
 extern uint8_t* gN64_ROM_Base;
 static size_t g_romSize = 0;
+extern "C" size_t resource_rom_size(void) { return g_romSize; }
 static volatile uint32_t g_pi_dma_count = 0;
 static volatile uint32_t g_pi_dma_success = 0;
 static volatile uint32_t g_pi_dma_fail = 0;
