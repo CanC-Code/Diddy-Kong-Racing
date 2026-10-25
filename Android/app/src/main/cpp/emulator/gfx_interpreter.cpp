@@ -1587,7 +1587,7 @@ static void Cmd_SetTImg(GfxCommand cmd) {
 
 static void Cmd_LoadTile(GfxCommand cmd) {
     s_gfx_lt_count++;
-    uint32_t tile = (cmd.w1 >> 24) & 0x7;
+    uint32_t tile = 0; /* PORT: force tile 0 (matches render tile) */
     { static int s_lt = 0; if (s_lt++ < 20) __android_log_print(ANDROID_LOG_ERROR, "BKA-LOADTILE", "ENTRY tile=%u w0=%08X w1=%08X texAddr=%p", tile, cmd.w0, cmd.w1, (void*)s_rdp.texAddr); }
     if (tile >= 8) return;
     auto& t = s_rdp.tiles[tile];
@@ -2793,7 +2793,7 @@ static void Cmd_TexRect(GfxCommand cmd) {
     int32_t yh = (int32_t)(cmd.w0 & 0xFFF) >> 2;
     int32_t xl = (int32_t)((cmd.w1 >> 12) & 0xFFF) >> 2;
     int32_t yl = (int32_t)(cmd.w1 & 0xFFF) >> 2;
-    int tile = (cmd.w1 >> 24) & 0x7;
+    int tile = 0; /* PORT: force tile 0 */
     
     // Coordinates are .2 fixed-point; >>2 converts to pixels.
     if (xl < 0) xl = 0; if (yl < 0) yl = 0;
