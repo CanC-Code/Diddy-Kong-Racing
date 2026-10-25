@@ -3825,13 +3825,17 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                        active tile descriptor so Cmd_LoadTile copies a real block. */
                     uint32_t size_param = (c.w0 & 0xFF);
                     if (size_param > 0) {
-                        auto& t = s_rdp.tiles[0]; // Rare always uses tile 0 for these
+                        /* PORT: 0x07 w0=0707_0038 → bits 16-23 hold the tile index
+                           (07 = tile 7 = G_TX_LOADTILE). Prior code hardcoded tile 0
+                           but B2 loads into tile 7, so sh/th never reached the copy. */
+                        uint32_t tile_idx = (c.w0 >> 16) & 0x7;
+                        auto& t = s_rdp.tiles[tile_idx];
                         t.sh = (size_param << 2) - 4;
                         t.th = (size_param << 2) - 4;
                         t.size = 0;      // 4bpp (CI4/I4)
-                        t.format = 2;    // CI (Color Indexed) - confirm via TLUT
+                        t.format = 2;    // CI (Color Indexed)
                         t.tmemAddr = 0;  // bank 0
-                        /* line is computed by LoadTile once sh is known */
+                        s_rdp.texWidth = size_param;
                     }
                     if (s_rdp.texSize == 0) s_rdp.texSize = 1;
                 }
