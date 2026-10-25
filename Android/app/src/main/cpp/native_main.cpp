@@ -316,7 +316,6 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     
     /* PORT: Draw palette bar overlay - shows TMEM palette state visually */
     {
-        extern "C" uint8_t* gfx_tmem_ptr();
         uint8_t* tm = gfx_tmem_ptr();
         const int W_ = 292, H_ = 216;
         if (tm && out) {
