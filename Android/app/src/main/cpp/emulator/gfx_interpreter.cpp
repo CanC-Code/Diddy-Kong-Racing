@@ -570,6 +570,8 @@ static inline int16_t read_int16(const uint8_t* ptr) {
 // RDP State Management
 // =======================================================================
 
+extern "C" size_t resource_rom_size(void);
+
 static void RDP_InitState() {
     // Seed matrices to identity so the first MUL/PUSH ops are well-defined.
     for (int i = 0; i < 4; i++)
@@ -3189,7 +3191,6 @@ void RSP_ProcessGfxTask(OSTask* tp) {
            Theory: game DMAs to heap, but RDP samples from RDRAM. Bridge by
            copying ROM content to RDRAM at same offsets. If RARE logo appears
            with real textures, the bridge is the fix. */
-        extern "C" size_t resource_rom_size(void);
         extern uint8_t* gN64_ROM_Base;
         extern uint8_t* gN64_RDRAM;
         size_t rom_sz = resource_rom_size();
