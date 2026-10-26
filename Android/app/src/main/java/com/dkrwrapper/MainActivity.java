@@ -112,13 +112,12 @@ public class MainActivity extends Activity {
 
         ProcessBuilder pb = new ProcessBuilder(
                 "/system/bin/linker64",
-                "--library-path", libDir.getAbsolutePath(),
                 tool.getAbsolutePath(),
                 "extract", "-dkrv", "us.v80");
         pb.directory(extractorDir);
         pb.redirectErrorStream(true);
         pb.redirectOutput(ProcessBuilder.Redirect.to(toolLog));
-        pb.environment().put("LD_LIBRARY_PATH", libDir.getAbsolutePath());
+        pb.environment().put("LD_LIBRARY_PATH", libDir.getAbsolutePath() + ":/system/lib64:/vendor/lib64");
         Process p = pb.start();
 
         int rc = p.waitFor();
