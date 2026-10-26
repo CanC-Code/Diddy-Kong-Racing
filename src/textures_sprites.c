@@ -512,6 +512,7 @@ TextureHeader *load_texture(s32 id) {
                 id, tableType, assetIndex, gTextureTableSize[tableType]); }
         stubbed_printf("Error: Texture no %x out of range on load. !!\n", assetIndex);
         id = 0;
+        assetIndex = 0;  /* PORT: also reset index so table lookup is safe */
     }
 
     // Check if texture is already loaded; if so, increment the reference count and return it.
@@ -524,6 +525,25 @@ TextureHeader *load_texture(s32 id) {
     }
     assetOffset = gTextureAssetTable[tableType][assetIndex];
     assetSize = gTextureAssetTable[tableType][assetIndex + 1] - assetOffset;
+    { static int _ac = 0; if (_ac++ < 3) {
+        /* PORT: for the first valid texture request, dump 16 bytes at
+           three candidate asset bases so we can identify the correct one */
+        uint32_t _bases[3] = {0xECDE0, 0xED0E0, 0xED1B0};
+        const char* _names[3] = {"0xECDE0(extract-cfg)", "0xED0E0(LUT)", "0xED1B0(current)"};
+        for (int bi = 0; bi < 3; bi++) {
+            uint32_t _full = _bases[bi] + (uint32_t)assetOffset;
+            uint8_t _b[16] = {0};
+            if (gN64_ROM_Base && _full + 16 < 0x1000000) {
+                for (int k = 0; k < 16; k++) _b[k] = gN64_ROM_Base[_full + k];
+            }
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-BASE",
+                "ai=%d off=0x%X base=%s full=0x%X bytes=%02X%02X%02X%02X%02X%02X%02X%02X isComp=%d uncomp=%02X%02X%02X%02X",
+                assetIndex, (uint32_t)assetOffset, _names[bi], _full,
+                _b[0],_b[1],_b[2],_b[3],_b[4],_b[5],_b[6],_b[7],
+                _b[2] & 1,  /* crude isCompressed check */
+                _b[4],_b[5],_b[6],_b[7]);
+        }
+    } }
     { static int _ac = 0; if (_ac++ < 20) {
         uint32_t full_off = (uint32_t)assetOffset + gBkaAssetsRomOffset;
         uint8_t b[16] = {0};
