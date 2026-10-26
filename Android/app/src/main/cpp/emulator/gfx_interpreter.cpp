@@ -1630,9 +1630,12 @@ static void Cmd_LoadTile(GfxCommand cmd) {
 
     if (s_rdp.texAddr && texSize <= 4096) {
         uint32_t tmemBase = t.tmemAddr * 8;
-        /* PORT: DKR ROM pads rows to word boundary (32B for 56x56 CI4).
-           Use lineWords*8 as source stride to read correct row data. */
-        uint32_t srcLineStride = (texWidth * bppBits + 7) / 8; // Packed stride (28 bytes)
+        /* PORT: N64 RDRAM stores texture rows WORD-ALIGNED. For 56x56 CI4,
+           a 28-byte row becomes a 32-byte padded row (lineWords*8).
+           Using packed 28-byte stride reads row 0 padding + row 1 data,
+           producing diagonal-streak noise. Use padded stride. */
+        uint32_t srcLineStride = lineWords * 8;  // padded row stride (matches dstOffset)
+        if (srcLineStride == 0) srcLineStride = lineBytes;
         if (srcLineStride == 0) srcLineStride = 1;
         for (uint32_t row = 0; row < texHeight; row++) {
             uint32_t srcOffset = (tl + row) * srcLineStride + (sl * bppBits) / 8;
@@ -3920,6 +3923,23 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                         /* DIAG: dump 5 candidate palette locations */
                         static int _paldiag = 0;
                         if (_paldiag++ < 2) {
+                            /* File dump for post-mortem */
+                            FILE* pf = fopen("/data/data/com.dkrwrapper/files/paldiag.txt", "a");
+                            if (pf) {
+                                fprintf(pf, "=== PALDIAG call %d ===\n", _paldiag);
+                                fprintf(pf, "TEXEL0: ");
+                                for (int i = 0; i < 32; i++) fprintf(pf, "%02X", chosen[i]);
+                                fprintf(pf, "\n+1568: ");
+                                for (int i = 0; i < 32; i++) fprintf(pf, "%02X", chosen[1568+i]);
+                                fprintf(pf, "\n+1792: ");
+                                for (int i = 0; i < 32; i++) fprintf(pf, "%02X", chosen[1792+i]);
+                                fprintf(pf, "\n-32:   ");
+                                for (int i = 0; i < 32; i++) fprintf(pf, "%02X", chosen[-32+i]);
+                                fprintf(pf, "\n-64:   ");
+                                for (int i = 0; i < 32; i++) fprintf(pf, "%02X", chosen[-64+i]);
+                                fprintf(pf, "\n\n");
+                                fclose(pf);
+                            }
                             uint8_t* _c = chosen;
                             uint8_t* _p1568 = chosen + 1568;
                             uint8_t* _p1792 = chosen + 1792;
