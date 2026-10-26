@@ -3888,17 +3888,6 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                 int in24 = (gN64_RDRAM && a24 >= gN64_RDRAM && a24 < gN64_RDRAM + 0x1000000);
                 
                 if (s_07 < 12) {
-                    if (chosen) {
-                        uint32_t _coff = (uint32_t)(chosen - gN64_RDRAM);
-                        __android_log_print(ANDROID_LOG_ERROR, "BKA-CHOSEN",
-                            "#%d off=0x%X b0=%02X%02X%02X%02X b1792=%02X%02X%02X%02X b32768=%02X%02X%02X%02X",
-                            s_07, _coff,
-                            chosen[0], chosen[1], chosen[2], chosen[3],
-                            chosen[1792], chosen[1793], chosen[1794], chosen[1795],
-                            chosen[32768], chosen[32769], chosen[32770], chosen[32771]);
-                    } else {
-                        __android_log_print(ANDROID_LOG_ERROR, "BKA-CHOSEN", "#%d NULL", s_07);
-                    }
                     auto& _t = s_rdp.tiles[s_rdp.activeTile];
                     __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEFMT",
                         "#%d activeTile=%d fmt=%u size=%u palette=%u line=%u sh=%u th=%u tmemAddr=%u",
@@ -3923,6 +3912,22 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                 else if (in24) chosen = a24;   /* fall back to 24-bit if in bounds */
                 else if (in28) chosen = a28;
                 
+                /* DIAG: log chosen offset + key bytes */
+                { static int _cdiag = 0; if (_cdiag++ < 8) {
+                    if (chosen && gN64_RDRAM) {
+                        uint32_t _coff = (uint32_t)(chosen - gN64_RDRAM);
+                        __android_log_print(ANDROID_LOG_ERROR, "BKA-CHOSEN",
+                            "off=0x%X a24=%d a28=%d b0=%02X%02X%02X%02X b1792=%02X%02X%02X%02X b32768=%02X%02X%02X%02X",
+                            _coff, in24, in28,
+                            chosen[0], chosen[1], chosen[2], chosen[3],
+                            chosen[1792], chosen[1793], chosen[1794], chosen[1795],
+                            chosen[32768], chosen[32769], chosen[32770], chosen[32771]);
+                    } else {
+                        __android_log_print(ANDROID_LOG_ERROR, "BKA-CHOSEN",
+                            "NULL a24=%d a28=%d", in24, in28);
+                    }
+                } }
+
                 if (chosen) {
                     s_rdp.texAddr = chosen;
                     
