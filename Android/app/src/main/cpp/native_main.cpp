@@ -313,23 +313,6 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     if (!gN64_RDRAM || !outArr) return;
     jint* out = env->GetIntArrayElements(outArr, nullptr);
     if (!out) return;
-    
-    /* PORT: Draw palette bar overlay - shows TMEM palette state visually */
-    {
-        uint8_t* tm = gfx_tmem_ptr();
-        const int W_ = 292, H_ = 216;
-        if (tm && out) {
-            for (int i = 0; i < 16; i++) {
-                uint32_t palByte = 2048 + i * 2;
-                uint16_t p = ((uint16_t)tm[palByte & 0xFFF] << 8) | tm[(palByte + 1) & 0xFFF];
-                uint8_t pr = ((p >> 11) & 0x1F) << 3;
-                uint8_t pg = ((p >> 6) & 0x1F) << 3;
-                uint8_t pb = ((p >> 1) & 0x1F) << 3;
-                jint color = (0xFF << 24) | ((jint)pr << 16) | ((jint)pg << 8) | pb;
-                for (int y = 0; y < 8; y++)
-                    for (int x = i * 16; x < (i + 1) * 16; x++)
-                        if (y < H_ && x < W_) out[y * W_ + x] = color;
-            }
         }
     }
     { static int s_fa2 = 0;
@@ -351,7 +334,27 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     if (!gVideoLastFramebuffer || !gVideoCurrFramebuffer) {
         int len = env->GetArrayLength(outArr);
         memset(out, 0, (size_t)len * sizeof(jint));
-        env->ReleaseIntArrayElements(outArr, out, 0);
+        
+    /* PORT: Draw palette debug bar LAST so it isn't overwritten by framebuffer copy */
+    {
+        uint8_t* tm = gfx_tmem_ptr();
+        const int W_ = 292;
+        if (tm) {
+            for (int i = 0; i < 16; i++) {
+                uint32_t palByte = 2048 + i * 2;
+                uint16_t p = ((uint16_t)tm[palByte & 0xFFF] << 8) | tm[(palByte + 1) & 0xFFF];
+                uint8_t pr = ((p >> 11) & 0x1F) << 3;
+                uint8_t pg = ((p >> 6) & 0x1F) << 3;
+                uint8_t pb = ((p >> 1) & 0x1F) << 3;
+                jint color = (0xFF << 24) | ((jint)pr << 16) | ((jint)pg << 8) | pb;
+                for (int y = 0; y < 8; y++)
+                    for (int x = i * 16; x < (i + 1) * 16; x++)
+                        if (x < W_) out[y * W_ + x] = color;
+            }
+        }
+    }
+
+    env->ReleaseIntArrayElements(outArr, out, 0);
         return;
     }
     /* PORT probe: top-left 4 pixels of framebuffer.
