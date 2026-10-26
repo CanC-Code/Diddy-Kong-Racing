@@ -472,6 +472,9 @@ UNUSED s32 sprite_table_size(void) {
  * Official Name: texLoadTexture
  */
 TextureHeader *load_texture(s32 id) {
+    { static int _lt = 0; if (_lt++ < 20)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-LTEXT",
+            "ENTER id=0x%X", id); }
     TextureHeader *tex;
     TextureHeader *texTemp;
     u32 compressedStart;
@@ -500,6 +503,10 @@ TextureHeader *load_texture(s32 id) {
 
     // If the index is out of bounds, fall back to texture 0. Returning NULL would be better.
     if (assetIndex >= gTextureTableSize[tableType] || assetIndex < 0) {
+        { static int _oo = 0; if (_oo++ < 10)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-LTEXT-OOR",
+                "id=0x%X tableType=%d assetIndex=%d tableSize=%d",
+                id, tableType, assetIndex, gTextureTableSize[tableType]); }
         stubbed_printf("Error: Texture no %x out of range on load. !!\n", assetIndex);
         id = 0;
     }
@@ -544,7 +551,8 @@ TextureHeader *load_texture(s32 id) {
     // If compressed, decompress it.
     __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
         "isCompressed check: value=%d", (int)gTempTextureHeader->header.isCompressed);
-    if (1) {  // FORCE uncompressed path for diagnostic; revert to !isCompressed after
+    if (!gTempTextureHeader->header.isCompressed) {
+        /* PORT: normal path when texture is already uncompressed */
         u32 _alloc_size = numberOfTextures * TEXTURE_GFX_SIZE + assetSize;
         if (_alloc_size > 4 * 1024 * 1024) {
             __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
@@ -574,6 +582,11 @@ TextureHeader *load_texture(s32 id) {
                 (unsigned)_tex_v->format, (unsigned)_tex_v->textureSize, (unsigned)_tex_v->ciPaletteOffset);
         }
     } else {
+        { static int _gc = 0; if (_gc++ < 20)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-TEXCOMP",
+                "COMPRESSED path id=0x%X assetSize=%d uncompressed=%u",
+                id, assetSize,
+                (unsigned)byteswap32((u8 *) &gTempTextureHeader->uncompressedSize)); }
         // Allocate enough memory for the decompressed texture
         uncompressedSize = byteswap32((u8 *) &gTempTextureHeader->uncompressedSize) + sizeof(TextureHeader);
         u32 _alloc_size = numberOfTextures * TEXTURE_GFX_SIZE + uncompressedSize;

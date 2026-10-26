@@ -57,17 +57,48 @@ s32 gzip_size_uncompressed(s32 assetIndex, s32 assetOffset) {
  * Official name: rzipUncompress
  */
 u8 *gzip_inflate(u8 *compressedInput, u8 *decompressedOutput) {
-    { static int _gz = 0; if (_gz++ < 15)
+    /* PORT: on-device extraction. Replace MIPS asm gzip_inflate_block with
+       zlib raw DEFLATE. DKR format: 4-byte BE uncompressed size +
+       1-byte flag + raw deflate stream. Works entirely on-device. */
+    uint32_t uncompressed_size = ((uint32_t)compressedInput[0] << 24)
+                               | ((uint32_t)compressedInput[1] << 16)
+                               | ((uint32_t)compressedInput[2] << 8)
+                               |  (uint32_t)compressedInput[3];
+    { static int _gz = 0; if (_gz++ < 20)
         __android_log_print(ANDROID_LOG_ERROR, "BKA-GZIP",
-            "CALL input=%p out=%p hdr=%02X%02X%02X%02X%02X%02X%02X%02X",
-            (void*)compressedInput, (void*)decompressedOutput,
+            "ENTER in=%p out=%p uncompressed=%u flag=%02X first8=%02X%02X%02X%02X%02X%02X%02X%02X",
+            (void*)compressedInput, (void*)decompressedOutput, uncompressed_size, compressedInput[4],
             compressedInput[0],compressedInput[1],compressedInput[2],compressedInput[3],
             compressedInput[4],compressedInput[5],compressedInput[6],compressedInput[7]); }
-    gzip_inflate_input = compressedInput + 5; // The compression header is 5 bytes.
-    gzip_inflate_output = decompressedOutput;
-    gzip_num_bits = 0;
-    gzip_bit_buffer = 0;
-    while (gzip_inflate_block() != 0) {} // Keep calling gzip_inflate_block() until it returns 0.
+
+    if (uncompressed_size == 0 || uncompressed_size > 65536) {
+        return decompressedOutput;  /* Not our format - return as-is */
+    }
+
+    z_stream strm;
+    memset(&strm, 0, sizeof(strm));
+    if (inflateInit2(&strm, -15) != Z_OK) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-GZIP", "inflateInit2 failed");
+        return decompressedOutput;
+    }
+
+    strm.next_in = compressedInput + 5;
+    strm.avail_in = 65536;
+    strm.next_out = decompressedOutput;
+    strm.avail_out = uncompressed_size;
+
+    int ret = inflate(&strm, Z_FINISH);
+    uint32_t got = (uint32_t)strm.total_out;
+    uint32_t in_used = (uint32_t)strm.total_in;
+    inflateEnd(&strm);
+
+    { static int _gz2 = 0; if (_gz2++ < 20)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-GZIP",
+            "DONE ret=%d in_used=%u out=%u/%u out0..7=%02X%02X%02X%02X%02X%02X%02X%02X",
+            ret, in_used, got, uncompressed_size,
+            decompressedOutput[0],decompressedOutput[1],decompressedOutput[2],decompressedOutput[3],
+            decompressedOutput[4],decompressedOutput[5],decompressedOutput[6],decompressedOutput[7]); }
+
     return decompressedOutput;
 }
 
