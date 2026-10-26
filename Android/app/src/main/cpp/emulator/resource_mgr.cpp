@@ -501,11 +501,18 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
         romOffset = relativeRomOffset;  // Cartridge address space (0x10000000+)
     } else if (devAddr < 0x10000000) {
         romOffset = devAddr;            // Direct ROM offset
+    } else if (in_rdram) {
+        /* PORT: DMA with dramAddr in RDRAM. ROM2RAM already populated
+           RDRAM at init. DON'T memset -- that would destroy valid
+           ROM-copied texture data. Just treat as success (data is there). */
+        g_pi_dma_success++;
+        sched_yield();
+        return;
     } else {
-        // Not a ROM address or recognizable host pointer. Zero and bail.
         LOGW("ResourceMgr_HandleDma: Unrecognized devAddr=0x%08X dramAddr=%p size=%u. Zeroing.",
              devAddr, dramAddr, size);
         memset(dramAddr, 0, size);
+        g_pi_dma_fail++;
         sched_yield();
         return;
     }

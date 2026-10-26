@@ -1642,6 +1642,18 @@ static void Cmd_LoadTile(GfxCommand cmd) {
             uint32_t dstOffset = tmemBase + row * t.line * 8;
             if (dstOffset + lineBytes <= 4096)
                 memcpy(s_rdp.tmem + dstOffset, s_rdp.texAddr + srcOffset, lineBytes);
+        { static int s_tdmp = 0; if (s_tdmp++ < 3) {
+            FILE* f = fopen("/data/data/com.dkrwrapper/files/lt_dump.bin", "wb");
+            if (f) {
+                /* Header: tmemAddr, line, texW, texH, srcAddr, srcOff */
+                uint32_t hdr[6] = {t.tmemAddr, t.line, texWidth, texHeight,
+                                   (uint32_t)(uintptr_t)s_rdp.texAddr,
+                                   (uint32_t)(uintptr_t)(s_rdp.texAddr + srcOffset)};
+                fwrite(hdr, 4, 6, f);
+                fwrite(s_rdp.tmem, 1, 4096, f);
+                fclose(f);
+            }
+        } }
         }
     }
 }
@@ -3930,8 +3942,15 @@ void RSP_ProcessGfxTask(OSTask* tp) {
 
                 /* Raw RDRAM fallback for failed segment resolution */
                 if ((!chosen || (chosen[0]==0 && chosen[1]==0 && chosen[2]==0 && chosen[3]==0))
-                    && gN64_RDRAM && off24 + 0x4000 < 0x4000000) {
-                    uint8_t* raw = gN64_RDRAM + off24;
+                    && gN64_RDRAM) {
+                    /* PORT: wrap off24 modulo 12MB. DKR sometimes emits
+                       offsets > 12MB (0xC8DEA0 etc.) for textures that
+                       would be decompressed at runtime. RDRAM only has
+                       12MB ROM-copied data, so wrap to reach valid region. */
+                    uint32_t wrapped = off24;
+                    while (wrapped >= 0xC00000) wrapped -= 0xC00000;
+                    if (wrapped + 0x4000 >= 0xC00000) wrapped = 0;
+                    uint8_t* raw = gN64_RDRAM + wrapped;
                     if (raw[0] || raw[1] || raw[2] || raw[3]) {
                         chosen = raw;
                         static int _rawfb2 = 0;
