@@ -5,6 +5,9 @@
 #include <filesystem>
 #include <fstream>
 #include <android/log.h>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include "stb_image.h"
 
 extern "C" {
