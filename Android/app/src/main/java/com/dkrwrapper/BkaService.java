@@ -63,6 +63,19 @@ public class BkaService extends Service {
         }, "BKA-FillArgb-Keepalive").start();
 
 
+        // PORT: on-device asset extraction, launched once from onStartCommand.
+        // Runs on its own thread so the foreground service stays responsive.
+        if (!extractionLaunched) {
+            extractionLaunched = true;
+            new Thread(() -> {
+                try {
+                    MainActivity.ensureExtracted(BkaService.this);
+                } catch (Throwable t) {
+                    Log.e(TAG, "extraction thread failed", t);
+                }
+            }, "BKA-Extract").start();
+        }
+
         // Foreground service so Android doesn't kill us
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (Build.VERSION.SDK_INT >= 26) {
