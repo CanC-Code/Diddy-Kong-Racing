@@ -101,14 +101,25 @@ public class MainActivity extends Activity {
         android.util.Log.i("BKA-Main", "Launching linker64 " + tool.getAbsolutePath()
                 + " → log " + toolLog.getAbsolutePath());
 
-        Process p = new ProcessBuilder(
+        // PORT: copy .so deps (libpcre2-8.so + libc++_shared.so) from APK assets
+        File libDir = new File(extractorDir, "lib");
+        libDir.mkdirs();
+        for (String libName : am.list("extractor/lib")) {
+            copyAsset(ctx, "extractor/lib/" + libName, new File(libDir, libName));
+        }
+        android.util.Log.i("BKA-Main", "Lib dir = " + libDir.getAbsolutePath()
+                + " (" + libDir.list().length + " files)");
+
+        ProcessBuilder pb = new ProcessBuilder(
                 "/system/bin/linker64",
+                "--library-path", libDir.getAbsolutePath(),
                 tool.getAbsolutePath(),
-                "extract", "-dkrv", "us.v80")
-            .directory(extractorDir)
-            .redirectErrorStream(true)
-            .redirectOutput(ProcessBuilder.Redirect.to(toolLog))
-            .start();
+                "extract", "-dkrv", "us.v80");
+        pb.directory(extractorDir);
+        pb.redirectErrorStream(true);
+        pb.redirectOutput(ProcessBuilder.Redirect.to(toolLog));
+        pb.environment().put("LD_LIBRARY_PATH", libDir.getAbsolutePath());
+        Process p = pb.start();
 
         int rc = p.waitFor();
         int pngCount = 0;
