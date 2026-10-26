@@ -1593,8 +1593,16 @@ static void Cmd_LoadTile(GfxCommand cmd) {
     { static int s_lt = 0; if (s_lt++ < 20) __android_log_print(ANDROID_LOG_ERROR, "BKA-LOADTILE", "ENTRY tile=%u w0=%08X w1=%08X texAddr=%p", tile, cmd.w0, cmd.w1, (void*)s_rdp.texAddr); }
     if (tile >= 8) return;
     auto& t = s_rdp.tiles[tile];
-    uint32_t sl = (cmd.w0 >> 12) & 0xFFF, tl = cmd.w0 & 0xFFF;
+    /* PORT: FORCE sl=tl=0. The game passes 1024/1024 in some B2 commands
+       (probably sub-tile loads or misdecode) which makes srcOffset point
+       32KB past texAddr -- reading ROM code as texture. For a full 56x56
+       texture load, sl=tl=0 is correct (source starts at texAddr[0]). */
+    uint32_t sl = 0, tl = 0;
     uint32_t sh = (cmd.w1 >> 12) & 0xFFF, th = cmd.w1 & 0xFFF;
+    
+    { static int _raw_log = 0; if (_raw_log++ < 8)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-LTRAW",
+            "w0=%08X w1=%08X (forcing sl=tl=0)", cmd.w0, cmd.w1); }
 
     /* PORT: Rare's B2 (LoadTile) passes garbage w1 (e.g. 0x04000400).
        We always override sh/th with s_rdp.texWidth set by 0x07. */
