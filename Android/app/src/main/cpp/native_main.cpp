@@ -330,7 +330,6 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
 
     const int W = 292, H = 216;
 
-    /* Null-fb guard: Chrome can connect before first frame renders */
     if (!gVideoLastFramebuffer || !gVideoCurrFramebuffer) {
         int len = env->GetArrayLength(outArr);
         memset(out, 0, (size_t)len * sizeof(jint));
@@ -339,14 +338,12 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         return;
     }
 
-    /* Pick whichever framebuffer has more non-black pixels */
     uint16_t* src_a = (uint16_t*)gVideoLastFramebuffer;
     uint16_t* src_b = (uint16_t*)gVideoCurrFramebuffer;
     int nb_a = 0, nb_b = 0;
     for (int i = 0; i < W * H; i++) { if (src_a[i]) nb_a++; if (src_b[i]) nb_b++; }
     uint16_t* src = (nb_a >= nb_b) ? src_a : src_b;
 
-    /* RGB565 -> ARGB8888 */
     for (int i = 0; i < W * H; i++) {
         uint16_t px = src[i];
         uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
@@ -357,7 +354,6 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
 
     bka_draw_palette_bar(out, W, H);
 
-    /* Periodic probe dump */
     static int s_frame_count = 0;
     s_frame_count++;
     if (s_frame_count % 30 == 0) {
@@ -385,100 +381,6 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         }
     }
 
-    env->ReleaseIntArrayElements(outArr, out, 0);
-}
-
-    env->ReleaseIntArrayElements(outArr, out, 0);
-        return;
-    }
-    /* PORT probe: top-left 4 pixels of framebuffer.
-       px[0] white = LoadBlock fired, black = never
-       px[1] white = LoadTile  fired, black = never
-       px[2] white = SetTImg  fired, black = never
-       px[3] red-blink = fillArgb running (frame counter toggling) */
-    static int s_frame_count = 0;
-    s_frame_count++;
-    int lb = gfx_loadblock_count();
-    int lt = gfx_loadtile_count();
-    int sti = gfx_settimg_count();
-    {
-        uint16_t* pa = (uint16_t*)gVideoLastFramebuffer;
-        uint16_t* pb = (uint16_t*)gVideoCurrFramebuffer;
-        if (pa) {
-            pa[0] = (lb > 0)  ? 0xFFFF : 0x0000;
-            pa[1] = (lt > 0)  ? 0xFFFF : 0x0000;
-            pa[2] = (sti > 0) ? 0xFFFF : 0x0000;
-            pa[3] = (s_frame_count & 1) ? 0xF800 : 0x0000;
-        }
-        if (pb) {
-            pb[0] = (lb > 0)  ? 0xFFFF : 0x0000;
-            pb[1] = (lt > 0)  ? 0xFFFF : 0x0000;
-            pb[2] = (sti > 0) ? 0xFFFF : 0x0000;
-            pb[3] = (s_frame_count & 1) ? 0xF800 : 0x0000;
-        }
-    }
-    if (s_frame_count % 30 == 0) {
-        FILE* f = fopen("/data/data/com.dkrwrapper/files/probe.txt", "w");
-        if (f) {
-            fprintf(f, "frame=%d lb=%d lt=%d sti=%d\n",
-                    s_frame_count, lb, lt, sti);
-            /* TMEM occupancy: how many of 4096 bytes are non-zero */
-            uint8_t* tmem = gfx_tmem_ptr();
-            int tmem_sz = gfx_tmem_size();
-            int nonzero = 0;
-            if (tmem) {
-                for (int i = 0; i < tmem_sz; i++) if (tmem[i]) nonzero++;
-            }
-            fprintf(f, "tmem_size=%d tmem_nonzero=%d\n", tmem_sz, nonzero);
-            fprintf(f, "pi_dma total=%u success=%u fail=%u\n",
-                    pi_dma_count(), pi_dma_success(), pi_dma_fail());
-            fprintf(f, "first16_tmem=");
-            if (tmem) for (int i = 0; i < 16 && i < tmem_sz; i++) fprintf(f, "%02X", tmem[i]);
-            fprintf(f, "\n");
-            fprintf(f, "opcode histogram:\n");
-            for (int i = 0; i < 256; i++) {
-                uint32_t n = gfx_opcode_hist_get(i);
-                if (n > 0) fprintf(f, "  %02X: %u\n", i, n);
-            }
-            fclose(f);
-        }
-    }
-
-    uint16_t* src_a = (uint16_t*)gVideoLastFramebuffer;
-    uint16_t* src_b = (uint16_t*)gVideoCurrFramebuffer;
-    int nb_a = 0, nb_b = 0;
-    for (int i = 0; i < W * H; i++) { if (src_a[i]) nb_a++; if (src_b[i]) nb_b++; }
-    uint16_t* src = (nb_a >= nb_b) ? src_a : src_b;
-    { static int s_pick = 0; if (s_pick++ < 10 || (s_pick % 30) == 0)
-          __android_log_print(ANDROID_LOG_ERROR, "BKA-PICK",
-              "last=%p nb_last=%d curr=%p nb_curr=%d picked=%s",
-              (void*)src_a, nb_a, (void*)src_b, nb_b, (nb_a>=nb_b)?"last":"curr"); }
-    { int _nz = 0; for (int i = 0; i < W*H; i++) if (src[i]) _nz++; static int _s=0; if (_s++ < 10 || (_s % 20) == 0) __android_log_print(ANDROID_LOG_ERROR, "BKA-NZ", "nonblack=%d of %d [sample %d]", _nz, W*H, _s); }
-    {
-        int _nb = 0;
-        for (int _i = 0; _i < W * H; _i++) if (src[_i]) _nb++;
-        if (0 && _nb == 0) {
-            /* PORT: synthetic test pattern — proves display pipeline.
-               If Chrome shows striped colors, DKR walker draws elsewhere. */
-            for (int _i = 0; _i < W * H; _i++) {
-                int _row = _i / W, _col = _i % W;
-                uint16_t _color = ((_row / 18) & 1) ? 0x001F : 0xFFE0;  /* blue/green stripes */
-                src[_i] = _color;
-            }
-            static int _once = 0;
-            if (_once++ < 3)
-                __android_log_print(ANDROID_LOG_ERROR, "BKA-FORCETEST",
-                    "filled fb=%p with stripes (was empty)", (void*)src);
-        }
-    }
-    for (int i = 0; i < W * H; i++) {
-        uint16_t px = src[i];
-        uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
-        uint8_t g = (px >> 5)  & 0x3F; g = (g << 2) | (g >> 4);
-        uint8_t b = px & 0x1F;         b = (b << 3) | (b >> 2);
-        out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
-    }
-    bka_draw_palette_bar(out, W, H);
     env->ReleaseIntArrayElements(outArr, out, 0);
 }
 
