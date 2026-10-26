@@ -7,6 +7,8 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <mutex>
+#include <atomic>
 #include <android/log.h>
 #include <cstdint>
 #include <cstdlib>
@@ -14,7 +16,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-// Pre-define N64 integer types BEFORE any DKR headers.
 #ifndef _ULTRATYPES_H_
 #define _ULTRATYPES_H_
 typedef unsigned char      u8;
@@ -44,7 +45,11 @@ static std::unordered_map<uint32_t, TextureHeader*> g_texture_cache_2d;
 static std::unordered_map<uint32_t, std::string> g_png_paths_3d;
 static std::unordered_map<uint32_t, std::string> g_png_paths_2d;
 
-// Normalize: strip ASSET_TEX3D_/2D_ prefix, lowercase, keep only alnum.
+static std::string g_base_path = "/data/data/com.dkrwrapper/files/extractor/assets/.vanilla/us.v80/";
+static std::atomic<bool> g_initialized{false};
+static std::mutex g_init_mutex;
+static std::atomic<int> g_init_attempts{0};
+
 static std::string normalize_name(const std::string& name) {
     std::string s = name;
     static const std::string p3 = "ASSET_TEX3D_";
@@ -60,7 +65,6 @@ static std::string normalize_name(const std::string& name) {
     return out;
 }
 
-// Parse the "order" array from a meta JSON file: ["NAME1","NAME2",...]
 static std::vector<std::string> read_order_list(const fs::path& json_path) {
     std::vector<std::string> result;
     std::ifstream f(json_path);
@@ -68,7 +72,7 @@ static std::vector<std::string> read_order_list(const fs::path& json_path) {
     std::stringstream ss; ss << f.rdbuf();
     const std::string content = ss.str();
     size_t pos = content.find("\"order\"");
-    if (pos == std::string::npos) { LOGE("No 'order' key in %s", json_path.string().c_str()); return result; }
+    if (pos == std::string::npos) { LOGE("No 'order' in %s", json_path.string().c_str()); return result; }
     pos = content.find('[', pos);
     if (pos == std::string::npos) return result;
     ++pos;
@@ -85,11 +89,15 @@ static std::vector<std::string> read_order_list(const fs::path& json_path) {
     return result;
 }
 
-// Recursively scan a directory for .png; store normalized relative key -> full path.
 static void scan_dir(const fs::path& dir, const std::string& strip_marker,
                      std::unordered_map<std::string, std::string>& out) {
-    if (!fs::exists(dir)) return;
-    for (const auto& entry : fs::recursive_directory_iterator(dir)) {
+    if (!fs::exists(dir)) { LOGE("Dir missing: %s", dir.string().c_str()); return; }
+    std::error_code ec;
+    for (auto it = fs::recursive_directory_iterator(dir,
+              fs::directory_options::skip_permission_denied, ec);
+         it != fs::recursive_directory_iterator(); it.increment(ec)) {
+        if (ec) { LOGE("iter err: %s", ec.message().c_str()); ec.clear(); continue; }
+        const auto& entry = *it;
         if (!entry.is_regular_file()) continue;
         if (entry.path().extension() != ".png") continue;
         std::string path_str = entry.path().string();
@@ -102,9 +110,10 @@ static void scan_dir(const fs::path& dir, const std::string& strip_marker,
     }
 }
 
-extern "C" void init_png_texture_loader(const char* base_path) {
-    fs::path root(base_path);
-    LOGI("Init: root=%s", base_path);
+static void do_init() {
+    int attempt = ++g_init_attempts;
+    LOGI("Lazy init attempt #%d starting", attempt);
+    fs::path root(g_base_path);
 
     std::unordered_map<std::string, std::string> norm_3d, norm_2d;
     scan_dir(root / "textures" / "3d", "/textures/3d/", norm_3d);
@@ -116,6 +125,8 @@ extern "C" void init_png_texture_loader(const char* base_path) {
     LOGI("Order lists: %zu 3D, %zu 2D", order_3d.size(), order_2d.size());
 
     size_t miss3 = 0, miss2 = 0;
+    g_png_paths_3d.clear();
+    g_png_paths_2d.clear();
     for (size_t i = 0; i < order_3d.size(); ++i) {
         auto it = norm_3d.find(normalize_name(order_3d[i]));
         if (it != norm_3d.end()) g_png_paths_3d[(uint32_t)i] = it->second;
@@ -130,9 +141,22 @@ extern "C" void init_png_texture_loader(const char* base_path) {
     LOGI("PNG loader ready: 3D %zu/%zu mapped (%zu missing), 2D %zu/%zu mapped (%zu missing)",
          g_png_paths_3d.size(), order_3d.size(), miss3,
          g_png_paths_2d.size(), order_2d.size(), miss2);
-
-    // Log the sizeof TextureHeader once so we can verify at runtime
     LOGI("sizeof(TextureHeader)=%zu", sizeof(TextureHeader));
+}
+
+// Store base path only. Actual scan deferred to first texture request
+// (race fixed: extraction completes before game requests textures).
+extern "C" void init_png_texture_loader(const char* base_path) {
+    if (base_path && *base_path) g_base_path = base_path;
+    LOGI("init_png_texture_loader called (deferred) path=%s", g_base_path.c_str());
+}
+
+static void ensure_initialized() {
+    if (g_initialized.load(std::memory_order_acquire)) return;
+    std::lock_guard<std::mutex> lk(g_init_mutex);
+    if (g_initialized.load()) return;
+    do_init();
+    g_initialized.store(true, std::memory_order_release);
 }
 
 static TextureHeader* load_png_texture(uint32_t id,
@@ -154,7 +178,7 @@ static TextureHeader* load_png_texture(uint32_t id,
 
     header->width              = (u8)w;
     header->height             = (u8)h;
-    header->format             = 1;               // RGBA16
+    header->format             = 1;
     header->numberOfInstances  = 1;
     header->numberOfCommands   = 0x07;
     header->numOfTextures      = 1;
@@ -174,8 +198,10 @@ static TextureHeader* load_png_texture(uint32_t id,
 }
 
 extern "C" TextureHeader* png_load_texture_3d(uint32_t id) {
+    ensure_initialized();
     return load_png_texture(id, g_png_paths_3d, g_texture_cache_3d);
 }
 extern "C" TextureHeader* png_load_texture_2d(uint32_t id) {
+    ensure_initialized();
     return load_png_texture(id, g_png_paths_2d, g_texture_cache_2d);
 }
