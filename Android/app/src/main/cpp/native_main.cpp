@@ -1,6 +1,7 @@
 // native_main.cpp — NativeActivity entry and EGL render loop.
 #include <android_native_app_glue.h>
 #include <jni.h>
+extern "C" void init_png_texture_loader(const char* base_path);
 #include <android/native_window.h>
 #include <android/asset_manager.h>
 #include <android/log.h>
@@ -267,6 +268,11 @@ static void* bka_startup_watchdog(void* arg) {
 }
 
 void android_main(android_app* app) {
+
+    // --- PORT: INIT PNG LOADER ---
+    init_png_texture_loader("/data/data/com.dkrwrapper/files/extractor/assets/.vanilla/us.v80/");
+    // --- END PORT ---
+    
     app->onAppCmd = onAppCmd;
     app->onInputEvent = onInput;
     LOGI("android_main enter");

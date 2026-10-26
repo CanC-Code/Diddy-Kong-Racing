@@ -27,6 +27,7 @@ set(CPP_BRIDGE_SOURCES
     emulator/ptr_shim.cpp
     emulator/resource_mgr.cpp
     emulator/gfx_interpreter.cpp
+    emulator/texture_png_loader.cpp
     native_main.cpp
     tools/rare_decompression.cpp
     ultra/linker_stubs.c

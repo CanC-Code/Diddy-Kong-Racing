@@ -1,6 +1,7 @@
 #include <sys/resource.h>
 #include <sys/prctl.h>
 #include <jni.h>
+extern "C" void init_png_texture_loader(const char* base_path);
 #include <android/asset_manager.h>
 #include <android/asset_manager_jni.h>
 #include <android/log.h>
@@ -130,6 +131,11 @@ extern "C" {
 #define M_MTE 7
 #endif
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
+
+    // --- PORT: INIT PNG LOADER ---
+    init_png_texture_loader("/data/data/com.dkrwrapper/files/extractor/assets/.vanilla/us.v80/");
+    // --- END PORT ---
+    
     mallopt(M_MTE, 0);
     struct rlimit rl = {16 * 1024 * 1024, 16 * 1024 * 1024};
     setrlimit(RLIMIT_STACK, &rl);

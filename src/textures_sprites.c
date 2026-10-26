@@ -10,6 +10,12 @@
 #include "tracks.h"
 #include <ultra64.h>
 
+extern TextureHeader* png_load_texture_3d(uint32_t id);
+extern TextureHeader* png_load_texture_2d(uint32_t id);
+extern void init_png_texture_loader(const char* base_path);
+
+
+
 extern u32 gBkaAssetsRomOffset;
 extern u8* gN64_ROM_Base;
 
@@ -474,7 +480,18 @@ UNUSED s32 sprite_table_size(void) {
  *
  * Official Name: texLoadTexture
  */
+
 TextureHeader *load_texture(s32 id) {
+    // --- PORT: PNG OVERRIDE ---
+    if (id & ASSET_MASK_TEX3D) {
+        TextureHeader* png = png_load_texture_3d(id & 0x7FFF);
+        if (png) return png;
+    } else {
+        TextureHeader* png = png_load_texture_2d(id & 0x7FFF);
+        if (png) return png;
+    }
+    // --- END PORT OVERRIDE ---
+    
     { static int _lt = 0; if (_lt++ < 20)
         __android_log_print(ANDROID_LOG_ERROR, "BKA-LTEXT",
             "ENTER id=0x%X", id); }
