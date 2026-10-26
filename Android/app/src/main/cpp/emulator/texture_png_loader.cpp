@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 // Pre-define N64 integer types BEFORE any DKR headers.
