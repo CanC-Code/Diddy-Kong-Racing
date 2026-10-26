@@ -319,39 +319,74 @@ static void bka_draw_palette_bar(jint* out, int W, int H) {
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray outArr) {
-
     extern uint8_t* gN64_RDRAM;
     extern uint32_t g_active_fb_offset;
-    { static int s_fa = 0;
-      if (s_fa++ < 5)
-          __android_log_print(ANDROID_LOG_ERROR, "BKA-FILLARGB",
-              "enter rddram=%p off=0x%x outArr=%p",
-              (void*)gN64_RDRAM, (unsigned)g_active_fb_offset, (void*)outArr); }
+    extern uint8_t *gVideoLastFramebuffer;
+    extern uint8_t *gVideoCurrFramebuffer;
+
     if (!gN64_RDRAM || !outArr) return;
     jint* out = env->GetIntArrayElements(outArr, nullptr);
     if (!out) return;
-    { static int s_fa2 = 0;
-      if (s_fa2++ < 5)
-          __android_log_print(ANDROID_LOG_ERROR, "BKA-FILLARGB",
-              "out=%p len=%d", (void*)out,
-              (int)env->GetArrayLength(outArr)); }
+
     const int W = 292, H = 216;
-    /* Try both framebuffer offsets, use whichever has more nonblack content.
-       Walker draws to gVideoLastFramebuffer which alternates between 0x400000
-       and 0x440000; g_active_fb_offset may be stuck at 0x400000 on some frames
-       (fb_swap sync not firing on Motorola). Picking the non-empty one is
-       deterministic regardless of fb_swap. */
-    extern uint8_t *gVideoLastFramebuffer;
-    extern uint8_t *gVideoCurrFramebuffer;
-    /* PORT: Chrome may connect before the first frame renders. If either
-       framebuffer pointer is NULL, the src_a/src_b read loop below would
-       SIGSEGV at address 0. Return black instead of crashing. */
+
+    /* Null-fb guard: Chrome can connect before first frame renders */
     if (!gVideoLastFramebuffer || !gVideoCurrFramebuffer) {
         int len = env->GetArrayLength(outArr);
         memset(out, 0, (size_t)len * sizeof(jint));
         bka_draw_palette_bar(out, W, H);
+        env->ReleaseIntArrayElements(outArr, out, 0);
+        return;
+    }
+
+    /* Pick whichever framebuffer has more non-black pixels */
+    uint16_t* src_a = (uint16_t*)gVideoLastFramebuffer;
+    uint16_t* src_b = (uint16_t*)gVideoCurrFramebuffer;
+    int nb_a = 0, nb_b = 0;
+    for (int i = 0; i < W * H; i++) { if (src_a[i]) nb_a++; if (src_b[i]) nb_b++; }
+    uint16_t* src = (nb_a >= nb_b) ? src_a : src_b;
+
+    /* RGB565 -> ARGB8888 */
+    for (int i = 0; i < W * H; i++) {
+        uint16_t px = src[i];
+        uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
+        uint8_t g = (px >> 5)  & 0x3F; g = (g << 2) | (g >> 4);
+        uint8_t b = px & 0x1F;         b = (b << 3) | (b >> 2);
+        out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+    }
+
+    bka_draw_palette_bar(out, W, H);
+
+    /* Periodic probe dump */
+    static int s_frame_count = 0;
+    s_frame_count++;
+    if (s_frame_count % 30 == 0) {
+        FILE* f = fopen("/data/data/com.dkrwrapper/files/probe.txt", "w");
+        if (f) {
+            int lb = gfx_loadblock_count();
+            int lt = gfx_loadtile_count();
+            int sti = gfx_settimg_count();
+            uint8_t* tmem = gfx_tmem_ptr();
+            int tmem_sz = gfx_tmem_size();
+            int nonzero = 0;
+            if (tmem) for (int i = 0; i < tmem_sz; i++) if (tmem[i]) nonzero++;
+            fprintf(f, "frame=%d lb=%d lt=%d sti=%d\n", s_frame_count, lb, lt, sti);
+            fprintf(f, "tmem_size=%d tmem_nonzero=%d\n", tmem_sz, nonzero);
+            fprintf(f, "pi_dma total=%u success=%u fail=%u\n", pi_dma_count(), pi_dma_success(), pi_dma_fail());
+            fprintf(f, "first16_tmem=");
+            if (tmem) for (int i = 0; i < 16 && i < tmem_sz; i++) fprintf(f, "%02X", tmem[i]);
+            fprintf(f, "\n");
+            fprintf(f, "opcode histogram:\n");
+            for (int i = 0; i < 256; i++) {
+                uint32_t n = gfx_opcode_hist_get(i);
+                if (n > 0) fprintf(f, "  %02X: %u\n", i, n);
+            }
+            fclose(f);
         }
     }
+
+    env->ReleaseIntArrayElements(outArr, out, 0);
+}
 
     env->ReleaseIntArrayElements(outArr, out, 0);
         return;
