@@ -72,6 +72,7 @@ target_link_options(dkrwrapper PRIVATE -Wl,--wrap=memcpy -Wl,--wrap=memmove -Wl,
 target_include_directories(dkrwrapper PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/ultra
+    ${CMAKE_CURRENT_SOURCE_DIR}/ultra/zlib
     ${CMAKE_CURRENT_SOURCE_DIR}/emulator
     ${CMAKE_CURRENT_SOURCE_DIR}/tools
     ${REPO_ROOT}/src

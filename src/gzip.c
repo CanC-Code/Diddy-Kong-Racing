@@ -1,3 +1,8 @@
+/* PORT: zlib includes for gzip_inflate (on-device extraction) */
+#include <zlib.h>
+#include <string.h>
+#include <android/log.h>
+
 #include "gzip.h"
 #include "asset_loading.h"
 #include "memory.h"
