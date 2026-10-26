@@ -12,6 +12,8 @@ import android.content.res.AssetManager;
 import android.util.Log;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 
 /**
  * Bootstrap. Uses Theme.NoDisplay (Motorola libgui UAF workaround) and
