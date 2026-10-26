@@ -10,9 +10,22 @@
 #include <cstring>
 #include "stb_image.h"
 
+// Pre-define N64 integer types BEFORE any DKR headers.
+// This bypasses ultra64.h's dependency chain (PR/region.h etc.)
+// which relies on _LANGUAGE_C being defined.
+#ifndef _ULTRATYPES_H_
+#define _ULTRATYPES_H_
+typedef unsigned char      u8;
+typedef unsigned short     u16;
+typedef unsigned int       u32;
+typedef unsigned long long u64;
+typedef signed char        s8;
+typedef short              s16;
+typedef int                s32;
+typedef long long          s64;
+#endif
+
 extern "C" {
-#include "../../../../../../include/PR/ultratypes.h"
-#include "../../../../../../include/ultra64.h"
 #include "../../../../../../include/structs.h"
 }
 
