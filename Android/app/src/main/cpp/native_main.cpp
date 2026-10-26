@@ -300,6 +300,23 @@ extern "C" uint32_t pi_dma_count();
 extern "C" uint32_t pi_dma_success();
 extern "C" uint32_t pi_dma_fail();
 
+static void bka_draw_palette_bar(jint* out, int W, int H) {
+    if (!out) return;
+    uint8_t* tm = gfx_tmem_ptr();
+    if (!tm) return;
+    for (int i = 0; i < 16; i++) {
+        uint32_t palByte = 2048 + i * 2;
+        uint16_t p = ((uint16_t)tm[palByte & 0xFFF] << 8) | tm[(palByte + 1) & 0xFFF];
+        uint8_t pr = ((p >> 11) & 0x1F) << 3;
+        uint8_t pg = ((p >> 6) & 0x1F) << 3;
+        uint8_t pb = ((p >> 1) & 0x1F) << 3;
+        jint color = (0xFF << 24) | ((jint)pr << 16) | ((jint)pg << 8) | pb;
+        for (int y = 0; y < 8; y++)
+            for (int x = i * 16; x < (i + 1) * 16; x++)
+                if (x < W && y < H) out[y * W + x] = color;
+    }
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray outArr) {
 
@@ -313,8 +330,6 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     if (!gN64_RDRAM || !outArr) return;
     jint* out = env->GetIntArrayElements(outArr, nullptr);
     if (!out) return;
-        }
-    }
     { static int s_fa2 = 0;
       if (s_fa2++ < 5)
           __android_log_print(ANDROID_LOG_ERROR, "BKA-FILLARGB",
@@ -334,23 +349,7 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     if (!gVideoLastFramebuffer || !gVideoCurrFramebuffer) {
         int len = env->GetArrayLength(outArr);
         memset(out, 0, (size_t)len * sizeof(jint));
-        
-    /* PORT: Draw palette debug bar LAST so it isn't overwritten by framebuffer copy */
-    {
-        uint8_t* tm = gfx_tmem_ptr();
-        const int W_ = 292;
-        if (tm) {
-            for (int i = 0; i < 16; i++) {
-                uint32_t palByte = 2048 + i * 2;
-                uint16_t p = ((uint16_t)tm[palByte & 0xFFF] << 8) | tm[(palByte + 1) & 0xFFF];
-                uint8_t pr = ((p >> 11) & 0x1F) << 3;
-                uint8_t pg = ((p >> 6) & 0x1F) << 3;
-                uint8_t pb = ((p >> 1) & 0x1F) << 3;
-                jint color = (0xFF << 24) | ((jint)pr << 16) | ((jint)pg << 8) | pb;
-                for (int y = 0; y < 8; y++)
-                    for (int x = i * 16; x < (i + 1) * 16; x++)
-                        if (x < W_) out[y * W_ + x] = color;
-            }
+        bka_draw_palette_bar(out, W, H);
         }
     }
 
@@ -444,6 +443,7 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         uint8_t b = px & 0x1F;         b = (b << 3) | (b >> 2);
         out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
     }
+    bka_draw_palette_bar(out, W, H);
     env->ReleaseIntArrayElements(outArr, out, 0);
 }
 

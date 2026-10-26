@@ -2385,6 +2385,8 @@ static void Cmd_MoveMem(GfxCommand cmd) {
 // F3DEX2 format: w0 = [G_MTX:8][flag:8][param:16], w1 = matrix address
 // For our initial implementation, we treat the matrix as modelview.
 // =======================================================================
+static void Matrix_Multiply(BKMatrix result, const BKMatrix a, const BKMatrix b);
+
 static void Cmd_MoveWord(GfxCommand cmd) {
     // F3DEX G_MOVEWORD: w0 = (0xBC << 24) | (index << 16) | offset
     uint32_t op     = (cmd.w0 >> 24) & 0xFF;
@@ -2406,6 +2408,24 @@ static void Cmd_MoveWord(GfxCommand cmd) {
             "Cmd_MoveWord index=0x%02X offset=0x%04X data=0x%08X", index, offset, data);
     }
 
+    if (index == 0x0E) { // G_MW_POPMTX (F3DEX1 gSPPopMatrix)
+        /* F3DEX1 POPMTX: offset = N * 64 (bytes per matrix).
+           Pop N entries from the modelview stack. */
+        int n = (int)(offset / 64);
+        if (n <= 0) n = 1;
+        while (n-- > 0 && s_rdp.modelviewStackDepth > 0) {
+            s_rdp.modelviewStackDepth--;
+            memcpy(s_rdp.modelview,
+                   s_rdp.modelviewStack[s_rdp.modelviewStackDepth],
+                   sizeof(BKMatrix));
+        }
+        Matrix_Multiply(s_rdp.viewProj, s_rdp.modelview, s_rdp.projection);
+        static int s_pop = 0;
+        if (s_pop++ < 20)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-POPMTX",
+                "POPMTX popped %d, depth now %d", (int)(offset/64), s_rdp.modelviewStackDepth);
+        return;
+    }
     if (index == 0x06) { // G_MW_SEGMENT
         uint32_t segment = (offset / 4) & 0x0F;
         // Segment base must be a real N64 address.  Host-pointer low-32
@@ -3130,6 +3150,9 @@ void RSP_ProcessGfxTask(OSTask* tp) {
     g_bka_task_tri_count = 0;
     g_bka_task_pops = 0;
     g_bka_task_max_depth = 0;
+    /* PORT: reset modelview stack depth each frame. If a previous frame
+       leaked a PUSH without POP, this prevents cross-frame accumulation. */
+    s_rdp.modelviewStackDepth = 0;
 
     // Probe known RDRAM offsets where the DL thinks vertex data lives
     static int s_probe = 0;
@@ -3785,7 +3808,18 @@ void RSP_ProcessGfxTask(OSTask* tp) {
             switch (opcode) {
             case 0xAF: // G_LOAD_UCODE - not needed for software RDP
             case 0xB5: // G_LINE3D
-            case 0xBD: // G_POPMTX - accepted, not implemented
+            case 0xBD: { // G_POPMTX (F3DEX2)
+                uint32_t n = (c.w0 & 0xFF);
+                if (n == 0) n = 1;
+                while (n-- > 0 && s_rdp.modelviewStackDepth > 0) {
+                    s_rdp.modelviewStackDepth--;
+                    memcpy(s_rdp.modelview,
+                           s_rdp.modelviewStack[s_rdp.modelviewStackDepth],
+                           sizeof(BKMatrix));
+                }
+                Matrix_Multiply(s_rdp.viewProj, s_rdp.modelview, s_rdp.projection);
+                break;
+            }
             case 0x00:
             case 0xC0:
             case 0xE8:
