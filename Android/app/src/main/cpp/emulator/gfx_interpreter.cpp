@@ -3928,6 +3928,20 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                     }
                 } }
 
+                /* Raw RDRAM fallback for failed segment resolution */
+                if ((!chosen || (chosen[0]==0 && chosen[1]==0 && chosen[2]==0 && chosen[3]==0))
+                    && gN64_RDRAM && off24 + 0x4000 < 0x4000000) {
+                    uint8_t* raw = gN64_RDRAM + off24;
+                    if (raw[0] || raw[1] || raw[2] || raw[3]) {
+                        chosen = raw;
+                        static int _rawfb2 = 0;
+                        if (_rawfb2++ < 8)
+                            __android_log_print(ANDROID_LOG_ERROR, "BKA-RAWRAM",
+                                "off24=0x%X b0=%02X%02X%02X%02X",
+                                off24, raw[0], raw[1], raw[2], raw[3]);
+                    }
+                }
+
                 if (chosen) {
                     s_rdp.texAddr = chosen;
                     

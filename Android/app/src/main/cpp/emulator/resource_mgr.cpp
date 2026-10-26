@@ -516,6 +516,7 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     if (!f) {
         LOGE("ResourceMgr_HandleDma: Cannot open %s! Zeroing %u bytes.", path, size);
         memset(dramAddr, 0, size);
+        g_pi_dma_fail++;
         sched_yield();
         return;
     }
@@ -527,6 +528,7 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     if (romOffset >= static_cast<uint32_t>(fileSize)) {
         LOGE("ResourceMgr_HandleDma: ROM offset 0x%X exceeds file size %ld. Zeroing.", romOffset, fileSize);
         memset(dramAddr, 0, size);
+        g_pi_dma_fail++;
         fclose(f);
         sched_yield();
         return;
