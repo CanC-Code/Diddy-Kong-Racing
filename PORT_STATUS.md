@@ -1,26 +1,41 @@
 # DKR aarch64 Android Port — Status
 
-## Working (proven)
-- Full ROM boot, extraction, init chain
-- Display-list walker (70K+ TEXRECTs/frame)
-- Software RDP rasterizer (correct geometry)
-- Framebuffer readback → MJPEG stream → Chrome
-- F3DEX1 quick opcodes (B2/B3/E4) + custom Rare 0x07 (SetTextureImage)
-- PI DMA — 110 calls, ROM reads from correct offsets, writes to correct host addresses
-- RDRAM mapping — 12MB at host base, valid framebuffers at 0x400000/0x440000
-- Chrome stream stable across 450+ frames
+## Architecture — PROVEN WORKING
+- ROM extraction from compressed cartridge image
+- Display list walker: 19K+ TEXRECTs/frame, no crashes
+- Software RDRAM rasterizer: correct geometry, bounding boxes, per-frame fade
+- Palette lookup: verified correct (palette bar renders real 16-color gradient)
+- TMEM population: 1582-2231 bytes per texture frame
+- Framebuffer readback → MJPEG → Chrome streaming: 450+ frame stability
+- Camera matrices: POPMTX implemented (1284 pops/frame), no drift
+- G_SETCOMBINE, G_SETOTHERMODE, G_SETPRIM, G_SETFILL all wired
 
-## Root-caused (this session)
-- Textures are DMA'd to **heap buffers** (0x79b5..., 0x7ae1..., 0x79fb...)
-- RDP reads texture from **RDRAM offset** (0x2FE8C0) which is zero
-- ROM at that offset HAS data — so copy exists but bridge is missing
-- **Remaining bug:** heap → RDRAM mirror step in texture loader
+## Remaining blocker — texture source
+`g_embedded_lut` compiled against DKR v77, ROM is v80 (SHA1 verified).
+Every texture offset the game requests maps to v77 positions in v80 ROM
+→ asset_load reads garbage headers (isCompressed=205, uncompressedSize=204MB)
+→ crash (mitigated by BKA-BADHDR safety check)
 
-## Next investigation
-1. Find DKR's texture-load function in decomp source (`src/`)
-2. Locate where it places DMA'd data into RDRAM for RDP consumption
-3. Verify that code path runs on this port
-4. If missing: implement heap→RDRAM bridge in either game code or `ResourceMgr_HandleDma`
+## Texture extraction path (chosen architecture)
+Ship `tools/dkr_assets_tool` (ARM64 ELF, verified buildable) + configs in APK.
+On first launch, extract PNGs from ROM to app-private storage.
+`load_texture()` reads from PNG cache instead of ROM.
+No decompressed assets shipped — on-device extraction, ROM only.
 
-## Downstream (B-K-A)
-Same texture bridge fix applies to Banjo-Kazooie (same Rare engine).
+## Blockers on extractor
+- `data/`, `asm/`, `extract-ver/` are generated (gitignored)
+- `extract-ver/` restored from upstream/dkrMod — verified valid JSON
+- `data/` still missing — tool crashes before logging (raw throw in cEnumsHelper)
+- Suspected cause: missing C context (.ctx files) used to parse struct layouts
+
+## Next session opening tasks (in order)
+1. Run `./generate_ctx.sh` to regenerate `data/` (if this works, done)
+2. Else check upstream branches for committed `data/` (dkrMod, benchmark-tool)
+3. Else rebuild `dkr_assets_tool` from source with try/catch added around throw 1 in cEnumsHelper.cpp
+4. Once extractor runs: write `texture_png_loader.cpp` + patch `load_texture()` (~120 lines)
+5. Ship tool+configs in APK, run at first launch, load PNGs at runtime
+6. RARE logo renders with real pixels
+
+## Estimated remaining work
+4-8 hours of focused tooling + PNG loader integration.
+All renderer architecture is complete — this is a texture source pipeline task.
