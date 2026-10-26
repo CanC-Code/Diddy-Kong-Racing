@@ -467,7 +467,7 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     // (value > 0x10000000 and NOT in N64 cartridge address space 0x10xxxxxx).
     // ROM offsets like 0x00001050 are < 0x10000000 and will correctly fall
     // through to PATH 3.
-    uintptr_t dramVal = reinterpret_cast<uintptr_t>(dramAddr);
+    /* dramVal declared above */
     /* PORT CRITICAL FIX: Path 2 must NEVER fire when dramAddr is inside
        RDRAM. DKR's osPiStartDma passes dramAddr=gN64_RDRAM+off (host pointer
        0x79a...), which passes the old dramVal>=0x7000... check and hits this
