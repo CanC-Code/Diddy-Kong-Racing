@@ -57,6 +57,12 @@ s32 gzip_size_uncompressed(s32 assetIndex, s32 assetOffset) {
  * Official name: rzipUncompress
  */
 u8 *gzip_inflate(u8 *compressedInput, u8 *decompressedOutput) {
+    { static int _gz = 0; if (_gz++ < 15)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-GZIP",
+            "CALL input=%p out=%p hdr=%02X%02X%02X%02X%02X%02X%02X%02X",
+            (void*)compressedInput, (void*)decompressedOutput,
+            compressedInput[0],compressedInput[1],compressedInput[2],compressedInput[3],
+            compressedInput[4],compressedInput[5],compressedInput[6],compressedInput[7]); }
     gzip_inflate_input = compressedInput + 5; // The compression header is 5 bytes.
     gzip_inflate_output = decompressedOutput;
     gzip_num_bits = 0;
