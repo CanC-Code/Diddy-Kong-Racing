@@ -23,6 +23,8 @@ typedef signed char        s8;
 typedef short              s16;
 typedef int                s32;
 typedef long long          s64;
+typedef float              f32;
+typedef double             f64;
 #endif
 
 extern "C" {
@@ -98,7 +100,7 @@ TextureHeader* load_png_texture(uint32_t id, const std::unordered_map<uint32_t, 
     size_t header_size = sizeof(TextureHeader);
     size_t pixel_size = width * height * 2; 
     
-    TextureHeader* header = (TextureHeader*)malloc(header_size + pixel_size);
+    TextureHeader* header = (TextureHeader*)calloc(1, header_size + pixel_size);
     if (!header) {
         stbi_image_free(data);
         return nullptr;
@@ -108,7 +110,7 @@ TextureHeader* load_png_texture(uint32_t id, const std::unordered_map<uint32_t, 
     header->height = height;
     header->format = 1; // RGBA16 format
     header->isCompressed = 0;
-    header->uncompressedSize = pixel_size;
+    // removed (field not in struct): header->uncompressedSize = pixel_size;
     header->flags = 0; 
     
     uint16_t* pixels16 = (uint16_t*)((uint8_t*)header + header_size);
