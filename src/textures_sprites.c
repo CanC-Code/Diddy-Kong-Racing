@@ -10,6 +10,9 @@
 #include "tracks.h"
 #include <ultra64.h>
 
+extern u32 gBkaAssetsRomOffset;
+extern u8* gN64_ROM_Base;
+
 #define MAX_NUM_TEXTURES 700
 #define MAX_NUM_SPRITES 100
 #define TEX_PALLETE_COUNT 20
@@ -521,6 +524,18 @@ TextureHeader *load_texture(s32 id) {
     }
     assetOffset = gTextureAssetTable[tableType][assetIndex];
     assetSize = gTextureAssetTable[tableType][assetIndex + 1] - assetOffset;
+    { static int _ac = 0; if (_ac++ < 20) {
+        uint32_t full_off = (uint32_t)assetOffset + gBkaAssetsRomOffset;
+        uint8_t b[16] = {0};
+        if (gN64_ROM_Base && full_off + 16 < 0x1000000) {
+            for (int k = 0; k < 16; k++) b[k] = gN64_ROM_Base[full_off + k];
+        }
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-ASSET",
+            "id=0x%X tt=%d ai=%d off=0x%X base=0x%X full=0x%X rom=%02X%02X%02X%02X%02X%02X%02X%02X",
+            id, tableType, assetIndex, (uint32_t)assetOffset,
+            (uint32_t)gBkaAssetsRomOffset, full_off,
+            b[0],b[1],b[2],b[3],b[4],b[5],b[6],b[7]);
+    } }
     asset_load(assetSection, gTempTextureHeader, assetOffset, sizeof(TempTexHeader));
 
     // Temp header is BE in ROM. The original code already byteswaps
@@ -551,6 +566,22 @@ TextureHeader *load_texture(s32 id) {
     // If compressed, decompress it.
     __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
         "isCompressed check: value=%d", (int)gTempTextureHeader->header.isCompressed);
+
+    /* PORT SAFETY: reject garbage headers. A real DKR texture header has
+       uncompressedSize < 256KB. If both BE and LE interpretations exceed
+       that, the assetOffset points at wrong bytes - skip decompression
+       instead of crashing on a multi-hundred-MB allocation. */
+    {
+        uint32_t raw_size = (uint32_t)gTempTextureHeader->uncompressedSize;
+        uint32_t swapped = __builtin_bswap32(raw_size);
+        if (raw_size > 262144 && swapped > 262144) {
+            static int _bad = 0; if (_bad++ < 20)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-BADHDR",
+                    "id=0x%X ai=%d off=0x%X rawSize=0x%X bswap=0x%X - returning NULL",
+                    id, assetIndex, (uint32_t)assetOffset, raw_size, swapped);
+            return NULL;
+        }
+    }
     if (!gTempTextureHeader->header.isCompressed) {
         /* PORT: normal path when texture is already uncompressed */
         u32 _alloc_size = numberOfTextures * TEXTURE_GFX_SIZE + assetSize;
