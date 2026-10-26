@@ -11,7 +11,8 @@
 #include "stb_image.h"
 
 extern "C" {
-#include "../../../../../../include/structs.h" 
+#include "../../../../../../include/ultra64.h"
+#include "../../../../../../include/structs.h"
 }
 
 #define LOG_TAG "BKA-PNG"
