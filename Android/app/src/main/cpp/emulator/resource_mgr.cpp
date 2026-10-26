@@ -436,8 +436,13 @@ void ResourceMgr_Init(const char* assetDir) {
  */
 void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     g_pi_dma_count++;
+    extern uint8_t* gN64_RDRAM;
+    uintptr_t dramVal = reinterpret_cast<uintptr_t>(dramAddr);
+    uintptr_t rdram_lo = reinterpret_cast<uintptr_t>(gN64_RDRAM);
+    uintptr_t rdram_hi = rdram_lo + 0x04000000;
+    bool in_rdram = (dramVal >= rdram_lo && dramVal < rdram_hi);
+
     if (!dramAddr || size == 0) {
-        LOGE("ResourceMgr_HandleDma: Invalid parameters (dramAddr=%p, size=%u)", dramAddr, size);
         g_pi_dma_fail++;
         return;
     }
@@ -463,7 +468,14 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     // ROM offsets like 0x00001050 are < 0x10000000 and will correctly fall
     // through to PATH 3.
     uintptr_t dramVal = reinterpret_cast<uintptr_t>(dramAddr);
-    if (dramVal > 0xFFFFFFFFULL && dramVal >= 0x700000000000ULL && devAddr > 0x10000000 && (devAddr >> 24) != 0x10) {
+    /* PORT CRITICAL FIX: Path 2 must NEVER fire when dramAddr is inside
+       RDRAM. DKR's osPiStartDma passes dramAddr=gN64_RDRAM+off (host pointer
+       0x79a...), which passes the old dramVal>=0x7000... check and hits this
+       path. The result is memcpy from (dramVal & 0xFFFF00000000) | devAddr,
+       which lands in random host heap memory -- copying garbage instead of
+       ROM data. This is why pi_dma success=0 fail=0 (Path 2 returns without
+       counting) and why textures read zeros from RDRAM. */
+    if (!in_rdram && dramVal > 0xFFFFFFFFULL && dramVal >= 0x700000000000ULL && devAddr > 0x10000000 && (devAddr >> 24) != 0x10) {
         // dramAddr is a 64-bit host pointer. Try to interpret devAddr as
         // a truncated 64-bit host pointer by borrowing dramAddr's upper bits.
         uintptr_t srcPtr = (dramVal & 0xFFFFFFFF00000000ULL) | devAddr;
@@ -475,6 +487,7 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
             if (diff > -0x100000000LL && diff < 0x100000000LL) {
                 // Looks like a valid host pointer. Do a direct memcpy.
                 memcpy(dramAddr, reinterpret_cast<void*>(srcPtr), size);
+                g_pi_dma_success++;
                 sched_yield();
                 return;
             }
