@@ -2426,6 +2426,16 @@ static void Cmd_MoveWord(GfxCommand cmd) {
                 "POPMTX popped %d, depth now %d", (int)(offset/64), s_rdp.modelviewStackDepth);
         return;
     }
+    if (index == 0x0E) { // G_MW_POPMTX (F3DEX1 gSPPopMatrix)
+        int n = (int)(offset / 64);
+        if (n <= 0) n = 1;
+        while (n-- > 0 && s_rdp.modelviewStackDepth > 0) {
+            s_rdp.modelviewStackDepth--;
+            memcpy(s_rdp.modelview, s_rdp.modelviewStack[s_rdp.modelviewStackDepth], sizeof(BKMatrix));
+        }
+        Matrix_Multiply(s_rdp.viewProj, s_rdp.modelview, s_rdp.projection);
+        return;
+    }
     if (index == 0x06) { // G_MW_SEGMENT
         uint32_t segment = (offset / 4) & 0x0F;
         // Segment base must be a real N64 address.  Host-pointer low-32
@@ -3878,6 +3888,17 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                 int in24 = (gN64_RDRAM && a24 >= gN64_RDRAM && a24 < gN64_RDRAM + 0x1000000);
                 
                 if (s_07 < 12) {
+                    if (chosen) {
+                        uint32_t _coff = (uint32_t)(chosen - gN64_RDRAM);
+                        __android_log_print(ANDROID_LOG_ERROR, "BKA-CHOSEN",
+                            "#%d off=0x%X b0=%02X%02X%02X%02X b1792=%02X%02X%02X%02X b32768=%02X%02X%02X%02X",
+                            s_07, _coff,
+                            chosen[0], chosen[1], chosen[2], chosen[3],
+                            chosen[1792], chosen[1793], chosen[1794], chosen[1795],
+                            chosen[32768], chosen[32769], chosen[32770], chosen[32771]);
+                    } else {
+                        __android_log_print(ANDROID_LOG_ERROR, "BKA-CHOSEN", "#%d NULL", s_07);
+                    }
                     auto& _t = s_rdp.tiles[s_rdp.activeTile];
                     __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEFMT",
                         "#%d activeTile=%d fmt=%u size=%u palette=%u line=%u sh=%u th=%u tmemAddr=%u",
