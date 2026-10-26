@@ -4,6 +4,13 @@
 #include <unistd.h>
 #include <stdio.h>
 #include "gfx_interpreter.h"
+#include "rare_decompression.h"
+extern "C" uint32_t decompress_rare_to_offset(const uint8_t*, uint32_t, uint8_t*, uint32_t, uint32_t);
+
+static uint32_t decomp_rare_to_offset_safe(const uint8_t* src, uint32_t src_size, uint8_t* out, uint32_t out_size) {
+    return decompress_rare_to_offset(src, src_size, out, 0, out_size);
+}
+
 
 extern "C" volatile int g_bka_pixels_drawn = 0;
 #include <android/log.h>
@@ -1638,6 +1645,50 @@ static void Cmd_LoadTile(GfxCommand cmd) {
 
     if (s_rdp.texAddr && texSize <= 4096) {
         uint32_t tmemBase = t.tmemAddr * 8;
+
+        /* PORT: Try DKR decompression. ROM textures are compressed with
+           one of: LZSS (0x50 0x10), DEFLATE (0x11 0x72/73), GZIP (0x1F 0x8B). */
+        uint8_t* tex_src = s_rdp.texAddr;
+        uint8_t* decomp_buf = nullptr;
+        uint32_t decomp_size = 0;
+        uint8_t magic0 = tex_src[0], magic1 = tex_src[1];
+        uint32_t expected_size = 0;
+        if ((magic0 == 0x50 && magic1 == 0x10) ||
+            (magic0 == 0x11 && (magic1 == 0x72 || magic1 == 0x73))) {
+            expected_size = ((uint32_t)tex_src[2] << 24) | ((uint32_t)tex_src[3] << 16)
+                          | ((uint32_t)tex_src[4] << 8) | (uint32_t)tex_src[5];
+        }
+        if (magic0 == 0x1F && magic1 == 0x8B) expected_size = 65536;
+
+        { static int _hd = 0; if (_hd++ < 10)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-HDR",
+                "magic=%02X%02X expected=%u b0..7=%02X%02X%02X%02X%02X%02X%02X%02X",
+                magic0, magic1, expected_size,
+                tex_src[0],tex_src[1],tex_src[2],tex_src[3],
+                tex_src[4],tex_src[5],tex_src[6],tex_src[7]); }
+
+        if (expected_size >= 512 && expected_size <= 65536) {
+            decomp_buf = (uint8_t*)malloc(expected_size);
+            if (decomp_buf) {
+                decomp_size = decomp_rare_to_offset_safe(tex_src, 65536, decomp_buf, expected_size);
+                if (decomp_size > 0) {
+                    tex_src = decomp_buf;
+                    static int _dd = 0; if (_dd++ < 10)
+                        __android_log_print(ANDROID_LOG_ERROR, "BKA-TEXDEC",
+                            "OK magic=%02X%02X expected=%u got=%u b0..7=%02X%02X%02X%02X%02X%02X%02X%02X",
+                            magic0, magic1, expected_size, decomp_size,
+                            tex_src[0],tex_src[1],tex_src[2],tex_src[3],
+                            tex_src[4],tex_src[5],tex_src[6],tex_src[7]);
+                } else {
+                    static int _df = 0; if (_df++ < 10)
+                        __android_log_print(ANDROID_LOG_ERROR, "BKA-TEXDEC",
+                            "FAIL magic=%02X%02X expected=%u", magic0, magic1, expected_size);
+                    free(decomp_buf);
+                    decomp_buf = nullptr;
+                }
+            }
+        }
+        uint32_t use_stride = decomp_buf ? lineBytes : (lineWords * 8);
         /* PORT: N64 RDRAM stores texture rows WORD-ALIGNED. For 56x56 CI4,
            a 28-byte row becomes a 32-byte padded row (lineWords*8).
            Using packed 28-byte stride reads row 0 padding + row 1 data,
@@ -1646,10 +1697,10 @@ static void Cmd_LoadTile(GfxCommand cmd) {
         if (srcLineStride == 0) srcLineStride = lineBytes;
         if (srcLineStride == 0) srcLineStride = 1;
         for (uint32_t row = 0; row < texHeight; row++) {
-            uint32_t srcOffset = (tl + row) * srcLineStride + (sl * bppBits) / 8;
+            uint32_t srcOffset = row * use_stride;
             uint32_t dstOffset = tmemBase + row * t.line * 8;
             if (dstOffset + lineBytes <= 4096)
-                memcpy(s_rdp.tmem + dstOffset, s_rdp.texAddr + srcOffset, lineBytes);
+                memcpy(s_rdp.tmem + dstOffset, tex_src + srcOffset, lineBytes);
         { static int s_tdmp = 0; if (s_tdmp++ < 3) {
             FILE* f = fopen("/data/data/com.dkrwrapper/files/lt_dump.bin", "wb");
             if (f) {
@@ -1663,6 +1714,7 @@ static void Cmd_LoadTile(GfxCommand cmd) {
             }
         } }
         }
+        if (decomp_buf) free(decomp_buf);
     }
 }
 

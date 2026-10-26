@@ -114,12 +114,6 @@ find_library(gles2-lib GLESv2)
 
 target_include_directories(dkrwrapper PRIVATE
     ${NDK_GLUE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/rt64_include
-    ${CMAKE_CURRENT_SOURCE_DIR}/rt64/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/rt64/src/hle
-    ${CMAKE_CURRENT_SOURCE_DIR}/rt64/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/rt64/src/contrib
-    ${CMAKE_CURRENT_SOURCE_DIR}/rt64/src/contrib/hlslpp/include
 )
 add_library(native_app_glue STATIC "${NDK_GLUE_DIR}/android_native_app_glue.c")
 target_include_directories(native_app_glue PUBLIC "${NDK_GLUE_DIR}")
