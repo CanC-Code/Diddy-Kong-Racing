@@ -11,6 +11,7 @@
 #include "stb_image.h"
 
 extern "C" {
+#include "../../../../../../include/PR/ultratypes.h"
 #include "../../../../../../include/ultra64.h"
 #include "../../../../../../include/structs.h"
 }
