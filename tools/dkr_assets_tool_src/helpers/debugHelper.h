@@ -106,6 +106,8 @@ public:
         _print_error_with_stack_trace(ss.str());
 #else
         std::cout << ss.str();
+        std::cout.flush();
+        std::cerr << ss.str() << std::flush;
 #endif
         throw 1;
     }

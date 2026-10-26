@@ -77,6 +77,23 @@ public class MainActivity extends Activity {
             copyAsset(ctx, "extractor/extract-ver/" + fn, new File(extractVerDir, fn));
         }
 
+        // 2b. Copy DKR C headers (tool parses these to build C context)
+        File includeDir = new File(extractorDir, "include");
+        includeDir.mkdirs();
+        String[] incList = am.list("extractor/include");
+        int incCount = 0;
+        if (incList != null) {
+            for (String fn : incList) {
+                try {
+                    copyAssetRecursive(ctx, "extractor/include/" + fn, new File(includeDir, fn));
+                    incCount++;
+                } catch (Throwable t) {
+                    android.util.Log.e("BKA-Main", "copy include " + fn + " failed", t);
+                }
+            }
+        }
+        android.util.Log.i("BKA-Main", "copied include/ entries=" + incCount);
+
         // 3. Copy ROM to baseroms/
         File baseromsDir = new File(extractorDir, "baseroms");
         baseromsDir.mkdirs();
@@ -91,10 +108,23 @@ public class MainActivity extends Activity {
             android.util.Log.i("BKA-Main", "ROM copied len=" + romDst.length());
         }
 
-        // 4. Create marker dirs so find_decomp_root() succeeds
-        for (String marker : new String[]{"src", "include", "asm", "assets"}) {
-            new File(extractorDir, marker).mkdirs();
-        }
+        // 4. Create marker dirs so find_decomp_root() succeeds// PORT: find_decomp_root() requires src/, baseroms/, tools/, Makefile.
+        // Seed each marker dir with a tiny file so content-checks pass.
+        new File(extractorDir, "src").mkdirs();
+        new File(extractorDir, "baseroms").mkdirs();
+        new File(extractorDir, "tools").mkdirs();
+        new File(extractorDir, "include").mkdirs();
+        new File(extractorDir, "asm").mkdirs();
+        new File(extractorDir, "assets").mkdirs();
+        File makefile = new File(extractorDir, "Makefile");
+        if (!makefile.exists()) makefile.createNewFile();
+        File srcMain = new File(extractorDir, "src/main.c");
+        if (!srcMain.exists()) srcMain.createNewFile();
+        File incMacros = new File(extractorDir, "include/macros.h");
+        if (!incMacros.exists()) incMacros.createNewFile();
+        android.util.Log.i("BKA-Main", "markers seeded: Makefile=" + makefile.exists()
+                + " src/main.c=" + srcMain.exists()
+                + " include/macros.h=" + incMacros.exists());
 
         // 5. LAUNCH VIA LINKER64 — /data/data/<pkg> is noexec on Android 10+
         File toolLog = new File(extractorDir, "extractor.log");
@@ -167,6 +197,26 @@ public class MainActivity extends Activity {
             catch (Exception e) { Log.w(TAG, "startForegroundService failed: " + e.getMessage()); }
         } else {
             startService(svc);
+        }
+    }
+
+    static void copyAssetRecursive(android.content.Context ctx, String assetPath, File dst) throws Exception {
+        android.content.res.AssetManager am = ctx.getAssets();
+        String[] children = am.list(assetPath);
+        if (children != null && children.length > 0) {
+            // It's a directory — recurse
+            dst.mkdirs();
+            for (String child : children) {
+                copyAssetRecursive(ctx, assetPath + "/" + child, new File(dst, child));
+            }
+        } else {
+            // It's a file — copy
+            try (InputStream in = am.open(assetPath);
+                 OutputStream out = new FileOutputStream(dst)) {
+                byte[] buf = new byte[65536];
+                int n;
+                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            }
         }
     }
 }
