@@ -2,7 +2,7 @@
 
 if [[ $# == 0 || (($1 != "us_1.0") && ($1 != "us_1.1") && ($1 != "eu_1.0") && ($1 != "eu_1.1") && ($1 != "jp"))]]; then
     echo 'No valid version specified, defaulting to us_1.0...'
-    VER="us_1.0"
+    VER="us_1.1"
 else
     VER=$1
 fi
@@ -21,7 +21,7 @@ if [ -d "$UCODE_DIR" ]; then
     rm -r $UCODE_DIR
 fi
 
-if ! ./tools/dkr_assets_tool -dkrv $VER extract ; then
+if ! ./tools/dkr_assets_tool extract -dkrv $VER ; then
     exit 1
 fi
 
