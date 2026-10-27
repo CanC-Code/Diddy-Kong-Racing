@@ -485,7 +485,12 @@ TextureHeader *load_texture(s32 id) {
     // --- PORT: PNG OVERRIDE ---
     if (id & ASSET_MASK_TEX3D) {
         TextureHeader* png = png_load_texture_3d(id & 0x7FFF);
-        if (png) return png;
+        if (png) {
+            static int _lt3d = 0;
+            if (_lt3d++ < 30) __android_log_print(ANDROID_LOG_ERROR, "BKA-DIAG-LT",
+                "id=0x%X fmt=%u w=%u h=%u cmd=%p", id, png->format, png->width, png->height, (void*)png->cmd);
+            return png;
+        }
     } else {
         TextureHeader* png = png_load_texture_2d(id & 0x7FFF);
         if (png) return png;

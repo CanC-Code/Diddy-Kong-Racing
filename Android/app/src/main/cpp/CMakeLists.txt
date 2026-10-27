@@ -112,7 +112,7 @@ set_source_files_properties(${C_BRIDGE_SOURCES} ${GAME_SOURCES} PROPERTIES
     COMPILE_FLAGS "-std=gnu11 -w -O0 -g3 -include ${CMAKE_CURRENT_SOURCE_DIR}/ultra/n64_types.h"
 )
 
-target_compile_definitions(dkrwrapper PRIVATE F3DEX_GBI_2 N64_RECOMP VERSION=0 __ANDROID__)
+target_compile_definitions(dkrwrapper PRIVATE F3DEX_GBI N64_RECOMP VERSION=0 __ANDROID__)
 
 find_library(log-lib log)
 find_library(android-lib android)

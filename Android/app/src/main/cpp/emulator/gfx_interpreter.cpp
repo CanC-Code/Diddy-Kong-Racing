@@ -1064,7 +1064,7 @@ static void RasterizeTriangle(
                         auto& td = s_rdp.tiles[s_rdp.activeTile];
                         uint32_t tb = td.tmemAddr * 8;
                         __android_log_print(ANDROID_LOG_ERROR, "BKA-RAST",
-                            "TEXDBG fmt=%u size=%u line=%u tmemAddr=0x%X sh=%u th=%u "
+                            "SILENCED fmt=%u size=%u line=%u tmemAddr=0x%X sh=%u th=%u "
                             "tmem[%u..%u]=%02X%02X%02X%02X%02X%02X%02X%02X "
                             "texAddr=%p texWidth=%u texFmt=%u texSize=%u",
                             td.format, td.size, td.line, td.tmemAddr, td.sh, td.th,
@@ -1384,9 +1384,19 @@ static void Cmd_SetTile(GfxCommand cmd) {
     t.mirrorS = (cmd.w1 >>  8) & 0x1;
     t.maskS   = (cmd.w1 >>  4) & 0xF;
     t.shiftS  =  cmd.w1        & 0xF;
+    diag_log_settile(tile, t.format, t.size, t.line, t.tmemAddr);
     { static int s_st = 0; if (s_st++ < 400) __android_log_print(ANDROID_LOG_ERROR, "BKA-SETTILE", "tile=%u fmt=%u siz=%u line=%u tmem=%u pal=%u w0=%08X w1=%08X", tile, t.format, t.size, t.line, t.tmemAddr, t.palette, cmd.w0, cmd.w1); }
 }
 
+
+static int g_stile_log = 0;
+static void diag_log_settile(uint32_t tile, uint32_t fmt, uint32_t siz, uint32_t line, uint32_t tm) {
+    if (g_stile_log < 30) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-DIAG-ST",
+            "tile=%u fmt=%u siz=%u line=%u tmem=0x%X", tile, fmt, siz, line, tm);
+        g_stile_log++;
+    }
+}
 static void Cmd_SetTileSize(GfxCommand cmd) {
     uint32_t tile = (cmd.w1 >> 24) & 0x7;
     if (tile >= 8) return;
@@ -1834,7 +1844,16 @@ static void Cmd_LoadBlock(GfxCommand cmd) {
     uint32_t sh = (cmd.w1 >> 12) & 0xFFF, dxt = cmd.w1 & 0xFFF;
     t.sl = sl; t.tl = tl;
     /* DO NOT overwrite t.sh, t.th, or t.line here! G_SETTILE handles that. */
-    { static int s_lb = 0; if (s_lb++ < 2000) __android_log_print(ANDROID_LOG_ERROR, "BKA-LOADBLK", "ENTRY tile=%u w0=%08X w1=%08X sl=%u tl=%u sh=%u dxt=%u tmemAddr=%u line=%u texAddr=%p", tile, cmd.w0, cmd.w1, sl, tl, sh, dxt, t.tmemAddr, t.line, (void*)s_rdp.texAddr); }
+    { static int s_lb = 0; if (s_lb++ < 30) {
+        extern uint8_t* gN64_RDRAM;
+        uintptr_t addr = (uintptr_t)s_rdp.texAddr;
+        uintptr_t base = (uintptr_t)gN64_RDRAM;
+        bool is_heap = gN64_RDRAM && ((addr < base) || (addr >= base + 0x800000));
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-DIAG-LB",
+            "tile=%u sh=%u bytes=%u tm=0x%X line=%u texAddr=%p %s",
+            tile, sh, (sh+1)*8, t.tmemAddr, t.line, (void*)s_rdp.texAddr,
+            is_heap ? "HEAP(PNG)" : "RDRAM(game)");
+    } }
 
     uint32_t texSizeBytes = (sh + 1) * 8; // G_LOADBLOCK fix: sh is 64-bit word count - 1
     if (texSizeBytes == 0) texSizeBytes = 1;
