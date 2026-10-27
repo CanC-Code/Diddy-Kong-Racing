@@ -825,7 +825,7 @@ static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
     /* PORT: DKR passes 16.16 fixed-point texture coordinates.
        Shifting by 5 (10.5 format) caused rapid wrapping (stripes).
        Shift by 16 for correct pixel mapping. */
-    uint32_t u = s >> 16, v = t >> 16;
+    uint32_t u = s >> 5, v = t >> 5;
     auto& tdesc = s_rdp.tiles[tile];
     uint32_t texW = (tdesc.sh >> 2) + 1, texH = (tdesc.th >> 2) + 1;
     if (texW == 0) texW = 1;
@@ -845,7 +845,7 @@ static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
     uint32_t bitInWord = bitInRow & 63u;
     uint32_t word      = (rowWord + wordInRow) & 0x1FFu;
     // PORT: Disabled N64 parity swap. PNGs are linear, so we skip the hardware swizzle.
-    if ((tdesc.size & 3) >= 2 && (v & 1)) word ^= 1u;
+    // Swizzle OFF: LoadBlock writes linear bytes
     uint32_t byteAddr  = word * 8u + (bitInWord >> 3);
 
     if (byteAddr >= 4096) { outRGBA[0]=outRGBA[1]=outRGBA[2]=outRGBA[3]=0; return; }

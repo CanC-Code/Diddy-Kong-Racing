@@ -182,7 +182,7 @@ static TextureHeader* load_png_texture(uint32_t id,
 
     header->width              = (u8)w;
     header->height             = (u8)h;
-    header->format             = 0; // G_IM_FMT_RGBA
+    header->format             = 1; // RGBA16 (DKR enum)
     header->numberOfInstances  = 1;
     header->numberOfCommands   = 0x07;
     header->numOfTextures      = 1;
