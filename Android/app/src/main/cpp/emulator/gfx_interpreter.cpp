@@ -806,22 +806,6 @@ static void Matrix_LoadFromN64(BKMatrix* out, const void* src) {
 // =======================================================================
 
 static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
-    // PORT: Force RGBA16 fetch. The game loaded CI8 bytes, but our data is RGBA16.
-    {
-        auto& _td = s_rdp.tiles[s_rdp.activeTile];
-        static int _dbg = 0;
-        if (_dbg++ < 15) {
-            __android_log_print(ANDROID_LOG_ERROR, "BKA-TEXFMT",
-                "ForceRGBA16 Fetch tile=%d oldFmt=%u oldSize=%u",
-                s_rdp.activeTile, _td.format, _td.size);
-        }
-        _td.format = 0; // G_IM_FMT_RGBA
-        _td.size   = 2; // G_IM_SIZ_16b
-        // Double the stride (line) because we are reading 2 bytes/pixel, not 1
-        // The game set line for CI8 (1 byte). We need RGBA16 (2 bytes).
-        // _td.line *= 2; REMOVED - caused segfault 
-    }
-
     /* PORT: DKR passes 16.16 fixed-point texture coordinates.
        Shifting by 5 (10.5 format) caused rapid wrapping (stripes).
        Shift by 16 for correct pixel mapping. */
@@ -838,22 +822,13 @@ static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
 
     uint32_t bppBits = 4u << (tdesc.size & 3);
 
-    // PORT: Double the stride because we read 16-bit pixels, but the game set line for 8-bit.
-    uint32_t effLine = (tdesc.line > 0) ? (tdesc.line * 4) : 1;
-    uint32_t rowWord = (tdesc.tmemAddr + v * effLine) & 0x1FFu;
+    uint32_t rowWord   = (tdesc.tmemAddr + v * tdesc.line) & 0x1FFu;
     uint32_t bitInRow  = u * bppBits;
     uint32_t wordInRow = bitInRow >> 6;
     uint32_t bitInWord = bitInRow & 63u;
     uint32_t word      = (rowWord + wordInRow) & 0x1FFu;
     // PORT: Disabled N64 parity swap. PNGs are linear, so we skip the hardware swizzle.
-    // Swizzle OFF: LoadBlock writes linear bytes
-    static int _dbg2 = 0;
-    if (_dbg2++ < 20) {
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-TEXDBG",
-            "u=%u v=%u W=%u H=%u sh=0x%X th=0x%X line=%u(x4=%u) tm=0x%X ba=0x%X",
-            u, v, texW, texH, tdesc.sh, tdesc.th, tdesc.line, effLine,
-            tdesc.tmemAddr, word * 8u + (bitInWord >> 3));
-    }
+    if ((tdesc.size & 3) >= 2 && (v & 1)) word ^= 1u;
     uint32_t byteAddr  = word * 8u + (bitInWord >> 3);
 
     if (byteAddr >= 4096) { outRGBA[0]=outRGBA[1]=outRGBA[2]=outRGBA[3]=0; return; }
@@ -1849,35 +1824,6 @@ static void Cmd_LoadTLUT(GfxCommand cmd) {
 }
 
 static void Cmd_LoadBlock(GfxCommand cmd) {
-    // PORT: Only force 16-bit copy if this is a PNG texture (allocated outside RDRAM).
-    // The game passes a pointer to our heap-allocated pixel data, so we can check if
-    // the address is outside the emulator's RDRAM range.
-    {
-        extern uint8_t* gN64_RDRAM;
-        uintptr_t addr = (uintptr_t)s_rdp.texAddr;
-        uintptr_t base = (uintptr_t)gN64_RDRAM;
-        // N64 RDRAM is at most 8MB. Anything outside [base, base+8MB) is heap (our PNG).
-        bool is_png = gN64_RDRAM && ((addr < base) || (addr >= base + 0x800000));
-        if (is_png) {
-            auto& _td = s_rdp.tiles[s_rdp.activeTile];
-            _td.size = 2; // G_IM_SIZ_16b
-            _td.format = 0; // G_IM_FMT_RGBA
-            // _td.line *= 2; removed (handled in FetchTexel)
-        }
-    }
-
-    // PORT: Force 16-bit copy for PNG textures
-    // The game thinks this is a CI8 texture (1 byte/pixel), but our data is RGBA16 (2 bytes/pixel).
-    s_rdp.texSize = 2; // G_IM_SIZ_16b
-    s_rdp.texFmt  = 0; // G_IM_FMT_RGBA
-    
-    // Fix the stride (line) for the active tile.
-    // If the game thought it was CI8, the line is W bytes. We need 2*W for RGBA16.
-    // We just double the line of the active tile to fix the static.
-    s_rdp.tiles[s_rdp.activeTile].line *= 2;
-    s_rdp.tiles[s_rdp.activeTile].format = 0;
-    s_rdp.tiles[s_rdp.activeTile].size = 2;
-
     s_gfx_lb_count++;
     /* Fix T: F3DEX LoadBlock.  Tile field is bits 16-23 of w0, NOT low 3.
      * Contiguous transfer; sh encodes 16-bit word count - 1. */

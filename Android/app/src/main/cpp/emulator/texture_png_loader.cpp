@@ -48,7 +48,6 @@ static std::unordered_map<uint32_t, std::string> g_png_paths_2d;
 static std::string g_base_path = "/data/data/com.dkrwrapper/files/extractor/assets/.vanilla/us.v80/";
 static std::atomic<bool> g_initialized{false};
 static std::mutex g_init_mutex;
-static std::atomic<int> g_init_attempts{0};
 
 static std::string normalize_name(const std::string& name) {
     std::string s = name;
@@ -57,7 +56,6 @@ static std::string normalize_name(const std::string& name) {
     if (s.compare(0, p3.size(), p3) == 0) s = s.substr(p3.size());
     else if (s.compare(0, p2.size(), p2) == 0) s = s.substr(p2.size());
     std::string out;
-    out.reserve(s.size());
     for (char c : s) {
         unsigned char uc = (unsigned char)c;
         if (std::isalnum(uc)) out += (char)std::tolower(uc);
@@ -68,11 +66,11 @@ static std::string normalize_name(const std::string& name) {
 static std::vector<std::string> read_order_list(const fs::path& json_path) {
     std::vector<std::string> result;
     std::ifstream f(json_path);
-    if (!f) { LOGE("Cannot open %s", json_path.string().c_str()); return result; }
+    if (!f) return result;
     std::stringstream ss; ss << f.rdbuf();
     const std::string content = ss.str();
     size_t pos = content.find("\"order\"");
-    if (pos == std::string::npos) { LOGE("No 'order' in %s", json_path.string().c_str()); return result; }
+    if (pos == std::string::npos) return result;
     pos = content.find('[', pos);
     if (pos == std::string::npos) return result;
     ++pos;
@@ -91,12 +89,12 @@ static std::vector<std::string> read_order_list(const fs::path& json_path) {
 
 static void scan_dir(const fs::path& dir, const std::string& strip_marker,
                      std::unordered_map<std::string, std::string>& out) {
-    if (!fs::exists(dir)) { LOGE("Dir missing: %s", dir.string().c_str()); return; }
+    if (!fs::exists(dir)) return;
     std::error_code ec;
     for (auto it = fs::recursive_directory_iterator(dir,
               fs::directory_options::skip_permission_denied, ec);
          it != fs::recursive_directory_iterator(); it.increment(ec)) {
-        if (ec) { LOGE("iter err: %s", ec.message().c_str()); ec.clear(); continue; }
+        if (ec) { ec.clear(); continue; }
         const auto& entry = *it;
         if (!entry.is_regular_file()) continue;
         if (entry.path().extension() != ".png") continue;
@@ -111,56 +109,43 @@ static void scan_dir(const fs::path& dir, const std::string& strip_marker,
 }
 
 static void do_init() {
-    int attempt = ++g_init_attempts;
-    LOGI("Lazy init attempt #%d starting", attempt);
+    LOGI("Init root=%s", g_base_path.c_str());
     fs::path root(g_base_path);
-
     std::unordered_map<std::string, std::string> norm_3d, norm_2d;
     scan_dir(root / "textures" / "3d", "/textures/3d/", norm_3d);
     scan_dir(root / "textures" / "2d", "/textures/2d/", norm_2d);
-    LOGI("Scanned: %zu unique 3D keys, %zu unique 2D keys", norm_3d.size(), norm_2d.size());
-
     auto order_3d = read_order_list(root / "asset_textures_3d.meta.json");
     auto order_2d = read_order_list(root / "asset_textures_2d.meta.json");
-    LOGI("Order lists: %zu 3D, %zu 2D", order_3d.size(), order_2d.size());
-
-    size_t miss3 = 0, miss2 = 0;
-    g_png_paths_3d.clear();
-    g_png_paths_2d.clear();
     for (size_t i = 0; i < order_3d.size(); ++i) {
         auto it = norm_3d.find(normalize_name(order_3d[i]));
         if (it != norm_3d.end()) g_png_paths_3d[(uint32_t)i] = it->second;
-        else ++miss3;
     }
     for (size_t i = 0; i < order_2d.size(); ++i) {
         auto it = norm_2d.find(normalize_name(order_2d[i]));
         if (it != norm_2d.end()) g_png_paths_2d[(uint32_t)i] = it->second;
-        else ++miss2;
     }
-
-    LOGI("PNG loader ready: 3D %zu/%zu mapped (%zu missing), 2D %zu/%zu mapped (%zu missing)",
-         g_png_paths_3d.size(), order_3d.size(), miss3,
-         g_png_paths_2d.size(), order_2d.size(), miss2);
-    LOGI("sizeof(TextureHeader)=%zu", sizeof(TextureHeader));
+    LOGI("Mapped: 3D %zu/%zu  2D %zu/%zu",
+         g_png_paths_3d.size(), order_3d.size(),
+         g_png_paths_2d.size(), order_2d.size());
 }
 
-// Store base path only. Actual scan deferred to first texture request
-// (race fixed: extraction completes before game requests textures).
 extern "C" void init_png_texture_loader(const char* base_path) {
     if (base_path && *base_path) g_base_path = base_path;
-    LOGI("init_png_texture_loader called (deferred) path=%s", g_base_path.c_str());
 }
 
 static void ensure_initialized() {
-    if (g_initialized.load(std::memory_order_acquire)) return;
+    if (g_initialized.load()) return;
     std::lock_guard<std::mutex> lk(g_init_mutex);
     if (g_initialized.load()) return;
     do_init();
-    // Only mark initialized once PNGs are present (handles extraction race:
-    // engine may start before linker64 extractor finishes)
     if (!g_png_paths_3d.empty() || !g_png_paths_2d.empty()) {
-        g_initialized.store(true, std::memory_order_release);
+        g_initialized.store(true);
     }
+}
+
+// --- Convert RGBA8 to a 16-bit N64 RGBA5551 word ---
+static inline uint16_t rgba8_to_n64(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    return ((r >> 3) << 11) | ((g >> 3) << 6) | ((b >> 3) << 1) | (a >= 128 ? 1 : 0);
 }
 
 static TextureHeader* load_png_texture(uint32_t id,
@@ -180,22 +165,19 @@ static TextureHeader* load_png_texture(uint32_t id,
     TextureHeader* header = (TextureHeader*)calloc(1, header_size + pixel_size);
     if (!header) { stbi_image_free(data); return nullptr; }
 
+    // RGBA16 format = 1 in DKR's enum (0=RGBA32, 1=RGBA16, 2=I8, etc.)
     header->width              = (u8)w;
     header->height             = (u8)h;
-    header->format             = 1; // RGBA16 (DKR enum)
+    header->format             = 1;             // RGBA16
     header->numberOfInstances  = 1;
     header->numberOfCommands   = 0x07;
     header->numOfTextures      = 1;
-    header->frameAdvanceDelay  = 0;
     header->textureSize        = (s16)(header_size + pixel_size);
-    header->isCompressed       = 0;
-    header->unk1E              = 0xFA;  // MAGIC: marks texture as PNG-loaded (RGBA16 forced)
 
     uint16_t* pixels = (uint16_t*)((uint8_t*)header + header_size);
     for (int i = 0; i < w * h; ++i) {
         uint8_t r = data[i*4+0], g = data[i*4+1], b = data[i*4+2], a = data[i*4+3];
-        uint16_t v = ((r >> 3) << 11) | ((g >> 3) << 6) | ((b >> 3) << 1) | (a >= 128 ? 1 : 0);
-        pixels[i] = v;
+        pixels[i] = rgba8_to_n64(r, g, b, a);
     }
     stbi_image_free(data);
     cache[id] = header;
