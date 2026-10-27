@@ -66,17 +66,15 @@ public class StreamServer {
                 try {
                     java.io.File pngDir = new java.io.File(getFilesDir(), "extractor/assets/.vanilla/us.v80/textures");
                     if (pngDir.exists()) {
-                        java.io.File[] l = pngDir.listFiles();
-                        if (l != null) for (java.io.File sub : l) {
-                            java.io.File[] ll = sub.listFiles();
-                            if (ll != null) for (java.io.File f2 : ll) {
-                                if (f2.getName().endsWith(".png")) pngs++;
-                                else if (f2.isDirectory()) {
-                                    java.io.File[] lll = f2.listFiles();
-                                    if (lll != null) for (java.io.File f3 : lll) {
-                                        if (f3.getName().endsWith(".png")) pngs++;
-                                    }
-                                }
+                        java.util.ArrayDeque<java.io.File> queue = new java.util.ArrayDeque<>();
+                        queue.add(pngDir);
+                        while (!queue.isEmpty()) {
+                            java.io.File d = queue.poll();
+                            java.io.File[] list = d.listFiles();
+                            if (list == null) continue;
+                            for (java.io.File f : list) {
+                                if (f.isFile() && f.getName().endsWith(".png")) pngs++;
+                                else if (f.isDirectory()) queue.add(f);
                             }
                         }
                     }
@@ -88,7 +86,8 @@ public class StreamServer {
                 out.write(body);
                 out.flush();
                 return;
-            } else 
+            }
+            if ("GET".equals(method) && (path.equals("/") || path.startsWith("/?"))) {
                 sendHtmlPage(out);
             } else if ("GET".equals(method) && path.startsWith("/stream")) {
                 sendRawStream(out);
