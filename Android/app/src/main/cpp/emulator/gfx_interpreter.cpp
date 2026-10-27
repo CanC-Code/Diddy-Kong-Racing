@@ -811,7 +811,7 @@ static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
         auto& _td = s_rdp.tiles[s_rdp.activeTile];
         static int _dbg = 0;
         if (_dbg++ < 15) {
-            __android_log_print(ANDROID_LOG_ERROR, "BKA-RDP",
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-TEXFMT",
                 "ForceRGBA16 Fetch tile=%d oldFmt=%u oldSize=%u",
                 s_rdp.activeTile, _td.format, _td.size);
         }
