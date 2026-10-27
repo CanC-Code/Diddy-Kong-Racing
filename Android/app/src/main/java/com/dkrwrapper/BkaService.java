@@ -141,13 +141,12 @@ public class BkaService extends Service {
         // PORT: ensure rom_base.bin exists (copy from auto_rom.z64 if missing)
         if (autoRom.exists() && (!baseBin.exists() || baseBin.length() == 0)) {
             try {
-                java.io.FileInputStream in = new java.io.FileInputStream(autoRom);
-                java.io.FileOutputStream out = new java.io.FileOutputStream(baseBin);
-                byte[] buf = new byte[65536];
-                int n;
-                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-                in.close();
-                out.close();
+                try (java.io.FileInputStream in = new java.io.FileInputStream(autoRom);
+                     java.io.FileOutputStream out = new java.io.FileOutputStream(baseBin)) {
+                    byte[] buf = new byte[65536];
+                    int bytesRead;
+                    while ((bytesRead = in.read(buf)) > 0) out.write(buf, 0, bytesRead);
+                }
                 Log.i(TAG, "rom_base.bin created (" + baseBin.length() + " bytes) from auto_rom.z64");
             } catch (Throwable t) {
                 Log.e(TAG, "rom_base.bin copy failed", t);
