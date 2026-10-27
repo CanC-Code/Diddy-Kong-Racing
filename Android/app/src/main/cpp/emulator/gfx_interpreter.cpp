@@ -82,7 +82,7 @@ static const uint8_t* s_current_cmd = nullptr;
 
 #include <cstdarg>
 static void diag_log(const char* tag, const char* fmt, ...) {
-    FILE* f = fopen("/data/data/com.dkrwrapper/files/diag.log", "a");
+    FILE* f = fopen("/data/user/0/com.dkrwrapper/files/diag.log", "a");
     if (!f) return;
     fprintf(f, "%s: ", tag);
     va_list ap;
@@ -1392,6 +1392,7 @@ static void diag_log_settile(uint32_t tile, uint32_t fmt, uint32_t siz, uint32_t
 }
 
 static void Cmd_SetTile(GfxCommand cmd) {
+    diag_log("BKA-ST-ENTRY", "tile=%u w0=%08X w1=%08X", (unsigned)((cmd.w1>>24)&7), cmd.w0, cmd.w1);
     uint32_t tile = (cmd.w1 >> 24) & 0x7;
     if (tile >= 8) return;
     auto& t = s_rdp.tiles[tile];

@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 static void diag_log_c(const char* tag, const char* fmt, ...) {
-    FILE* f = fopen("/data/data/com.dkrwrapper/files/diag.log", "a");
+    FILE* f = fopen("/data/user/0/com.dkrwrapper/files/diag.log", "a");
     if (!f) return;
     fprintf(f, "%s: ", tag);
     va_list ap;

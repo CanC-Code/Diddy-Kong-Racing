@@ -35,7 +35,7 @@ extern "C" {
 
 #include <cstdarg>
 static void diag_log(const char* tag, const char* fmt, ...) {
-    FILE* f = fopen("/data/data/com.dkrwrapper/files/diag.log", "a");
+    FILE* f = fopen("/data/user/0/com.dkrwrapper/files/diag.log", "a");
     if (!f) return;
     fprintf(f, "%s: ", tag);
     va_list ap;
@@ -123,6 +123,7 @@ static void scan_dir(const fs::path& dir, const std::string& strip_marker,
 }
 
 static void do_init() {
+    diag_log("BKA-PNG-INIT", "root=%s", g_base_path.c_str());
     LOGI("Init root=%s", g_base_path.c_str());
     fs::path root(g_base_path);
     std::unordered_map<std::string, std::string> norm_3d, norm_2d;
