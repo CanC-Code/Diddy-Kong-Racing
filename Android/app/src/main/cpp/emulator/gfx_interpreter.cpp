@@ -1841,6 +1841,22 @@ static void Cmd_LoadTLUT(GfxCommand cmd) {
 }
 
 static void Cmd_LoadBlock(GfxCommand cmd) {
+    // PORT: Only force 16-bit copy if this is a PNG texture (allocated outside RDRAM).
+    // The game passes a pointer to our heap-allocated pixel data, so we can check if
+    // the address is outside the emulator's RDRAM range.
+    {
+        extern uint8_t* gN64_RDRAM;
+        extern size_t BKA_RDRAM_ALLOC_SIZE;
+        uintptr_t addr = (uintptr_t)s_rdp.texAddr;
+        bool is_png = (addr < (uintptr_t)gN64_RDRAM) || (addr >= (uintptr_t)(gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE));
+        if (is_png) {
+            auto& _td = s_rdp.tiles[s_rdp.activeTile];
+            _td.size = 2; // G_IM_SIZ_16b
+            _td.format = 0; // G_IM_FMT_RGBA
+            if (_td.line > 0) _td.line *= 2; // Double stride for 16-bit
+        }
+    }
+
     // PORT: Force 16-bit copy for PNG textures
     // The game thinks this is a CI8 texture (1 byte/pixel), but our data is RGBA16 (2 bytes/pixel).
     s_rdp.texSize = 2; // G_IM_SIZ_16b
