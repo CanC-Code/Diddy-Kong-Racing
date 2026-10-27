@@ -2527,6 +2527,7 @@ void reset_title_logo_scale(void) {
  * Gets the current menu ID, then runs the init function of the respective menu element.
  */
 void menu_init(u32 menuId) {
+    { static int _mi = 0; if (_mi++ < 30) __android_log_print(ANDROID_LOG_ERROR, "BKA-MENU-INIT", "id=%u", menuId); }
     s32 i;
 
     gCurrentMenuId = menuId;
@@ -3360,6 +3361,7 @@ void menu_title_screen_init(void) {
     s32 i;
     s32 numberOfPlayers;
 
+    __android_log_print(ANDROID_LOG_ERROR, "BKA-TITLE-INIT", "1 after gTitleScreenLoaded");
     gTitleScreenLoaded = TRUE;
     __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT", "1 after gTitleScreenLoaded");
     gOptionBlinkTimer = 0;

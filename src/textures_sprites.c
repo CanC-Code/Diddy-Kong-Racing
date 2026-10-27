@@ -497,6 +497,7 @@ UNUSED s32 sprite_table_size(void) {
  */
 
 TextureHeader *load_texture(s32 id) {
+    { static int _ltx = 0; if (_ltx++ < 40) diag_log_c("BKA-LOADTX-CALL", "id=0x%X", id); }
     // --- PORT: PNG OVERRIDE ---
     if (id & ASSET_MASK_TEX3D) {
         TextureHeader* png = png_load_texture_3d(id & 0x7FFF);

@@ -347,6 +347,28 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     const int W = 320, H = 240;
 
     if (!gVideoLastFramebuffer || !gVideoCurrFramebuffer) {
+        // PORT: gVideo* are null; read from gN64_RDRAM + g_active_fb_offset
+        // (the walker's actual write target)
+        uint16_t* src_fb = (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
+        int nb = 0;
+        for (int i = 0; i < W * H; i++) { if (src_fb[i]) nb++; }
+        if (nb > 0) {
+            static int _fbf = 0;
+            if (_fbf++ < 3) {
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-FBFALL",
+                    "fillArgb using RDRAM+0x%X, %d non-zero pixels", g_active_fb_offset, nb);
+            }
+            for (int i = 0; i < W * H; i++) {
+                uint16_t px = src_fb[i];
+                uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
+                uint8_t g = (px >> 5)  & 0x3F; g = (g << 2) | (g >> 4);
+                uint8_t b = px & 0x1F;         b = (b << 3) | (b >> 2);
+                out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+            }
+            bka_draw_palette_bar(out, W, H);
+            env->ReleaseIntArrayElements(outArr, out, 0);
+            return;
+        }
         int len = env->GetArrayLength(outArr);
         memset(out, 0, (size_t)len * sizeof(jint));
         bka_draw_palette_bar(out, W, H);
