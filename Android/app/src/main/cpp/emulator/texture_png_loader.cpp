@@ -189,6 +189,7 @@ static TextureHeader* load_png_texture(uint32_t id,
     header->frameAdvanceDelay  = 0;
     header->textureSize        = (s16)(header_size + pixel_size);
     header->isCompressed       = 0;
+    header->unk1E              = 0xFA;  // MAGIC: marks texture as PNG-loaded (RGBA16 forced)
 
     uint16_t* pixels = (uint16_t*)((uint8_t*)header + header_size);
     for (int i = 0; i < w * h; ++i) {

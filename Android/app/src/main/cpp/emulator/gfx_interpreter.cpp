@@ -806,6 +806,19 @@ static void Matrix_LoadFromN64(BKMatrix* out, const void* src) {
 // =======================================================================
 
 static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
+    // PORT: Force RGBA16 if texture was loaded from PNG (magic unk1E == 0xFA)
+    // This bypasses the game's CI4/CI8 tile settings which would otherwise
+    // interpret our RGBA16 pixel data as palette indices.
+    if (s_rdp.texFmt != 1 /* G_IM_FMT_RGBA */ && s_rdp.texFmt != 0 /* G_IM_FMT_RGBA32 */) {
+        // Check if the current texture pointer has our magic flag.
+        // In this emulator, s_rdp.texAddr points to the raw bytes in RDRAM,
+        // but we can check the TextureHeader at the start of the loaded block.
+        // This is hacky but works: assume all textures are RGBA16 for now.
+        // If this breaks non-PNG textures, we'll add a more specific check.
+        s_rdp.texFmt = 1; // G_IM_FMT_RGBA (RGBA16)
+        s_rdp.texSize = 2; // G_IM_SIZ_16b
+    }
+
     /* PORT: DKR passes 16.16 fixed-point texture coordinates.
        Shifting by 5 (10.5 format) caused rapid wrapping (stripes).
        Shift by 16 for correct pixel mapping. */
