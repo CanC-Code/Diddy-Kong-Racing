@@ -49,6 +49,8 @@ void* bka_lookup_addr_by_low32(uint32_t low32);
 static uint8_t* g_bka_dl_cur = nullptr;   // walker sets before dispatch; Cmd_* helpers read for context
 
 static RDPState s_rdp;
+extern uint32_t g_png_rdram_start;
+extern uint32_t g_png_rdram_end;
 static bool g_bka_force_rgba = false;
 static int g_bka_task_tri_count = 0;
 int g_bka_last_tri2_count = 0;   /* Fix DD: total TRI2 calls, monotonic */
@@ -267,6 +269,11 @@ static uint8_t* bka_scan_heap_for_vertex_base(uint32_t dl_addr) {
 
 static inline uint8_t* RDP_TranslateAddr(uint32_t addr) {
     /* PORT: framebuffer pointer reconstruction */
+    /* PORT: PNG texture range — our loader allocates at RDRAM[0x1000000..) */
+    if (gN64_RDRAM && addr >= g_png_rdram_start && addr < g_png_rdram_end) {
+        return gN64_RDRAM + addr;
+    }
+
     {
         extern uint8_t *gVideoLastFramebuffer;
         extern uint8_t *gVideoCurrFramebuffer;
@@ -1404,7 +1411,7 @@ static void Cmd_SetTile(GfxCommand cmd) {
     if (g_bka_force_rgba) {
         t.format = 0;
         t.size = 2;
-        t.line = ((t.sh >> 2) + 1) * 2;
+        /* t.line is set by the F5 command parsing above; don't override */
     }
     t.palette = (cmd.w1 >> 20) & 0xF;
     t.clampT  = (cmd.w1 >> 18) & 0x1;
@@ -1436,7 +1443,8 @@ static void Cmd_SetTImg(GfxCommand cmd) {
             extern uint8_t* gN64_RDRAM;
             uintptr_t addr = (uintptr_t)s_rdp.texAddr;
             uintptr_t base = (uintptr_t)gN64_RDRAM;
-            bool is_heap = gN64_RDRAM && ((addr < base) || (addr >= base + 0x800000));
+            uint32_t _phys = (uint32_t)(addr - base);
+            bool is_heap = gN64_RDRAM && (_phys >= g_png_rdram_start) && (_phys < g_png_rdram_end);
             g_bka_force_rgba = is_heap;
             diag_log("BKA-SETIMG-DIAG", "w0=%08X w1=%08X addr=%p %s",
                 cmd.w0, cmd.w1, (void*)addr, is_heap ? "HEAP(PNG)" : "RDRAM(game)");
@@ -1497,6 +1505,17 @@ static void Cmd_SetTImg(GfxCommand cmd) {
                   (uint32_t)(s_rdp.segmentBase[2] + (cmd.w1 & 0xFFFFFF)));
       } }
     uint8_t* resolved = nullptr;
+
+    // PORT: PNG range — physical or K0 form
+    if (gN64_RDRAM) {
+        uint32_t phys = cmd.w1;
+        if (phys & 0x80000000u) phys &= 0x0FFFFFFFu;
+        if (phys >= g_png_rdram_start && phys < g_png_rdram_end) {
+            resolved = gN64_RDRAM + phys;
+        }
+    }
+
+    if (!resolved)
     {
         uint8_t  seg = (cmd.w1 >> 24) & 0x0F;
         uintptr_t segBase = s_rdp.segmentBase[seg];

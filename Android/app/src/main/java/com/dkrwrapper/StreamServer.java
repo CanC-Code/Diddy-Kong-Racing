@@ -64,6 +64,52 @@ public class StreamServer {
             String hdr;
             while ((hdr = readLine(in)) != null && !hdr.isEmpty()) { }
 
+            if ("GET".equals(method) && path.startsWith("/diag")) {
+                StringBuilder sb = new StringBuilder();
+                try {
+                    java.io.File f = new java.io.File(getFilesDir(), "diag.log");
+                    if (f.exists()) {
+                        java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(f));
+                        java.util.LinkedList<String> lines = new java.util.LinkedList<>();
+                        String line;
+                        while ((line = br.readLine()) != null) {
+                            lines.add(line);
+                            if (lines.size() > 300) lines.removeFirst();
+                        }
+                        br.close();
+                        sb.append("=== DIAG.LOG (last ").append(lines.size()).append(" lines) ===\n");
+                        for (String l : lines) sb.append(l).append("\n");
+                    } else {
+                        sb.append("(diag.log not found at ").append(getFilesDir()).append(")\n");
+                    }
+                } catch (Throwable t) {
+                    sb.append("Error reading diag.log: ").append(t).append("\n");
+                }
+                try {
+                    Process p = Runtime.getRuntime().exec(new String[]{
+                        "logcat", "-d", "-t", "300", "-s",
+                        "BKA-ST-ENTRY:*", "BKA-DIAG-LB:*", "BKA-SETIMG-DIAG:*",
+                        "BKA-PNG:*", "BKA-BADHDR:*", "BKA-TEXFMT:*",
+                        "BKA-Stream:*", "BKA-PNG-FETCH:*"
+                    });
+                    java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(p.getInputStream()));
+                    String line;
+                    sb.append("\n=== LOGCAT (last 300) ===\n");
+                    int n = 0;
+                    while ((line = br.readLine()) != null && n++ < 300) {
+                        sb.append(line).append("\n");
+                    }
+                    br.close();
+                    p.waitFor();
+                } catch (Throwable t) {
+                    sb.append("Error reading logcat: ").append(t).append("\n");
+                }
+                byte[] body = sb.toString().getBytes("UTF-8");
+                out.write(("HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: " + body.length + "\r\nConnection: close\r\n\r\n").getBytes());
+                out.write(body);
+                out.flush();
+                return;
+            }
             if ("GET".equals(method) && path.startsWith("/status")) {
                 int pngs = 0;
                 boolean engineRunning = false;

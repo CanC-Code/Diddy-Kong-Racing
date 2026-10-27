@@ -164,13 +164,16 @@ static inline uint16_t rgba8_to_n64(uint8_t r, uint8_t g, uint8_t b, uint8_t a) 
 }
 
 extern uint8_t* gN64_RDRAM;
-static uint32_t s_rdram_offset = 0x700000;
+uint32_t g_png_rdram_start = 0x1000000;
+uint32_t g_png_rdram_end   = 0x1000000;
+static uint32_t s_rdram_offset = 0x1000000;
 static void* bka_rdram_alloc(size_t size) {
     if (!gN64_RDRAM) return nullptr;
     size = (size + 15) & ~15;
-    if (s_rdram_offset + size > 0x800000) return nullptr;
+    if (s_rdram_offset + size > 0x04000000) return nullptr;
     void* p = gN64_RDRAM + s_rdram_offset;
     s_rdram_offset += size;
+    g_png_rdram_end = s_rdram_offset;
     return p;
 }
 
@@ -213,14 +216,14 @@ static TextureHeader* load_png_texture(uint32_t id,
         if (cmd) {
             uint32_t* cw = (uint32_t*)cmd;
             uintptr_t phys_px = (uintptr_t)pixels - (uintptr_t)gN64_RDRAM;
-            uint32_t pixel_addr = 0x80000000u | (uint32_t)phys_px;
+            uint32_t pixel_addr = (uint32_t)phys_px;  // physical (PNG range)
 
             // G_SETTIMG (0xFD): SetTextureImage
             cw[0] = (0xFDu << 24) | (0u << 21) | (2u << 19) | (w - 1);
             cw[1] = pixel_addr;
 
             // G_SETTILE (0xF5): SetTile — RGBA, 16b, line=w*2
-            cw[2] = (0xF5u << 24) | (0u << 21) | (2u << 19) | ((uint32_t)(w * 2) << 9) | 0u;
+            cw[2] = (0xF5u << 24) | (0u << 21) | (2u << 19) | ((uint32_t)((w * 2 + 7) / 8) << 9) | 0u;
             cw[3] = 0;
 
             // G_SETTILESIZE (0xF4): SetTileSize
