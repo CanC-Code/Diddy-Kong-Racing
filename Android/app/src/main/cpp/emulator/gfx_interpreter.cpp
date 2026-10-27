@@ -3955,7 +3955,12 @@ void RSP_ProcessGfxTask(OSTask* tp) {
             case 0xFC: Cmd_SetCombine(c); break;
             case 0xD7: Cmd_Texture(c); break;
             case 0xBB: Cmd_Texture(c); break;   // F3DEX (non-2) G_TEXTURE
-            case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F5 SetTile w0=%08X w1=%08X", c.w0, c.w1); Cmd_SetTile(c); break; }
+            
+    // F3DDKR / F3DEX2 opcode aliases
+    case 0xF6: Cmd_SetTImg(cmd); break;
+    case 0xF7: Cmd_SetTile(cmd); break;
+    case 0xD3: Cmd_TexRect(cmd); break;
+case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F5 SetTile w0=%08X w1=%08X", c.w0, c.w1); Cmd_SetTile(c); break; }
             case 0xF0: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F0 LoadTLUT cur=%p stride=%zu depth=%d enc=%d w0=%08X w1=%08X", (void*)cur, current_stride, depth, cur_dl_enc, c.w0, c.w1); Cmd_LoadTLUT(c); break; }
             case 0xF2: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F2 LoadTile w0=%08X w1=%08X", c.w0, c.w1); /* ARM64 port 2026-10-13: F2 is LoadTile, not SetTileSize */ Cmd_LoadTile(c); break; }
             case 0xFD: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "FD SetTImg cur=%p stride=%zu depth=%d enc=%d w0=%08X w1=%08X", (void*)cur, current_stride, depth, cur_dl_enc, c.w0, c.w1); Cmd_SetTImg(c); break; }
