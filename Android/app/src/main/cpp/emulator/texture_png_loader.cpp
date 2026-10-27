@@ -156,7 +156,11 @@ static void ensure_initialized() {
     std::lock_guard<std::mutex> lk(g_init_mutex);
     if (g_initialized.load()) return;
     do_init();
-    g_initialized.store(true, std::memory_order_release);
+    // Only mark initialized once PNGs are present (handles extraction race:
+    // engine may start before linker64 extractor finishes)
+    if (!g_png_paths_3d.empty() || !g_png_paths_2d.empty()) {
+        g_initialized.store(true, std::memory_order_release);
+    }
 }
 
 static TextureHeader* load_png_texture(uint32_t id,
