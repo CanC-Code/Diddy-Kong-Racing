@@ -838,12 +838,14 @@ static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
 
     uint32_t bppBits = 4u << (tdesc.size & 3);
 
-    uint32_t rowWord   = (tdesc.tmemAddr + v * tdesc.line) & 0x1FFu;
+    // PORT: Double the stride because we read 16-bit pixels, but the game set line for 8-bit.
+    uint32_t rowWord   = (tdesc.tmemAddr + v * (tdesc.line * 2)) & 0x1FFu;
     uint32_t bitInRow  = u * bppBits;
     uint32_t wordInRow = bitInRow >> 6;
     uint32_t bitInWord = bitInRow & 63u;
     uint32_t word      = (rowWord + wordInRow) & 0x1FFu;
-    if ((tdesc.size & 3) >= 2 && (v & 1)) word ^= 1u;
+    // PORT: Disabled N64 parity swap. PNGs are linear, so we skip the hardware swizzle.
+    // if ((tdesc.size & 3) >= 2 && (v & 1)) word ^= 1u;
     uint32_t byteAddr  = word * 8u + (bitInWord >> 3);
 
     if (byteAddr >= 4096) { outRGBA[0]=outRGBA[1]=outRGBA[2]=outRGBA[3]=0; return; }
