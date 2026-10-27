@@ -806,20 +806,6 @@ static void Matrix_LoadFromN64(BKMatrix* out, const void* src) {
 // =======================================================================
 
 static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
-    // PORT: Force RGBA16 for all fetches. All textures are now PNG-sourced RGBA16;
-    // game SETTILE may still use CI4/CI8 (palette) but our data has no palette.
-    {
-        auto& _td = s_rdp.tiles[s_rdp.activeTile];
-        static int _dbg = 0;
-        if (_dbg++ < 10) {
-            __android_log_print(ANDROID_LOG_ERROR, "BKA-RDP",
-                "ForceRGBA16 tile=%d oldFmt=%u oldSize=%u addr=%p",
-                s_rdp.activeTile, _td.format, _td.size, (void*)s_rdp.texAddr);
-        }
-        _td.format = 1; // G_IM_FMT_RGBA
-        _td.size   = 2; // G_IM_SIZ_16b
-    }
-
     /* PORT: DKR passes 16.16 fixed-point texture coordinates.
        Shifting by 5 (10.5 format) caused rapid wrapping (stripes).
        Shift by 16 for correct pixel mapping. */
@@ -3948,7 +3934,18 @@ void RSP_ProcessGfxTask(OSTask* tp) {
             case 0xFC: Cmd_SetCombine(c); break;
             case 0xD7: Cmd_Texture(c); break;
             case 0xBB: Cmd_Texture(c); break;   // F3DEX (non-2) G_TEXTURE
-            case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F5 SetTile w0=%08X w1=%08X", c.w0, c.w1); Cmd_SetTile(c); break; }
+            case 0xF5: { 
+        static int s_op=0; 
+        if (s_op++<10) __android_log_print(ANDROID_LOG_ERROR, "BKA-RDP", "ForceRGBA16 oldW0=%08X", c.w0); 
+        
+        // PORT: Force RGBA16 (fmt=0, size=2). All our PNGs are RGBA16.
+        // The game sends CI4/CI8, which causes TMEM to fetch the wrong byte offsets.
+        c.w0 = (c.w0 & ~(0x7 << 21)) | (0 << 21); // G_IM_FMT_RGBA (0)
+        c.w0 = (c.w0 & ~(0x3 << 19)) | (2 << 19); // G_IM_SIZ_16b (2)
+        
+        Cmd_SetTile(c); 
+        break; 
+    }
             case 0xF0: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F0 LoadTLUT cur=%p stride=%zu depth=%d enc=%d w0=%08X w1=%08X", (void*)cur, current_stride, depth, cur_dl_enc, c.w0, c.w1); Cmd_LoadTLUT(c); break; }
             case 0xF2: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F2 LoadTile w0=%08X w1=%08X", c.w0, c.w1); /* ARM64 port 2026-10-13: F2 is LoadTile, not SetTileSize */ Cmd_LoadTile(c); break; }
             case 0xFD: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "FD SetTImg cur=%p stride=%zu depth=%d enc=%d w0=%08X w1=%08X", (void*)cur, current_stride, depth, cur_dl_enc, c.w0, c.w1); Cmd_SetTImg(c); break; }
