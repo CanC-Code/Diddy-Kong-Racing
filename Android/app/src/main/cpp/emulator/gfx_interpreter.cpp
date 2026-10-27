@@ -839,13 +839,21 @@ static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
     uint32_t bppBits = 4u << (tdesc.size & 3);
 
     // PORT: Double the stride because we read 16-bit pixels, but the game set line for 8-bit.
-    uint32_t rowWord   = (tdesc.tmemAddr + v * tdesc.line) & 0x1FFu;
+    uint32_t effLine = (tdesc.line > 0) ? (tdesc.line * 4) : 1;
+    uint32_t rowWord = (tdesc.tmemAddr + v * effLine) & 0x1FFu;
     uint32_t bitInRow  = u * bppBits;
     uint32_t wordInRow = bitInRow >> 6;
     uint32_t bitInWord = bitInRow & 63u;
     uint32_t word      = (rowWord + wordInRow) & 0x1FFu;
     // PORT: Disabled N64 parity swap. PNGs are linear, so we skip the hardware swizzle.
     // Swizzle OFF: LoadBlock writes linear bytes
+    static int _dbg2 = 0;
+    if (_dbg2++ < 20) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-TEXDBG",
+            "u=%u v=%u W=%u H=%u sh=0x%X th=0x%X line=%u(x4=%u) tm=0x%X ba=0x%X",
+            u, v, texW, texH, tdesc.sh, tdesc.th, tdesc.line, effLine,
+            tdesc.tmemAddr, word * 8u + (bitInWord >> 3));
+    }
     uint32_t byteAddr  = word * 8u + (bitInWord >> 3);
 
     if (byteAddr >= 4096) { outRGBA[0]=outRGBA[1]=outRGBA[2]=outRGBA[3]=0; return; }
