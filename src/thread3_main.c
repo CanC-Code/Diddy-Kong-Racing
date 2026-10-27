@@ -979,15 +979,17 @@ void unload_level_menu(void) {
  * In the tracks menu, this only runs if there's a track actively loaded.
  */
 void update_menu_scene(s32 updateRate) {
-#ifdef PORT
-    /* Skip scene render until level_load works — shadow_update crashes on NULL shadow ptr. */
-    (void)updateRate;
-    return;
-#endif
     if (bgload_active() == FALSE) {
+#ifdef PORT
+        /* PORT: skip obj_update (shadow ptr crash) but DO walk the 3D scene DL.
+           render_scene() walks gCurrDisplayList, which after level_load contains
+           the FRONTEND map geometry (RARE logo staircase). */
+        gParticlePtrList_flush();
+#else
         obj_update(updateRate);
         gParticlePtrList_flush();
         ainode_update();
+#endif
         render_scene(&gCurrDisplayList, &gGameCurrMatrix, &gGameCurrVertexList, &gGameCurrTriList, updateRate);
         process_onscreen_textbox(updateRate);
         rdp_init(&gCurrDisplayList);
@@ -1006,8 +1008,8 @@ void mode_menu(s32 updateRate) {
         static int _dkr_menu_init_done = 0;
         if (!_dkr_menu_init_done) {
             _dkr_menu_init_done = 1;
-            __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "mode_menu: one-shot menu_init(MENU_TITLE)");
-            menu_init(MENU_TITLE);
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "mode_menu: FRONTEND + MENU_LOGOS");
+            load_menu_with_level_background(MENU_LOGOS, ASSET_LEVEL_FRONTEND, CUTSCENE_NONE);
         }
     }
 #endif
