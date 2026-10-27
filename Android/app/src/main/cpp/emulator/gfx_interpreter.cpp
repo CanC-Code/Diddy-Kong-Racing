@@ -1367,6 +1367,16 @@ static void Cmd_Texture(GfxCommand cmd) {
             "CMDTEX #%d op=%02X enable=%u tile=%u w0=%08X w1=%08X", s_ct, op, enable, tile, cmd.w0, cmd.w1); }
 }
 
+
+static int g_stile_log = 0;
+static void diag_log_settile(uint32_t tile, uint32_t fmt, uint32_t siz, uint32_t line, uint32_t tm) {
+    if (g_stile_log < 30) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-DIAG-ST",
+            "tile=%u fmt=%u siz=%u line=%u tmem=0x%X", tile, fmt, siz, line, tm);
+        g_stile_log++;
+    }
+}
+
 static void Cmd_SetTile(GfxCommand cmd) {
     uint32_t tile = (cmd.w1 >> 24) & 0x7;
     if (tile >= 8) return;
@@ -1388,15 +1398,6 @@ static void Cmd_SetTile(GfxCommand cmd) {
     { static int s_st = 0; if (s_st++ < 400) __android_log_print(ANDROID_LOG_ERROR, "BKA-SETTILE", "tile=%u fmt=%u siz=%u line=%u tmem=%u pal=%u w0=%08X w1=%08X", tile, t.format, t.size, t.line, t.tmemAddr, t.palette, cmd.w0, cmd.w1); }
 }
 
-
-static int g_stile_log = 0;
-static void diag_log_settile(uint32_t tile, uint32_t fmt, uint32_t siz, uint32_t line, uint32_t tm) {
-    if (g_stile_log < 30) {
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-DIAG-ST",
-            "tile=%u fmt=%u siz=%u line=%u tmem=0x%X", tile, fmt, siz, line, tm);
-        g_stile_log++;
-    }
-}
 static void Cmd_SetTileSize(GfxCommand cmd) {
     uint32_t tile = (cmd.w1 >> 24) & 0x7;
     if (tile >= 8) return;
