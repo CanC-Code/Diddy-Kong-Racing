@@ -1837,10 +1837,16 @@ static void Cmd_LoadTLUT(GfxCommand cmd) {
 
 static void Cmd_LoadBlock(GfxCommand cmd) {
     // PORT: Force 16-bit copy for PNG textures
-    // The game thinks this is a CI8 texture (1 byte/pixel), but our PNG data is RGBA16 (2 bytes/pixel).
-    // By forcing size=2, we copy the full texture into TMEM.
+    // The game thinks this is a CI8 texture (1 byte/pixel), but our data is RGBA16 (2 bytes/pixel).
     s_rdp.texSize = 2; // G_IM_SIZ_16b
     s_rdp.texFmt  = 0; // G_IM_FMT_RGBA
+    
+    // Fix the stride (line) for the active tile.
+    // If the game thought it was CI8, the line is W bytes. We need 2*W for RGBA16.
+    // We just double the line of the active tile to fix the static.
+    s_rdp.tiles[s_rdp.activeTile].line *= 2;
+    s_rdp.tiles[s_rdp.activeTile].format = 0;
+    s_rdp.tiles[s_rdp.activeTile].size = 2;
 
     s_gfx_lb_count++;
     /* Fix T: F3DEX LoadBlock.  Tile field is bits 16-23 of w0, NOT low 3.
