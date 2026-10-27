@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class StreamServer {
     private static final String TAG = "BKA-Stream";
-    static final int W = 292, H = 216;
+    static final int W = 320, H = 240;
     private static final int PORT = 8081;
     private static final int FPS = 30;
 
@@ -160,7 +160,7 @@ public class StreamServer {
         "<head>\n" +
         "<meta charset='utf-8'>\n" +
         "<meta name='viewport' content='width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover'>\n" +
-        "<title>Banjo-Kazooie</title>\n" +
+        "<title>DKR</title>\n" +
         "<style>\n" +
         "html,body{margin:0;padding:0;background:#000;overflow:hidden;height:100%;width:100%}\n" +
         "#screen{width:100vw;height:100vh;object-fit:contain;image-rendering:pixelated;image-rendering:crisp-edges;display:block;background:#000}\n" +

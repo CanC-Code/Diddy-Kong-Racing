@@ -121,13 +121,13 @@ static bool initEGL(ANativeWindow* win) {
     g_rs.ctx = eglCreateContext(g_rs.dpy, c, EGL_NO_CONTEXT, ca);
     if (g_rs.ctx == EGL_NO_CONTEXT) return false;
 
-    const EGLint pbAttr[] = { EGL_WIDTH, 292, EGL_HEIGHT, 216, EGL_NONE };
+    const EGLint pbAttr[] = { EGL_WIDTH, 320, EGL_HEIGHT, 240, EGL_NONE };
     g_rs.surf = eglCreatePbufferSurface(g_rs.dpy, c, pbAttr);
     if (g_rs.surf == EGL_NO_SURFACE) return false;
     if (!eglMakeCurrent(g_rs.dpy, g_rs.surf, g_rs.surf, g_rs.ctx)) return false;
 
     initGL();
-    g_rs.w = 292; g_rs.h = 216;
+    g_rs.w = 320; g_rs.h = 240;
     g_rs.ready = true;
     LOGI("EGL pbuffer up 292x216");
     return true;
@@ -171,8 +171,8 @@ static void dumpFramebufferPPM(int frame_num) {
     snprintf(path, sizeof(path), "/data/data/com.dkrwrapper/files/fb_%04d.ppm", frame_num);
     FILE* f = fopen(path, "wb");
     if (!f) return;
-    fprintf(f, "P6\n292 216\n255\n");
-    for (int i = 0; i < 292 * 216; i++) {
+    fprintf(f, "P6\n292 240\n255\n");
+    for (int i = 0; i < 320 * 240; i++) {
         uint16_t px = fb[i];
         uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
         uint8_t g = (px >> 5) & 0x3F;  g = (g << 2) | (g >> 4);
@@ -196,7 +196,7 @@ static void renderFrame() {
 
     ANativeWindow_Buffer buf;
     if (ANativeWindow_lock(g_native_window, &buf, nullptr) == 0) {
-        int W = 292, H = 216;
+        int W = 320, H = 240;
         int dw = buf.width, dh = buf.height;
         int scale = dw / W < dh / H ? dw / W : dh / H;
         if (scale < 1) scale = 1;
@@ -334,7 +334,7 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     jint* out = env->GetIntArrayElements(outArr, nullptr);
     if (!out) return;
 
-    const int W = 292, H = 216;
+    const int W = 320, H = 240;
 
     if (!gVideoLastFramebuffer || !gVideoCurrFramebuffer) {
         int len = env->GetArrayLength(outArr);
