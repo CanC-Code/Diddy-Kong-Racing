@@ -2121,12 +2121,22 @@ static void Cmd_Vtx(GfxCommand cmd) {
 // =======================================================================
 
 
+/* Local copy of DKR Triangle (from structs.h) — 16 bytes each */
+typedef struct DkrTriangle {
+    u8  flags;
+    u8  vi0;
+    u8  vi1;
+    u8  vi2;
+    s16 uv0u, uv0v;
+    s16 uv1u, uv1v;
+    s16 uv2u, uv2v;
+} DkrTriangle;
+
 static void Cmd_Polygon(GfxCommand cmd) {
-    /* G_TRIN (DKR): w0[23:16] = ((numTris-1)<<4) | texEn; w1 = Triangle array ptr.
-       Each Triangle = {u8 flags, u8 vi0, u8 vi1, u8 vi2, TexCoords uv0, uv1, uv2}. */
+    /* G_TRIN (DKR): w0[23:16] = ((numTris-1)<<4) | texEn; w1 = Triangle array ptr. */
     uint32_t numTris = (((cmd.w0 >> 20) & 0xF)) + 1;
     uint32_t texEn = (cmd.w0 >> 16) & 0x1;
-    Triangle* tri = (Triangle*)RDP_TranslateAddr(cmd.w1);
+    DkrTriangle* tri = (DkrTriangle*)RDP_TranslateAddr(cmd.w1);
     static int _plog = 0;
     if (_plog++ < 20)
         __android_log_print(ANDROID_LOG_ERROR, "BKA-POLY",
@@ -2156,9 +2166,9 @@ static void Cmd_Polygon(GfxCommand cmd) {
             v0->r, v0->g, v0->b, v0->a,
             v1->r, v1->g, v1->b, v1->a,
             v2->r, v2->g, v2->b, v2->a,
-            tri->uv0.u, tri->uv0.v,
-            tri->uv1.u, tri->uv1.v,
-            tri->uv2.u, tri->uv2.v);
+            tri->uv0u, tri->uv0v,
+            tri->uv1u, tri->uv1v,
+            tri->uv2u, tri->uv2v);
     }
 
     s_rdp.textureEnabled = saved_enabled;
