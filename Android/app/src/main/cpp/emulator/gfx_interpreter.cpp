@@ -1392,7 +1392,7 @@ static void diag_log_settile(uint32_t tile, uint32_t fmt, uint32_t siz, uint32_t
 }
 
 static void Cmd_SetTile(GfxCommand cmd) {
-    diag_log("BKA-ST-ENTRY", "tile=%u w0=%08X w1=%08X", (unsigned)((cmd.w1>>24)&7), cmd.w0, cmd.w1);
+    { static int _ste = 0; if (_ste++ < 2000) diag_log("BKA-ST-ENTRY", "tile=%u w0=%08X w1=%08X", (unsigned)((cmd.w1>>24)&7), cmd.w0, cmd.w1); }
     uint32_t tile = (cmd.w1 >> 24) & 0x7;
     if (tile >= 8) return;
     auto& t = s_rdp.tiles[tile];
@@ -1424,6 +1424,17 @@ static void Cmd_SetTileSize(GfxCommand cmd) {
 }
 
 static void Cmd_SetTImg(GfxCommand cmd) {
+    {
+        static int _std = 0;
+        if (_std++ < 2000) {
+            extern uint8_t* gN64_RDRAM;
+            uintptr_t addr = (uintptr_t)s_rdp.texAddr;
+            uintptr_t base = (uintptr_t)gN64_RDRAM;
+            bool is_heap = gN64_RDRAM && ((addr < base) || (addr >= base + 0x800000));
+            diag_log("BKA-SETIMG-DIAG", "w0=%08X w1=%08X addr=%p %s",
+                cmd.w0, cmd.w1, (void*)addr, is_heap ? "HEAP(PNG)" : "RDRAM(game)");
+        }
+    }
     s_gfx_sti_count++;
     /* ARM64 port 2026-10-14: reject bogus SetTImg BEFORE it clobbers
        s_rdp.texAddr. w1==0xFFFFFFFF is a walker-drift artifact: the
@@ -1860,7 +1871,7 @@ static void Cmd_LoadBlock(GfxCommand cmd) {
     uint32_t sh = (cmd.w1 >> 12) & 0xFFF, dxt = cmd.w1 & 0xFFF;
     t.sl = sl; t.tl = tl;
     /* DO NOT overwrite t.sh, t.th, or t.line here! G_SETTILE handles that. */
-    { static int s_lb = 0; if (s_lb++ < 30) {
+    { static int s_lb = 0; if (s_lb++ < 2000) {
         extern uint8_t* gN64_RDRAM;
         uintptr_t addr = (uintptr_t)s_rdp.texAddr;
         uintptr_t base = (uintptr_t)gN64_RDRAM;
@@ -3959,7 +3970,7 @@ void RSP_ProcessGfxTask(OSTask* tp) {
             case 0x70: // Unknown
                 break;
 
-            case 0xF7: Cmd_SetFillColor(c); break;
+            case 0xF7: Cmd_SetTile(c); break; /* F3DDKR: G_SETTILE */
             case 0xFA: Cmd_SetPrimColor(c); break;
             case 0xFB: Cmd_SetEnvColor(c); break;
             case 0xE2: Cmd_SetOtherModeL(c); break;
@@ -3974,7 +3985,7 @@ case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG
             case 0xFD: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "FD SetTImg cur=%p stride=%zu depth=%d enc=%d w0=%08X w1=%08X", (void*)cur, current_stride, depth, cur_dl_enc, c.w0, c.w1); Cmd_SetTImg(c); break; }
             case 0xF3: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F3 LoadBlock w0=%08X w1=%08X", c.w0, c.w1); Cmd_LoadBlock(c); break; }
             case 0xF4: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F4 SetTileSize w0=%08X w1=%08X", c.w0, c.w1); /* ARM64 port 2026-10-13: F4 is SetTileSize in F3DEX1 */ Cmd_SetTileSize(c); break; }
-            case 0xF6: Cmd_FillRect(c); break;
+            case 0xF6: Cmd_SetTImg(c); break; /* F3DDKR: G_SETTEX */
             case 0x07: {
                 /* PORT: opcode 0x07 = Rare SetTextureImage (fires 1:1 with
                    TEXRECT). Try 28-bit offset (standard) AND 24-bit offset
