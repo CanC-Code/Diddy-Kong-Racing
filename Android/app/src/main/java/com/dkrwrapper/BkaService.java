@@ -99,6 +99,7 @@ public class BkaService extends Service {
         // Start HTTP server first so Chrome has something to connect to
         if (server == null) {
             try {
+                StreamServer.setContext(this);
                 server = new StreamServer();
                 Thread t = new Thread(() -> server.serve(), "BKA-Stream-Accept");
                 t.setDaemon(true);

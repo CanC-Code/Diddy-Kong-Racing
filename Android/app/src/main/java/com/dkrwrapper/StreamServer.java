@@ -11,6 +11,9 @@ import java.net.Socket;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class StreamServer {
+    public static android.content.Context sCtx;
+    public static void setContext(android.content.Context ctx) { sCtx = ctx.getApplicationContext(); }
+
     private static final String TAG = "BKA-Stream";
     static final int W = 320, H = 240;
     private static final int PORT = 8081;
@@ -130,7 +133,7 @@ public class StreamServer {
         out.flush();
     }
 
-    private java.io.File getFilesDir() { return getApplicationContext().getFilesDir(); }
+    private java.io.File getFilesDir() { return sCtx != null ? sCtx.getFilesDir() : null; }
 
     private void sendRawStream(OutputStream out) throws IOException {
         String hdr = "HTTP/1.1 200 OK\r\n"
