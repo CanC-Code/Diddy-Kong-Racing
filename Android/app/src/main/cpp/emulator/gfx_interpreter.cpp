@@ -1846,9 +1846,10 @@ static void Cmd_LoadBlock(GfxCommand cmd) {
     // the address is outside the emulator's RDRAM range.
     {
         extern uint8_t* gN64_RDRAM;
-        extern size_t BKA_RDRAM_ALLOC_SIZE;
         uintptr_t addr = (uintptr_t)s_rdp.texAddr;
-        bool is_png = (addr < (uintptr_t)gN64_RDRAM) || (addr >= (uintptr_t)(gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE));
+        uintptr_t base = (uintptr_t)gN64_RDRAM;
+        // N64 RDRAM is at most 8MB. Anything outside [base, base+8MB) is heap (our PNG).
+        bool is_png = gN64_RDRAM && ((addr < base) || (addr >= base + 0x800000));
         if (is_png) {
             auto& _td = s_rdp.tiles[s_rdp.activeTile];
             _td.size = 2; // G_IM_SIZ_16b
