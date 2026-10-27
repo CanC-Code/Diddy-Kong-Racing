@@ -186,7 +186,10 @@ static TextureHeader* load_png_texture(uint32_t id,
 
 extern "C" TextureHeader* png_load_texture_3d(uint32_t id) {
     ensure_initialized();
-    return load_png_texture(id, g_png_paths_3d, g_texture_cache_3d);
+    TextureHeader* h = load_png_texture(id, g_png_paths_3d, g_texture_cache_3d);
+    static int _dbg = 0;
+    if (_dbg++ < 20) __android_log_print(ANDROID_LOG_ERROR, "BKA-PNG-FETCH", "id=0x%X -> %p", id, h);
+    return h;
 }
 extern "C" TextureHeader* png_load_texture_2d(uint32_t id) {
     ensure_initialized();
