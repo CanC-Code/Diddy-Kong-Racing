@@ -819,7 +819,7 @@ static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
         _td.size   = 2; // G_IM_SIZ_16b
         // Double the stride (line) because we are reading 2 bytes/pixel, not 1
         // The game set line for CI8 (1 byte). We need RGBA16 (2 bytes).
-        _td.line   = ((_td.line * 2) > 0) ? (_td.line * 2) : 2; 
+        // _td.line *= 2; REMOVED - caused segfault 
     }
 
     /* PORT: DKR passes 16.16 fixed-point texture coordinates.
