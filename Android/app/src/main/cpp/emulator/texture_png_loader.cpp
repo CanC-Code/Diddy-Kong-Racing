@@ -177,7 +177,8 @@ static TextureHeader* load_png_texture(uint32_t id,
 
     size_t header_size = sizeof(TextureHeader);
     size_t pixel_size = (size_t)w * (size_t)h * 2;
-    TextureHeader* header = (TextureHeader*)calloc(1, header_size + pixel_size);
+    TextureHeader* header = (TextureHeader*)bka_rdram_alloc(header_size + pixel_size);
+    if (header) memset(header, 0, header_size + pixel_size);
     if (!header) { stbi_image_free(data); return nullptr; }
 
     // RGBA16 format = 1 in DKR's enum (0=RGBA32, 1=RGBA16, 2=I8, etc.)
@@ -197,10 +198,11 @@ static TextureHeader* load_png_texture(uint32_t id,
     // Build display list via raw uint32_t writes — works regardless of Gfx struct field names.
     // Standard N64 Gfx = 8 bytes (w0, w1). We assume sizeof(Gfx) == 8, which is universal.
     if (sizeof(Gfx) == 8) {
-        Gfx* cmd = (Gfx*)malloc(5 * sizeof(Gfx));
+        Gfx* cmd = (Gfx*)bka_rdram_alloc(5 * sizeof(Gfx));
         if (cmd) {
             uint32_t* cw = (uint32_t*)cmd;
-            uint32_t pixel_addr = (uint32_t)(uintptr_t)pixels;
+            uintptr_t phys_px = (uintptr_t)pixels - (uintptr_t)gN64_RDRAM;
+            uint32_t pixel_addr = 0x80000000u | (uint32_t)phys_px;
 
             // G_SETTIMG (0xFD): SetTextureImage
             cw[0] = (0xFDu << 24) | (0u << 21) | (2u << 19) | (w - 1);
@@ -222,7 +224,9 @@ static TextureHeader* load_png_texture(uint32_t id,
             cw[8] = (0xB8u << 24);
             cw[9] = 0;
 
-            header->cmd = cmd;
+            // Set cmd to K0 pointer so the emulator's walker can find it
+            uintptr_t phys_cmd = (uintptr_t)cmd - (uintptr_t)gN64_RDRAM;
+            header->cmd = (Gfx*)(0x80000000u | (uint32_t)phys_cmd);
         }
     }
     for (int i = 0; i < w * h; ++i) {
