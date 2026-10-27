@@ -190,6 +190,30 @@ static TextureHeader* load_png_texture(uint32_t id,
     header->textureSize        = (s16)(header_size + pixel_size);
 
     uint16_t* pixels = (uint16_t*)((uint8_t*)header + header_size);
+
+    // --- Build display list to upload texture to TMEM ---
+    // The game relies on header->cmd to copy pixels from RDRAM to TMEM.
+    // Since we bypass the ROM, we must construct this list manually.
+    Gfx* cmd = (Gfx*)malloc(5 * sizeof(Gfx));
+    if (cmd) {
+        uint32_t pixel_addr = (uint32_t)(uintptr_t)pixels;
+        // G_SETTIMG (0xFD): SetTextureImage
+        cmd[0].w0 = (0xFD << 24) | (0 << 21) | (2 << 19) | (w - 1);
+        cmd[0].w1 = pixel_addr;
+        // G_SETTILE (0xF5): SetTile
+        cmd[1].w0 = (0xF5 << 24) | (0 << 21) | (2 << 19) | (w * 2 << 9) | 0;
+        cmd[1].w1 = 0;
+        // G_SETTILESIZE (0xF2): SetTileSize
+        cmd[2].w0 = (0xF2 << 24) | (0 << 12) | 0;
+        cmd[2].w1 = (0 << 24) | (w << 12) | h;
+        // G_LOADBLOCK (0xF3): LoadBlock
+        cmd[3].w0 = (0xF3 << 24) | (0 << 12) | 0;
+        cmd[3].w1 = (0 << 24) | (0 << 12) | ((w * h) - 1);
+        // G_ENDDL (0xB8): EndDisplayList
+        cmd[4].w0 = (0xB8 << 24);
+        cmd[4].w1 = 0;
+        header->cmd = cmd;
+    }
     for (int i = 0; i < w * h; ++i) {
         uint8_t r = data[i*4+0], g = data[i*4+1], b = data[i*4+2], a = data[i*4+3];
         pixels[i] = rgba8_to_n64(r, g, b, a);
