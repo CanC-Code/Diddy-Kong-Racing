@@ -118,7 +118,9 @@ static void scan_dir(const fs::path& dir, const std::string& strip_marker,
         std::string rel = path_str.substr(p + strip_marker.size());
         if (rel.size() > 4 && rel.compare(rel.size() - 4, 4, ".png") == 0) rel.resize(rel.size() - 4);
         std::string key = normalize_name(rel);
+        std::string base_key = normalize_name(entry.path().stem().string());
         if (!key.empty()) out[key] = entry.path().string();
+        if (!base_key.empty() && base_key != key) out[base_key] = entry.path().string();
     }
 }
 
@@ -140,6 +142,9 @@ static void do_init() {
         if (it != norm_2d.end()) g_png_paths_2d[(uint32_t)i] = it->second;
     }
     LOGI("Mapped: 3D %zu/%zu  2D %zu/%zu",
+         g_png_paths_3d.size(), order_3d.size(),
+         g_png_paths_2d.size(), order_2d.size());
+    diag_log("BKA-PNG-MAP-SUMMARY", "3D %zu/%zu 2D %zu/%zu",
          g_png_paths_3d.size(), order_3d.size(),
          g_png_paths_2d.size(), order_2d.size());
 }
