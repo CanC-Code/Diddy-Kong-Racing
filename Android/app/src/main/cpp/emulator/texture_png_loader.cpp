@@ -32,6 +32,20 @@ typedef double             f64;
 
 extern "C" {
 #include "../../../../../../include/structs.h"
+
+#include <cstdarg>
+static void diag_log(const char* tag, const char* fmt, ...) {
+    FILE* f = fopen("/data/data/com.dkrwrapper/files/diag.log", "a");
+    if (!f) return;
+    fprintf(f, "%s: ", tag);
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(f, fmt, ap);
+    va_end(ap);
+    fputc('\n', f);
+    fclose(f);
+}
+
 }
 
 #define LOG_TAG "BKA-PNG"
@@ -188,7 +202,7 @@ extern "C" TextureHeader* png_load_texture_3d(uint32_t id) {
     ensure_initialized();
     TextureHeader* h = load_png_texture(id, g_png_paths_3d, g_texture_cache_3d);
     static int _dbg = 0;
-    if (_dbg++ < 20) __android_log_print(ANDROID_LOG_ERROR, "BKA-PNG-FETCH", "id=0x%X -> %p", id, h);
+    if (_dbg++ < 20) diag_log("BKA-PNG-FETCH", "id=0x%X -> %p", id, h);
     return h;
 }
 extern "C" TextureHeader* png_load_texture_2d(uint32_t id) {

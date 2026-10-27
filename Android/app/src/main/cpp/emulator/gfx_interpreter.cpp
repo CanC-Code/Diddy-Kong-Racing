@@ -79,6 +79,20 @@ static const uint8_t* s_current_cmd = nullptr;
 #include <sys/mman.h>
 #include <unistd.h>
 #include <dlfcn.h>
+
+#include <cstdarg>
+static void diag_log(const char* tag, const char* fmt, ...) {
+    FILE* f = fopen("/data/data/com.dkrwrapper/files/diag.log", "a");
+    if (!f) return;
+    fprintf(f, "%s: ", tag);
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(f, fmt, ap);
+    va_end(ap);
+    fputc('\n', f);
+    fclose(f);
+}
+
 #define BKA_RING_SZ 32
 static struct {
     uintptr_t dl_cur;
@@ -1394,7 +1408,7 @@ static void Cmd_SetTile(GfxCommand cmd) {
     t.mirrorS = (cmd.w1 >>  8) & 0x1;
     t.maskS   = (cmd.w1 >>  4) & 0xF;
     t.shiftS  =  cmd.w1        & 0xF;
-    diag_log_settile(tile, t.format, t.size, t.line, t.tmemAddr);
+    diag_log("BKA-DIAG-ST", "tile=%u fmt=%u siz=%u line=%u tmem=0x%X", tile, t.format, t.size, t.line, t.tmemAddr);
     { static int s_st = 0; if (s_st++ < 400) __android_log_print(ANDROID_LOG_ERROR, "BKA-SETTILE", "tile=%u fmt=%u siz=%u line=%u tmem=%u pal=%u w0=%08X w1=%08X", tile, t.format, t.size, t.line, t.tmemAddr, t.palette, cmd.w0, cmd.w1); }
 }
 
@@ -1850,10 +1864,7 @@ static void Cmd_LoadBlock(GfxCommand cmd) {
         uintptr_t addr = (uintptr_t)s_rdp.texAddr;
         uintptr_t base = (uintptr_t)gN64_RDRAM;
         bool is_heap = gN64_RDRAM && ((addr < base) || (addr >= base + 0x800000));
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-DIAG-LB",
-            "tile=%u sh=%u bytes=%u tm=0x%X line=%u texAddr=%p %s",
-            tile, sh, (sh+1)*8, t.tmemAddr, t.line, (void*)s_rdp.texAddr,
-            is_heap ? "HEAP(PNG)" : "RDRAM(game)");
+        diag_log("BKA-DIAG-LB", "tile=%u sh=%u bytes=%u tm=0x%X line=%u texAddr=%p %s", tile, sh, (sh+1)*8, t.tmemAddr, t.line, (void*)s_rdp.texAddr, is_heap ? "HEAP(PNG)" : "RDRAM(game)");
     } }
 
     uint32_t texSizeBytes = (sh + 1) * 8; // G_LOADBLOCK fix: sh is 64-bit word count - 1

@@ -10,6 +10,21 @@
 #include "tracks.h"
 #include <ultra64.h>
 
+#include <stdio.h>
+#include <stdarg.h>
+static void diag_log_c(const char* tag, const char* fmt, ...) {
+    FILE* f = fopen("/data/data/com.dkrwrapper/files/diag.log", "a");
+    if (!f) return;
+    fprintf(f, "%s: ", tag);
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(f, fmt, ap);
+    va_end(ap);
+    fputc('\n', f);
+    fclose(f);
+}
+
+
 extern TextureHeader* png_load_texture_3d(uint32_t id);
 extern TextureHeader* png_load_texture_2d(uint32_t id);
 extern void init_png_texture_loader(const char* base_path);
@@ -486,11 +501,10 @@ TextureHeader *load_texture(s32 id) {
     if (id & ASSET_MASK_TEX3D) {
         TextureHeader* png = png_load_texture_3d(id & 0x7FFF);
         static int _dbg_lt = 0;
-        if (_dbg_lt++ < 20) __android_log_print(ANDROID_LOG_ERROR, "BKA-DIAG-LT", "id=0x%X png=%p", id, (void*)png);
+        if (_dbg_lt++ < 20) diag_log_c("BKA-DIAG-LT", "id=0x%X png=%p", id, (void*)png);
         if (png) {
             static int _lt3d = 0;
-            if (_lt3d++ < 30) __android_log_print(ANDROID_LOG_ERROR, "BKA-DIAG-LT",
-                "id=0x%X fmt=%u w=%u h=%u cmd=%p", id, png->format, png->width, png->height, (void*)png->cmd);
+            if (_lt3d++ < 30) diag_log_c("BKA-DIAG-LT", "id=0x%X fmt=%u w=%u h=%u cmd=%p", id, png->format, png->width, png->height, (void*)png->cmd);
             return png;
         }
     } else {
