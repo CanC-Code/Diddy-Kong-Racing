@@ -270,5 +270,16 @@ extern "C" TextureHeader* png_load_texture_3d(uint32_t id) {
 }
 extern "C" TextureHeader* png_load_texture_2d(uint32_t id) {
     ensure_initialized();
-    return load_png_texture(id, g_png_paths_2d, g_texture_cache_2d);
+    static int _hits = 0, _misses = 0;
+    TextureHeader* h = load_png_texture(id, g_png_paths_2d, g_texture_cache_2d);
+    if (h) {
+        _hits++;
+        static int _log = 0;
+        if (_log++ < 30) diag_log("BKA-PNG2D-HIT", "id=0x%X %ux%u hits=%d misses=%d", id, h->width, h->height, _hits, _misses);
+    } else {
+        _misses++;
+        static int _logm = 0;
+        if (_logm++ < 30) diag_log("BKA-PNG2D-MISS", "id=0x%X hits=%d misses=%d", id, _hits, _misses);
+    }
+    return h;
 }

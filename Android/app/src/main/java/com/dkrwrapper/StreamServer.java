@@ -86,10 +86,10 @@ public class StreamServer {
                                 lines.add(line);
                             } else {
                                 lineCount.put(key, cnt + 1);
-                                if (cnt < 3) lines.add(line);
-                                else if (cnt == 3) lines.add("  (repeated " + (cnt + 1) + "x)");
+                                if (cnt < 10) lines.add(line);
+                                else if (cnt == 10) lines.add("  (repeated " + (cnt + 1) + "x)");
                             }
-                            if (lines.size() > 200) lines.removeFirst();
+                            if (lines.size() > 2000) lines.removeFirst();
                         }
                         br.close();
                         sb.append("=== DIAG.LOG (last ").append(lines.size()).append(" lines) ===\n");

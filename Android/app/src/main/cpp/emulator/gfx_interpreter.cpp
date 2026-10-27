@@ -999,6 +999,10 @@ static void RasterizeTriangle(
         !std::isfinite(x2) || !std::isfinite(y2)) {
         return;
     }
+    { static int _rf = 0; if (_rf++ < 30)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-RAST-FIRST",
+            "#%d xy=(%.0f,%.0f)(%.0f,%.0f)(%.0f,%.0f) rgb0=(%d,%d,%d) texEn=%d",
+            _rf, x0, y0, x1, y1, x2, y2, r0, g0, b0, (int)s_rdp.textureEnabled); }
 
     s_triangleCount++;
     if (s_triangleCount % 5000 == 1 || s_triangleCount < 5) {
