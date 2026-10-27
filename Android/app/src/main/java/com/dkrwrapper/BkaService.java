@@ -208,17 +208,31 @@ public class BkaService extends Service {
         }
     }
 
+    private static int countPngsRecursive(File dir) {
+        if (dir == null || !dir.exists() || !dir.isDirectory()) return 0;
+        File[] list = dir.listFiles();
+        if (list == null) return 0;
+        int count = 0;
+        for (File f : list) {
+            if (f.isFile()) {
+                if (f.getName().endsWith(".png")) count++;
+            } else if (f.isDirectory()) {
+                count += countPngsRecursive(f);
+            }
+        }
+        return count;
+    }
+
     private void waitForPngsThenBoot() {
         new Thread(() -> {
-            File pngDir = new File(getFilesDir(), "extractor/assets/.vanilla/us.v80/textures/3d");
-            int maxWait = 90;
+            File pngRoot = new File(getFilesDir(), "extractor/assets/.vanilla/us.v80/textures");
+            int maxWait = 120;
             for (int i = 0; i < maxWait; i++) {
-                File[] pngs = pngDir.listFiles();
-                int count = (pngs != null) ? pngs.length : 0;
-                if (i % 5 == 0) Log.i(TAG, "waiting for PNGs... " + count + " so far");
+                int count = countPngsRecursive(pngRoot);
+                if (i % 5 == 0 || count > 1000) Log.i(TAG, "waiting for PNGs... " + count + " so far");
                 if (count > 1000) {
                     Log.i(TAG, "PNGs ready (" + count + " files) — booting engine");
-                    try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+                    try { Thread.sleep(800); } catch (InterruptedException ignored) {}
                     startEngineWhenReady();
                     return;
                 }
