@@ -163,6 +163,17 @@ static inline uint16_t rgba8_to_n64(uint8_t r, uint8_t g, uint8_t b, uint8_t a) 
     return ((r >> 3) << 11) | ((g >> 3) << 6) | ((b >> 3) << 1) | (a >= 128 ? 1 : 0);
 }
 
+extern uint8_t* gN64_RDRAM;
+static uint32_t s_rdram_offset = 0x700000;
+static void* bka_rdram_alloc(size_t size) {
+    if (!gN64_RDRAM) return nullptr;
+    size = (size + 15) & ~15;
+    if (s_rdram_offset + size > 0x800000) return nullptr;
+    void* p = gN64_RDRAM + s_rdram_offset;
+    s_rdram_offset += size;
+    return p;
+}
+
 static TextureHeader* load_png_texture(uint32_t id,
         std::unordered_map<uint32_t, std::string>& paths,
         std::unordered_map<uint32_t, TextureHeader*>& cache) {
