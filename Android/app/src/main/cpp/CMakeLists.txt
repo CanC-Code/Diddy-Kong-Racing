@@ -53,6 +53,16 @@ option(EXCLUDE_GAME_SRC "Skip" OFF)
 set(GAME_SOURCES "")
 if(NOT EXCLUDE_GAME_SRC)
     file(GLOB_RECURSE ALL_GAME_FILES "${REPO_ROOT}/src/*.c")
+    file(GLOB LIBULTRA_AUDIO_SOURCES
+        "${REPO_ROOT}/libultra/src/audio/heapinit.c"
+        "${REPO_ROOT}/libultra/src/audio/heapalloc.c"
+        "${REPO_ROOT}/libultra/src/audio/event.c"
+        "${REPO_ROOT}/libultra/src/audio/sl.c"
+        "${REPO_ROOT}/libultra/src/audio/synaddplayer.c"
+        "${REPO_ROOT}/libultra/src/audio/bnkf.c"
+        "${REPO_ROOT}/libultra/src/audio/load.c"
+        "${REPO_ROOT}/libultra/src/audio/cseq.c")
+    list(APPEND ALL_GAME_FILES ${LIBULTRA_AUDIO_SOURCES})
     set(EXCLUDE_LIST createthread.c startthread.c stopthread.c destroythread.c
         yieldthread.c settreadpri.c getthreadpri.c createmesgqueue.c
         seteventmesg.c recvmesg.c sendmesg.c jammesg.c visetmode.c
