@@ -1975,8 +1975,25 @@ static void Cmd_LoadBlock(GfxCommand cmd) {
 static int s_vtxCallCount = 0;
 static void Cmd_Vtx(GfxCommand cmd) {
     s_vtxCallCount++;
-    uint32_t v0 = ((cmd.w0 >> 16) & 0xFF) / 2;   // F3DEX stores v0*2
-    uint32_t n  = ((cmd.w0 >> 10) & 0x3F) + 1;   // count - 1
+    /* PORT: distinguish standard F3DEX1 gSPVertex from DKR's gSPVertexDKR.
+       Standard: w0[15:0] = ((n-1)<<10) | (n*2), so (w0 & 0x3FF) == n*2.
+       DKR:      w0[15:0] = ((n-1)<<3) | (v&6) | v0, so packed field != n*2. */
+    uint32_t packed = cmd.w0 & 0xFFFF;
+    uint32_t std_n = ((packed >> 10) & 0x3F) + 1;
+    uint32_t std_check = packed & 0x3FF;
+    uint32_t v0, n;
+    bool is_dkr = (std_check != std_n * 2);
+    if (is_dkr) {
+        n = ((packed >> 3) & 0x1F) + 1;
+        v0 = (packed & 0x1) ? 32 : 0;
+        static int _dkrlog = 0;
+        if (_dkrlog++ < 20)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-VTXDKR",
+                "n=%u v0=%u w0=%08X w1=%08X", n, v0, cmd.w0, cmd.w1);
+    } else {
+        v0 = ((packed >> 16) & 0xFF) / 2;
+        n = std_n;
+    }
     uint32_t addr = cmd.w1;
 
     static int s_vtx_dump = 0;
@@ -2102,6 +2119,50 @@ static void Cmd_Vtx(GfxCommand cmd) {
 // w0 = [G_TRI1:8][v2:8][v1:8][v0:8]
 // w1 = [flag:24][00000000]
 // =======================================================================
+
+
+static void Cmd_Polygon(GfxCommand cmd) {
+    /* G_TRIN (DKR): w0[23:16] = ((numTris-1)<<4) | texEn; w1 = Triangle array ptr.
+       Each Triangle = {u8 flags, u8 vi0, u8 vi1, u8 vi2, TexCoords uv0, uv1, uv2}. */
+    uint32_t numTris = (((cmd.w0 >> 20) & 0xF)) + 1;
+    uint32_t texEn = (cmd.w0 >> 16) & 0x1;
+    Triangle* tri = (Triangle*)RDP_TranslateAddr(cmd.w1);
+    static int _plog = 0;
+    if (_plog++ < 20)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-POLY",
+            "tris=%u texEn=%u w0=%08X w1=%08X tri=%p dmemVtx=%d",
+            numTris, texEn, cmd.w0, cmd.w1, (void*)tri, s_rdp.dmemVertexCount);
+    if (!tri) return;
+
+    int saved_enabled = s_rdp.textureEnabled;
+    s_rdp.textureEnabled = (int)texEn;
+
+    for (uint32_t i = 0; i < numTris; i++, tri++) {
+        uint32_t vi0 = tri->vi0, vi1 = tri->vi1, vi2 = tri->vi2;
+        if (vi0 >= (uint32_t)s_rdp.dmemVertexCount ||
+            vi1 >= (uint32_t)s_rdp.dmemVertexCount ||
+            vi2 >= (uint32_t)s_rdp.dmemVertexCount) continue;
+
+        BKVertex* v0 = &s_rdp.dmem[vi0];
+        BKVertex* v1 = &s_rdp.dmem[vi1];
+        BKVertex* v2 = &s_rdp.dmem[vi2];
+
+        float sx0, sy0, sx1, sy1, sx2, sy2;
+        TransformVertex(v0, &sx0, &sy0);
+        TransformVertex(v1, &sx1, &sy1);
+        TransformVertex(v2, &sx2, &sy2);
+
+        RasterizeTriangle(sx0, sy0, sx1, sy1, sx2, sy2,
+            v0->r, v0->g, v0->b, v0->a,
+            v1->r, v1->g, v1->b, v1->a,
+            v2->r, v2->g, v2->b, v2->a,
+            tri->uv0.u, tri->uv0.v,
+            tri->uv1.u, tri->uv1.v,
+            tri->uv2.u, tri->uv2.v);
+    }
+
+    s_rdp.textureEnabled = saved_enabled;
+}
 
 static void Cmd_Tri1(GfxCommand cmd) {
     g_bka_task_tri_count++;
@@ -4774,7 +4835,7 @@ case 0xDC:
             case 0xD4: // G_LOADBLOCK - load texture block (handled by 0xF3)
             case 0xDD: // G_SETTIMG - set texture image (handled by 0xFD)
                 break;
-            case 0x05: // G_TEXTURE - enable texture
+            case 0x05: Cmd_Polygon(c); break;  // G_TRIN (DKR triangle)
             case 0x11: // G_RDPHALF_1 - RDP half command
             case 0x22: // G_RDPHALF_2 - RDP half command
             case 0x2B: // G_SETTIMG - set texture image
