@@ -3980,7 +3980,7 @@ case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG
             case 0xF3: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F3 LoadBlock w0=%08X w1=%08X", c.w0, c.w1); Cmd_LoadBlock(c); break; }
             case 0xF4: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F4 SetTileSize w0=%08X w1=%08X", c.w0, c.w1); /* ARM64 port 2026-10-13: F4 is SetTileSize in F3DEX1 */ Cmd_SetTileSize(c); break; }
             case 0xF6: Cmd_FillRect(c); break;
-            case 0x07_disabled: {
+            case 0x51: /* DISABLED - old Rare SetTextureImage; 0x07 now aliases to G_DL */ {
                 /* PORT: opcode 0x07 = Rare SetTextureImage (fires 1:1 with
                    TEXRECT). Try 28-bit offset (standard) AND 24-bit offset
                    (looks more likely given base+off values), pick whichever
