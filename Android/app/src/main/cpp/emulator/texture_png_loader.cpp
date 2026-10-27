@@ -254,9 +254,18 @@ static TextureHeader* load_png_texture(uint32_t id,
 
 extern "C" TextureHeader* png_load_texture_3d(uint32_t id) {
     ensure_initialized();
+    static int _hits = 0;
+    static int _misses = 0;
     TextureHeader* h = load_png_texture(id, g_png_paths_3d, g_texture_cache_3d);
-    static int _dbg = 0;
-    if (_dbg++ < 20) diag_log("BKA-PNG-FETCH", "id=0x%X -> %p", id, h);
+    if (h) {
+        _hits++;
+        static int _dbg = 0;
+        if (_dbg++ < 30) diag_log("BKA-PNG-HIT", "id=0x%X hits=%d misses=%d", id, _hits, _misses);
+    } else {
+        _misses++;
+        static int _dbgm = 0;
+        if (_dbgm++ < 30) diag_log("BKA-PNG-MISS", "id=0x%X hits=%d misses=%d", id, _hits, _misses);
+    }
     return h;
 }
 extern "C" TextureHeader* png_load_texture_2d(uint32_t id) {

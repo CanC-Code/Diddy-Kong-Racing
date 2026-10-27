@@ -72,12 +72,24 @@ public class StreamServer {
                         java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(f));
                         java.util.LinkedList<String> lines = new java.util.LinkedList<>();
                         String line;
+                        java.util.HashMap<String, Integer> lineCount = new java.util.HashMap<>();
                         while ((line = br.readLine()) != null) {
                             // Skip zero-param SetTile spam
                             if (line.contains("BKA-DIAG-ST") && line.contains("fmt=0 siz=0 line=0 tmem=0x0")) continue;
                             if (line.contains("BKA-ST-ENTRY") && line.contains("w0=F7000000")) continue;
-                            lines.add(line);
-                            if (lines.size() > 300) lines.removeFirst();
+                            // Extract tag prefix for deduplication
+                            int colon = line.indexOf(':');
+                            String key = (colon > 0) ? line.substring(0, colon) + "|" + line.substring(colon+1, Math.min(colon+80, line.length())) : line;
+                            Integer cnt = lineCount.get(key);
+                            if (cnt == null) {
+                                lineCount.put(key, 1);
+                                lines.add(line);
+                            } else {
+                                lineCount.put(key, cnt + 1);
+                                if (cnt < 3) lines.add(line);
+                                else if (cnt == 3) lines.add("  (repeated " + (cnt + 1) + "x)");
+                            }
+                            if (lines.size() > 200) lines.removeFirst();
                         }
                         br.close();
                         sb.append("=== DIAG.LOG (last ").append(lines.size()).append(" lines) ===\n");

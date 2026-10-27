@@ -1438,16 +1438,20 @@ static void Cmd_SetTileSize(GfxCommand cmd) {
 
 static void Cmd_SetTImg(GfxCommand cmd) {
     {
-        static int _std = 0;
-        if (_std++ < 2000) {
+        /* PORT: only log real SetTImg commands (width 1..128, valid pixel fmt). */
+        uint32_t _realFmt = (cmd.w0 >> 21) & 0x7;
+        uint32_t _realSiz = (cmd.w0 >> 19) & 0x3;
+        uint32_t _realW   = (cmd.w0 & 0xFFF) + 1;
+        if (_realFmt <= 5 && _realSiz <= 3 && _realW >= 1 && _realW <= 128) {
             extern uint8_t* gN64_RDRAM;
             uintptr_t addr = (uintptr_t)s_rdp.texAddr;
             uintptr_t base = (uintptr_t)gN64_RDRAM;
-            uint32_t _phys = (uint32_t)(addr - base);
+            uint32_t _phys = (addr >= base) ? (uint32_t)(addr - base) : (uint32_t)addr;
             bool is_heap = gN64_RDRAM && (_phys >= g_png_rdram_start) && (_phys < g_png_rdram_end);
             g_bka_force_rgba = is_heap;
-            diag_log("BKA-SETIMG-DIAG", "w0=%08X w1=%08X addr=%p %s",
-                cmd.w0, cmd.w1, (void*)addr, is_heap ? "HEAP(PNG)" : "RDRAM(game)");
+            diag_log("BKA-SETIMG-DIAG", "w0=%08X w=%u f=%u s=%u w1=%08X phys=0x%X %s",
+                cmd.w0, _realW, _realFmt, _realSiz, cmd.w1, _phys,
+                is_heap ? "HEAP(PNG)" : "RDRAM(game)");
         }
     }
     s_gfx_sti_count++;
@@ -3999,7 +4003,7 @@ case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG
             case 0xF3: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F3 LoadBlock w0=%08X w1=%08X", c.w0, c.w1); Cmd_LoadBlock(c); break; }
             case 0xF4: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F4 SetTileSize w0=%08X w1=%08X", c.w0, c.w1); /* ARM64 port 2026-10-13: F4 is SetTileSize in F3DEX1 */ Cmd_SetTileSize(c); break; }
             case 0xF6: Cmd_FillRect(c); break;
-            case 0x07: /* Rare SetTextureImage */ {
+            case 0x51: /* DISABLED - old Rare SetTextureImage (0x07 not used by game) */ {
                 /* PORT: opcode 0x07 = Rare SetTextureImage (fires 1:1 with
                    TEXRECT). Try 28-bit offset (standard) AND 24-bit offset
                    (looks more likely given base+off values), pick whichever
@@ -4110,35 +4114,6 @@ case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG
                             _tile.tl = 0;
                         }
                         s_rdp.texWidth = size_param;
-
-                        // PORT: Direct TMEM upload of PNG pixels for RGBA16 rendering.
-                        // The game's own F3/F4 (LoadBlock/LoadTile) are not emitted
-                        // in this version, so we copy from s_rdp.texAddr straight to
-                        // TMEM and configure tile 0 as RGBA16.
-                        if (chosen && bka_is_readable(chosen)) {
-                            uint32_t _texBytes = (uint32_t)size_param * size_param * 2;
-                            if (_texBytes > 4096) _texBytes = 4096;
-                            memcpy(s_rdp.tmem, chosen, _texBytes);
-                            auto& _t0 = s_rdp.tiles[0];
-                            _t0.format   = 0;  // RGBA
-                            _t0.size     = 2;  // 16bpp
-                            _t0.tmemAddr = 0;
-                            _t0.line     = (size_param * 2 + 7) / 8;
-                            _t0.sh       = (size_param - 1) << 2;
-                            _t0.th       = (size_param - 1) << 2;
-                            _t0.palette  = 0;
-                            _t0.clampS   = 1;
-                            _t0.clampT   = 1;
-                            _t0.sl = 0; _t0.tl = 0;
-                            static int _tlog = 0;
-                            if (_tlog++ < 15) {
-                                diag_log("BKA-DIRECTTMEM",
-                                    "size=%u bytes=%u first8=%02X%02X%02X%02X %02X%02X%02X%02X",
-                                    size_param, _texBytes,
-                                    chosen[0],chosen[1],chosen[2],chosen[3],
-                                    chosen[4],chosen[5],chosen[6],chosen[7]);
-                            }
-                        }
 
                         /* Load the 16-color palette from RDRAM to TMEM byte 2048.
                            Rare stores the CI4 palette immediately after the texture data. */
