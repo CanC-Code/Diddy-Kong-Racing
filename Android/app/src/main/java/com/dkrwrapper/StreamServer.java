@@ -66,23 +66,29 @@ public class StreamServer {
 
             if ("GET".equals(method) && path.startsWith("/status")) {
                 int pngs = 0;
+                boolean engineRunning = false;
                 try {
-                    java.io.File pngDir = new java.io.File(getFilesDir(), "extractor/assets/.vanilla/us.v80/textures");
-                    if (pngDir.exists()) {
-                        java.util.ArrayDeque<java.io.File> queue = new java.util.ArrayDeque<>();
-                        queue.add(pngDir);
-                        while (!queue.isEmpty()) {
-                            java.io.File d = queue.poll();
-                            java.io.File[] list = d.listFiles();
-                            if (list == null) continue;
-                            for (java.io.File f : list) {
-                                if (f.isFile() && f.getName().endsWith(".png")) pngs++;
-                                else if (f.isDirectory()) queue.add(f);
+                    java.io.File filesDir = sCtx != null ? sCtx.getFilesDir() : null;
+                    if (filesDir != null) {
+                        java.io.File pngDir = new java.io.File(filesDir, "extractor/assets/.vanilla/us.v80/textures");
+                        if (pngDir.exists()) {
+                            java.util.ArrayDeque<java.io.File> queue = new java.util.ArrayDeque<>();
+                            queue.add(pngDir);
+                            while (!queue.isEmpty()) {
+                                java.io.File d = queue.poll();
+                                java.io.File[] list = d.listFiles();
+                                if (list == null) continue;
+                                for (java.io.File f : list) {
+                                    if (f.isFile() && f.getName().endsWith(".png")) pngs++;
+                                    else if (f.isDirectory()) queue.add(f);
+                                }
                             }
                         }
                     }
-                } catch (Throwable t) {}
-                boolean engineRunning = Native.isEngineRunning();
+                    engineRunning = Native.isEngineRunning();
+                } catch (Throwable t) {
+                    android.util.Log.e("BKA", "status error", t);
+                }
                 String json = "{\"pngs\":" + pngs + ",\"engine\":" + engineRunning + "}";
                 byte[] body = json.getBytes("UTF-8");
                 out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " + body.length + "\r\nConnection: close\r\n\r\n").getBytes());

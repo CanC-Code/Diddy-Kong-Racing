@@ -36,19 +36,6 @@
 #include "types.h"
 #include "video.h"
 
-#include <stdio.h>
-#include <stdarg.h>
-static void diag_log_c(const char* tag, const char* fmt, ...) {
-    FILE* f = fopen("/data/user/0/com.dkrwrapper/files/diag.log", "a");
-    if (!f) return;
-    fprintf(f, "%s: ", tag);
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(f, fmt, ap);
-    va_end(ap);
-    fputc('\n', f);
-    fclose(f);
-}
 
 
 /**
@@ -3176,7 +3163,7 @@ void menu_logos_screen_init(void) {
 s32 menu_logo_screen_loop(s32 updateRate) {
     {
         static int _tick = 0;
-        if (_tick++ % 30 == 0) diag_log_c("BKA-LOGO-TICK", "timer=%.2f updateRate=%d", sBootScreenTimer, updateRate);
+        if (_tick++ % 30 == 0) __android_log_print(ANDROID_LOG_ERROR, "BKA-LOGO-TICK", "timer=%.2f updateRate=%d", sBootScreenTimer, updateRate);
     }
     s32 opacity;
     s32 yOffset;
