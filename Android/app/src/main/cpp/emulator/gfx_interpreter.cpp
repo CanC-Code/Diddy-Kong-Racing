@@ -809,12 +809,12 @@ static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
     // PORT: Force RGBA16 for all fetches. All textures are now PNG-sourced RGBA16;
     // game SETTILE may still use CI4/CI8 (palette) but our data has no palette.
     {
-        auto& _td = s_rdp.tiles[tile_idx];
+        auto& _td = s_rdp.tiles[s_rdp.activeTile];
         static int _dbg = 0;
         if (_dbg++ < 10) {
             __android_log_print(ANDROID_LOG_ERROR, "BKA-RDP",
                 "ForceRGBA16 tile=%d oldFmt=%u oldSize=%u addr=%p",
-                tile_idx, _td.format, _td.size, (void*)s_rdp.texAddr);
+                s_rdp.activeTile, _td.format, _td.size, (void*)s_rdp.texAddr);
         }
         _td.format = 1; // G_IM_FMT_RGBA
         _td.size   = 2; // G_IM_SIZ_16b
