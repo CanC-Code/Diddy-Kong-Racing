@@ -1,12 +1,4 @@
 
-
-extern "C" JNIEXPORT jboolean JNICALL
-Java_com_dkrwrapper_Native_isEngineRunning(JNIEnv* env, jclass /*cls*/) {
-    extern uint8_t* gN64_RDRAM;
-    extern uint8_t* gVideoCurrFramebuffer;
-    bool running = (gN64_RDRAM != nullptr) && (gVideoCurrFramebuffer != nullptr);
-    return running ? JNI_TRUE : JNI_FALSE;
-}
 // native_main.cpp — NativeActivity entry and EGL render loop.
 #include <android_native_app_glue.h>
 #include <jni.h>
@@ -20,6 +12,15 @@ extern "C" void init_png_texture_loader(const char* base_path);
 #include <cstdio>
 #include <ctime>
 #include <unistd.h>
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_dkrwrapper_Native_isEngineRunning(JNIEnv* env, jclass /*cls*/) {
+    extern uint8_t* gN64_RDRAM;
+    extern uint8_t* gVideoCurrFramebuffer;
+    bool running = (gN64_RDRAM != nullptr) && (gVideoCurrFramebuffer != nullptr);
+    return running ? JNI_TRUE : JNI_FALSE;
+}
+
 
 #define LOG_TAG "BKA-Native"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
