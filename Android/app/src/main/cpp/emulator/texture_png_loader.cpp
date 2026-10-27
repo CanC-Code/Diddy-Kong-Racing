@@ -252,34 +252,67 @@ static TextureHeader* load_png_texture(uint32_t id,
     return header;
 }
 
+
+// PORT: the game sometimes passes byteswapped texture IDs (0x5900 instead of 0x59).
+// Try multiple interpretations and use the first that resolves in the map.
+static uint32_t resolve_png_id(uint32_t id,
+        const std::unordered_map<uint32_t, std::string>& paths) {
+    // Exact
+    if (paths.find(id) != paths.end()) return id;
+    // id >> 8 (common byteswap: high byte is the actual index)
+    if ((id & 0xFF) == 0 && (id >> 8) != 0) {
+        uint32_t tid = id >> 8;
+        if (paths.find(tid) != paths.end()) return tid;
+    }
+    // 16-bit byteswap
+    if (id != 0 && id != 0xFFFF && id != 0xFF) {
+        uint32_t tid = ((id & 0xFF) << 8) | ((id >> 8) & 0xFF);
+        if (paths.find(tid) != paths.end()) return tid;
+    }
+    // id & 0xFF (low byte)
+    if ((id & 0xFF) != id && (id & 0xFF) != 0) {
+        uint32_t tid = id & 0xFF;
+        if (paths.find(tid) != paths.end()) return tid;
+    }
+    return id; // unchanged; caller will miss
+}
+
 extern "C" TextureHeader* png_load_texture_3d(uint32_t id) {
     ensure_initialized();
     static int _hits = 0;
     static int _misses = 0;
-    TextureHeader* h = load_png_texture(id, g_png_paths_3d, g_texture_cache_3d);
+    uint32_t resolved = resolve_png_id(id, g_png_paths_3d);
+    TextureHeader* h = load_png_texture(resolved, g_png_paths_3d, g_texture_cache_3d);
     if (h) {
         _hits++;
         static int _dbg = 0;
-        if (_dbg++ < 30) diag_log("BKA-PNG-HIT", "id=0x%X hits=%d misses=%d", id, _hits, _misses);
+        if (_dbg++ < 20 || resolved != id) {
+            diag_log("BKA-PNG3D-HIT", "id=0x%X resolved=0x%X %ux%u hits=%d misses=%d",
+                id, resolved, h->width, h->height, _hits, _misses);
+        }
     } else {
         _misses++;
         static int _dbgm = 0;
-        if (_dbgm++ < 30) diag_log("BKA-PNG-MISS", "id=0x%X hits=%d misses=%d", id, _hits, _misses);
+        if (_dbgm++ < 10) diag_log("BKA-PNG3D-MISS", "id=0x%X hits=%d misses=%d", id, _hits, _misses);
     }
     return h;
 }
 extern "C" TextureHeader* png_load_texture_2d(uint32_t id) {
     ensure_initialized();
     static int _hits = 0, _misses = 0;
-    TextureHeader* h = load_png_texture(id, g_png_paths_2d, g_texture_cache_2d);
+    uint32_t resolved = resolve_png_id(id, g_png_paths_2d);
+    TextureHeader* h = load_png_texture(resolved, g_png_paths_2d, g_texture_cache_2d);
     if (h) {
         _hits++;
         static int _log = 0;
-        if (_log++ < 30) diag_log("BKA-PNG2D-HIT", "id=0x%X %ux%u hits=%d misses=%d", id, h->width, h->height, _hits, _misses);
+        if (_log++ < 20 || resolved != id) {
+            diag_log("BKA-PNG2D-HIT", "id=0x%X resolved=0x%X %ux%u hits=%d misses=%d",
+                id, resolved, h->width, h->height, _hits, _misses);
+        }
     } else {
         _misses++;
         static int _logm = 0;
-        if (_logm++ < 30) diag_log("BKA-PNG2D-MISS", "id=0x%X hits=%d misses=%d", id, _hits, _misses);
+        if (_logm++ < 10) diag_log("BKA-PNG2D-MISS", "id=0x%X hits=%d misses=%d", id, _hits, _misses);
     }
     return h;
 }
