@@ -825,7 +825,7 @@ static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
     /* PORT: DKR passes 16.16 fixed-point texture coordinates.
        Shifting by 5 (10.5 format) caused rapid wrapping (stripes).
        Shift by 16 for correct pixel mapping. */
-    uint32_t u = s >> 5, v = t >> 5;
+    uint32_t u = s >> 16, v = t >> 16;
     auto& tdesc = s_rdp.tiles[tile];
     uint32_t texW = (tdesc.sh >> 2) + 1, texH = (tdesc.th >> 2) + 1;
     if (texW == 0) texW = 1;
@@ -839,13 +839,13 @@ static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
     uint32_t bppBits = 4u << (tdesc.size & 3);
 
     // PORT: Double the stride because we read 16-bit pixels, but the game set line for 8-bit.
-    uint32_t rowWord   = (tdesc.tmemAddr + v * (tdesc.line * 2)) & 0x1FFu;
+    uint32_t rowWord   = (tdesc.tmemAddr + v * tdesc.line) & 0x1FFu;
     uint32_t bitInRow  = u * bppBits;
     uint32_t wordInRow = bitInRow >> 6;
     uint32_t bitInWord = bitInRow & 63u;
     uint32_t word      = (rowWord + wordInRow) & 0x1FFu;
     // PORT: Disabled N64 parity swap. PNGs are linear, so we skip the hardware swizzle.
-    // if ((tdesc.size & 3) >= 2 && (v & 1)) word ^= 1u;
+    if ((tdesc.size & 3) >= 2 && (v & 1)) word ^= 1u;
     uint32_t byteAddr  = word * 8u + (bitInWord >> 3);
 
     if (byteAddr >= 4096) { outRGBA[0]=outRGBA[1]=outRGBA[2]=outRGBA[3]=0; return; }
@@ -1854,7 +1854,7 @@ static void Cmd_LoadBlock(GfxCommand cmd) {
             auto& _td = s_rdp.tiles[s_rdp.activeTile];
             _td.size = 2; // G_IM_SIZ_16b
             _td.format = 0; // G_IM_FMT_RGBA
-            if (_td.line > 0) _td.line *= 2; // Double stride for 16-bit
+            // _td.line *= 2; removed (handled in FetchTexel)
         }
     }
 
