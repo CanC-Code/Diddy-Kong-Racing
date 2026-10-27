@@ -49,6 +49,7 @@ void* bka_lookup_addr_by_low32(uint32_t low32);
 static uint8_t* g_bka_dl_cur = nullptr;   // walker sets before dispatch; Cmd_* helpers read for context
 
 static RDPState s_rdp;
+static bool g_bka_force_rgba = false;
 static int g_bka_task_tri_count = 0;
 int g_bka_last_tri2_count = 0;   /* Fix DD: total TRI2 calls, monotonic */
 static int g_mtx_flag_hist[256] = {0};
@@ -1400,6 +1401,11 @@ static void Cmd_SetTile(GfxCommand cmd) {
     t.size    = (cmd.w0 >> 19) & 0x3;
     t.line    = (cmd.w0 >> 9) & 0x1FF;
     t.tmemAddr = cmd.w0 & 0x1FF;
+    if (g_bka_force_rgba) {
+        t.format = 0;
+        t.size = 2;
+        t.line = ((t.sh >> 2) + 1) * 2;
+    }
     t.palette = (cmd.w1 >> 20) & 0xF;
     t.clampT  = (cmd.w1 >> 18) & 0x1;
     t.mirrorT = (cmd.w1 >> 17) & 0x1;
@@ -1431,6 +1437,7 @@ static void Cmd_SetTImg(GfxCommand cmd) {
             uintptr_t addr = (uintptr_t)s_rdp.texAddr;
             uintptr_t base = (uintptr_t)gN64_RDRAM;
             bool is_heap = gN64_RDRAM && ((addr < base) || (addr >= base + 0x800000));
+            g_bka_force_rgba = is_heap;
             diag_log("BKA-SETIMG-DIAG", "w0=%08X w1=%08X addr=%p %s",
                 cmd.w0, cmd.w1, (void*)addr, is_heap ? "HEAP(PNG)" : "RDRAM(game)");
         }
@@ -2956,20 +2963,7 @@ static void Cmd_TexRect(GfxCommand cmd) {
     
     auto& tdesc = s_rdp.tiles[tile];
     
-    /* PORT: Force the render tile to use the full texture loaded by 0x07,
-       ignoring whatever B3/F5 SetTile tried to set. */
-    if (s_rdp.texWidth > 0) {
-        tdesc.sh = (s_rdp.texWidth - 1) << 2;
-        tdesc.th = (s_rdp.texWidth - 1) << 2;
-        /* PORT: FORCE CI4 - B3 overwrites fmt to 0 (RGBA) which misinterprets */
-        tdesc.format = 2;
-        tdesc.size = 0;
-        tdesc.line = (s_rdp.texWidth * 4 + 63) / 64;
-        tdesc.palette = 0;
-        tdesc.tmemAddr = 0;
-        tdesc.palette = 0;  /* PORT: force palette bank 0 */
-        tdesc.tmemAddr = 0; /* PORT: force TMEM base 0 */
-    }
+
 
     int32_t texW = (tdesc.sh >> 2) + 1, texH = (tdesc.th >> 2) + 1;
     if (texW <= 0) texW = 1; if (texH <= 0) texH = 1;
@@ -3986,7 +3980,7 @@ case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG
             case 0xF3: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F3 LoadBlock w0=%08X w1=%08X", c.w0, c.w1); Cmd_LoadBlock(c); break; }
             case 0xF4: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F4 SetTileSize w0=%08X w1=%08X", c.w0, c.w1); /* ARM64 port 2026-10-13: F4 is SetTileSize in F3DEX1 */ Cmd_SetTileSize(c); break; }
             case 0xF6: Cmd_FillRect(c); break;
-            case 0x07: {
+            case 0x07_disabled: {
                 /* PORT: opcode 0x07 = Rare SetTextureImage (fires 1:1 with
                    TEXRECT). Try 28-bit offset (standard) AND 24-bit offset
                    (looks more likely given base+off values), pick whichever
@@ -4286,6 +4280,7 @@ case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG
             case 0xDB: Cmd_MoveWord(c); break;
             case 0xBC: Cmd_MoveWord(c); break;
 
+            case 0x07: // G_DMADL falls through to G_DL
             case 0x06: {
                 uint32_t raw_addr = c.w1;
                 /* Port recomp relocates pointer-carrying commands. The 8-byte

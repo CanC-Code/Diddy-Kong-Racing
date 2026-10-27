@@ -197,7 +197,7 @@ static TextureHeader* load_png_texture(uint32_t id,
     header->height             = (u8)h;
     header->format             = 1;             // RGBA16
     header->numberOfInstances  = 1;
-    header->numberOfCommands   = 0x07;
+    header->numberOfCommands   = 5;
     header->numOfTextures      = 1;
     header->textureSize        = (s16)(header_size + pixel_size);
 
@@ -223,13 +223,13 @@ static TextureHeader* load_png_texture(uint32_t id,
             cw[2] = (0xF5u << 24) | (0u << 21) | (2u << 19) | ((uint32_t)(w * 2) << 9) | 0u;
             cw[3] = 0;
 
-            // G_SETTILESIZE (0xF2): SetTileSize — uls=0, ult=0, lrs=w-1, lrt=h-1
-            cw[4] = (0xF2u << 24) | (0u << 12) | 0u;
-            cw[5] = (0u << 24) | ((uint32_t)(w - 1) << 12) | (uint32_t)(h - 1);
+            // G_SETTILESIZE (0xF4): SetTileSize
+            cw[4] = (0xF4u << 24) | (0u << 12) | 0u;
+            cw[5] = ((uint32_t)(w - 1) << 12) | (uint32_t)(h - 1);
 
-            // G_LOADBLOCK (0xF3): LoadBlock — uls=0, ult=0, texels = w*h-1
-            cw[6] = (0xF3u << 24) | (0u << 12) | 0u;
-            cw[7] = (0u << 24) | (0u << 12) | ((uint32_t)(w * h) - 1);
+            // G_LOADTILE (0xB2): LoadTile (not LoadBlock — LoadTile uses tile dims)
+            cw[6] = (0xB2u << 24) | (0u << 12) | 0u;
+            cw[7] = ((uint32_t)(w - 1) << 12) | (uint32_t)(h - 1);
 
             // G_ENDDL (0xB8)
             cw[8] = (0xB8u << 24);
