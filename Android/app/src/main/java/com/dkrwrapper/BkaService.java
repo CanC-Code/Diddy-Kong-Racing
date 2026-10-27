@@ -158,15 +158,16 @@ public class BkaService extends Service {
 
         if (baseBin.exists() && baseBin.length() > 0) {
             Log.i(TAG, "rom_base.bin present (" + baseBin.length() + " bytes)");
-            startEngineWhenReady();
+            waitForPngsThenBoot();
         } else if (pngsReady) {
             Log.i(TAG, "PNGs present but no rom_base.bin — booting anyway");
-            startEngineWhenReady();
+            waitForPngsThenBoot();
         } else if (!extractionLaunched) {
             File rom = findRom();
             if (rom != null) {
                 Log.i(TAG, "extraction needed; ROM at " + rom.getAbsolutePath());
                 launchExtraction(rom);
+                waitForPngsThenBoot();
             } else {
                 Log.e(TAG, "no ROM found in any known location");
                 notifyUser("Place auto_rom.z64 in app files, then relaunch");
@@ -205,6 +206,27 @@ public class BkaService extends Service {
         } else {
             startService(svc);
         }
+    }
+
+    private void waitForPngsThenBoot() {
+        new Thread(() -> {
+            File pngDir = new File(getFilesDir(), "extractor/assets/.vanilla/us.v80/textures/3d");
+            int maxWait = 90;
+            for (int i = 0; i < maxWait; i++) {
+                File[] pngs = pngDir.listFiles();
+                int count = (pngs != null) ? pngs.length : 0;
+                if (i % 5 == 0) Log.i(TAG, "waiting for PNGs... " + count + " so far");
+                if (count > 1000) {
+                    Log.i(TAG, "PNGs ready (" + count + " files) — booting engine");
+                    try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+                    startEngineWhenReady();
+                    return;
+                }
+                try { Thread.sleep(1000); } catch (InterruptedException e) { return; }
+            }
+            Log.w(TAG, "Timeout waiting for PNGs — booting anyway");
+            startEngineWhenReady();
+        }, "BKA-Wait-Pngs").start();
     }
 
     private void startEngineWhenReady() {
