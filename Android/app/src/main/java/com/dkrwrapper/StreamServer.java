@@ -73,6 +73,9 @@ public class StreamServer {
                         java.util.LinkedList<String> lines = new java.util.LinkedList<>();
                         String line;
                         while ((line = br.readLine()) != null) {
+                            // Skip zero-param SetTile spam
+                            if (line.contains("BKA-DIAG-ST") && line.contains("fmt=0 siz=0 line=0 tmem=0x0")) continue;
+                            if (line.contains("BKA-ST-ENTRY") && line.contains("w0=F7000000")) continue;
                             lines.add(line);
                             if (lines.size() > 300) lines.removeFirst();
                         }

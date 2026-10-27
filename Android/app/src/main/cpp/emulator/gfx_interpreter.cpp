@@ -1422,7 +1422,7 @@ static void Cmd_SetTile(GfxCommand cmd) {
     t.mirrorS = (cmd.w1 >>  8) & 0x1;
     t.maskS   = (cmd.w1 >>  4) & 0xF;
     t.shiftS  =  cmd.w1        & 0xF;
-    diag_log("BKA-DIAG-ST", "tile=%u fmt=%u siz=%u line=%u tmem=0x%X", tile, t.format, t.size, t.line, t.tmemAddr);
+    if (t.format || t.size || t.line || t.tmemAddr) diag_log("BKA-DIAG-ST", "tile=%u fmt=%u siz=%u line=%u tmem=0x%X", tile, t.format, t.size, t.line, t.tmemAddr);
     { static int s_st = 0; if (s_st++ < 400) __android_log_print(ANDROID_LOG_ERROR, "BKA-SETTILE", "tile=%u fmt=%u siz=%u line=%u tmem=%u pal=%u w0=%08X w1=%08X", tile, t.format, t.size, t.line, t.tmemAddr, t.palette, cmd.w0, cmd.w1); }
 }
 
@@ -3999,7 +3999,7 @@ case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG
             case 0xF3: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F3 LoadBlock w0=%08X w1=%08X", c.w0, c.w1); Cmd_LoadBlock(c); break; }
             case 0xF4: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG_ERROR, "BKA-TILEOP", "F4 SetTileSize w0=%08X w1=%08X", c.w0, c.w1); /* ARM64 port 2026-10-13: F4 is SetTileSize in F3DEX1 */ Cmd_SetTileSize(c); break; }
             case 0xF6: Cmd_FillRect(c); break;
-            case 0x51: /* DISABLED - old Rare SetTextureImage; 0x07 now aliases to G_DL */ {
+            case 0x07: /* Rare SetTextureImage */ {
                 /* PORT: opcode 0x07 = Rare SetTextureImage (fires 1:1 with
                    TEXRECT). Try 28-bit offset (standard) AND 24-bit offset
                    (looks more likely given base+off values), pick whichever
@@ -4110,6 +4110,35 @@ case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG
                             _tile.tl = 0;
                         }
                         s_rdp.texWidth = size_param;
+
+                        // PORT: Direct TMEM upload of PNG pixels for RGBA16 rendering.
+                        // The game's own F3/F4 (LoadBlock/LoadTile) are not emitted
+                        // in this version, so we copy from s_rdp.texAddr straight to
+                        // TMEM and configure tile 0 as RGBA16.
+                        if (chosen && bka_is_readable(chosen)) {
+                            uint32_t _texBytes = (uint32_t)size_param * size_param * 2;
+                            if (_texBytes > 4096) _texBytes = 4096;
+                            memcpy(s_rdp.tmem, chosen, _texBytes);
+                            auto& _t0 = s_rdp.tiles[0];
+                            _t0.format   = 0;  // RGBA
+                            _t0.size     = 2;  // 16bpp
+                            _t0.tmemAddr = 0;
+                            _t0.line     = (size_param * 2 + 7) / 8;
+                            _t0.sh       = (size_param - 1) << 2;
+                            _t0.th       = (size_param - 1) << 2;
+                            _t0.palette  = 0;
+                            _t0.clampS   = 1;
+                            _t0.clampT   = 1;
+                            _t0.sl = 0; _t0.tl = 0;
+                            static int _tlog = 0;
+                            if (_tlog++ < 15) {
+                                diag_log("BKA-DIRECTTMEM",
+                                    "size=%u bytes=%u first8=%02X%02X%02X%02X %02X%02X%02X%02X",
+                                    size_param, _texBytes,
+                                    chosen[0],chosen[1],chosen[2],chosen[3],
+                                    chosen[4],chosen[5],chosen[6],chosen[7]);
+                            }
+                        }
 
                         /* Load the 16-color palette from RDRAM to TMEM byte 2048.
                            Rare stores the CI4 palette immediately after the texture data. */
@@ -4299,7 +4328,6 @@ case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG
             case 0xDB: Cmd_MoveWord(c); break;
             case 0xBC: Cmd_MoveWord(c); break;
 
-            case 0x07: // G_DMADL falls through to G_DL
             case 0x06: {
                 uint32_t raw_addr = c.w1;
                 /* Port recomp relocates pointer-carrying commands. The 8-byte
