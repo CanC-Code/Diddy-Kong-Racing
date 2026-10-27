@@ -194,25 +194,36 @@ static TextureHeader* load_png_texture(uint32_t id,
     // --- Build display list to upload texture to TMEM ---
     // The game relies on header->cmd to copy pixels from RDRAM to TMEM.
     // Since we bypass the ROM, we must construct this list manually.
-    Gfx* cmd = (Gfx*)malloc(5 * sizeof(Gfx));
-    if (cmd) {
-        uint32_t pixel_addr = (uint32_t)(uintptr_t)pixels;
-        // G_SETTIMG (0xFD): SetTextureImage
-        cmd[0].w0 = (0xFD << 24) | (0 << 21) | (2 << 19) | (w - 1);
-        cmd[0].w1 = pixel_addr;
-        // G_SETTILE (0xF5): SetTile
-        cmd[1].w0 = (0xF5 << 24) | (0 << 21) | (2 << 19) | (w * 2 << 9) | 0;
-        cmd[1].w1 = 0;
-        // G_SETTILESIZE (0xF2): SetTileSize
-        cmd[2].w0 = (0xF2 << 24) | (0 << 12) | 0;
-        cmd[2].w1 = (0 << 24) | (w << 12) | h;
-        // G_LOADBLOCK (0xF3): LoadBlock
-        cmd[3].w0 = (0xF3 << 24) | (0 << 12) | 0;
-        cmd[3].w1 = (0 << 24) | (0 << 12) | ((w * h) - 1);
-        // G_ENDDL (0xB8): EndDisplayList
-        cmd[4].w0 = (0xB8 << 24);
-        cmd[4].w1 = 0;
-        header->cmd = cmd;
+    // Build display list via raw uint32_t writes — works regardless of Gfx struct field names.
+    // Standard N64 Gfx = 8 bytes (w0, w1). We assume sizeof(Gfx) == 8, which is universal.
+    if (sizeof(Gfx) == 8) {
+        Gfx* cmd = (Gfx*)malloc(5 * sizeof(Gfx));
+        if (cmd) {
+            uint32_t* cw = (uint32_t*)cmd;
+            uint32_t pixel_addr = (uint32_t)(uintptr_t)pixels;
+
+            // G_SETTIMG (0xFD): SetTextureImage
+            cw[0] = (0xFDu << 24) | (0u << 21) | (2u << 19) | (w - 1);
+            cw[1] = pixel_addr;
+
+            // G_SETTILE (0xF5): SetTile — RGBA, 16b, line=w*2
+            cw[2] = (0xF5u << 24) | (0u << 21) | (2u << 19) | ((uint32_t)(w * 2) << 9) | 0u;
+            cw[3] = 0;
+
+            // G_SETTILESIZE (0xF2): SetTileSize — uls=0, ult=0, lrs=w-1, lrt=h-1
+            cw[4] = (0xF2u << 24) | (0u << 12) | 0u;
+            cw[5] = (0u << 24) | ((uint32_t)(w - 1) << 12) | (uint32_t)(h - 1);
+
+            // G_LOADBLOCK (0xF3): LoadBlock — uls=0, ult=0, texels = w*h-1
+            cw[6] = (0xF3u << 24) | (0u << 12) | 0u;
+            cw[7] = (0u << 24) | (0u << 12) | ((uint32_t)(w * h) - 1);
+
+            // G_ENDDL (0xB8)
+            cw[8] = (0xB8u << 24);
+            cw[9] = 0;
+
+            header->cmd = cmd;
+        }
     }
     for (int i = 0; i < w * h; ++i) {
         uint8_t r = data[i*4+0], g = data[i*4+1], b = data[i*4+2], a = data[i*4+3];
