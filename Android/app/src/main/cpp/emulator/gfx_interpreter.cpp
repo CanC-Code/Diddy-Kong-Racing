@@ -1836,6 +1836,12 @@ static void Cmd_LoadTLUT(GfxCommand cmd) {
 }
 
 static void Cmd_LoadBlock(GfxCommand cmd) {
+    // PORT: Force 16-bit copy for PNG textures
+    // The game thinks this is a CI8 texture (1 byte/pixel), but our PNG data is RGBA16 (2 bytes/pixel).
+    // By forcing size=2, we copy the full texture into TMEM.
+    s_rdp.texSize = 2; // G_IM_SIZ_16b
+    s_rdp.texFmt  = 0; // G_IM_FMT_RGBA
+
     s_gfx_lb_count++;
     /* Fix T: F3DEX LoadBlock.  Tile field is bits 16-23 of w0, NOT low 3.
      * Contiguous transfer; sh encodes 16-bit word count - 1. */
