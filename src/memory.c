@@ -540,11 +540,14 @@ s32 mempool_slot_assign(MemoryPools poolIndex, s32 slotIndex, s32 size, s32 slot
  * Official name: mmAlign16
  */
 u8 *align16(u8 *address) {
-    s32 remainder = (s32) address & 0xF;
-    if (remainder > 0) {
-        address = (u8 *) (((s32) address - remainder) + 16);
+    /* PORT: uintptr_t — (s32) truncated 64-bit heap pointers to low 32 bits,
+       returning wild addresses that corrupted GOT/data on write. */
+    uintptr_t addr = (uintptr_t) address;
+    uintptr_t rem = addr & 0xF;
+    if (rem > 0) {
+        addr = (addr - rem) + 16;
     }
-    return address;
+    return (u8 *) addr;
 }
 
 /**
@@ -552,11 +555,12 @@ u8 *align16(u8 *address) {
  * Official name: mmAlign8
  */
 UNUSED u8 *align8(u8 *address) {
-    s32 remainder = (s32) address & 0x7;
-    if (remainder > 0) {
-        address = (u8 *) (((s32) address - remainder) + 8);
+    uintptr_t addr = (uintptr_t) address;
+    uintptr_t rem = addr & 0x7;
+    if (rem > 0) {
+        addr = (addr - rem) + 8;
     }
-    return address;
+    return (u8 *) addr;
 }
 
 /**

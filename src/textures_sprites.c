@@ -1249,8 +1249,8 @@ Sprite *tex_load_sprite(s32 spriteID, s32 arg1) {
     allocSize += spriteAsset->numberOfFrames * sizeof(Gfx);
     allocSize += numTextures << 4 << 1;
     allocSize += numTextures * 4;
-    allocSize += (s32) align16((u8 *) 0x10);
-    allocSize += (s32) align16((u8 *) (spriteAsset->numberOfFrames * 4));
+    allocSize += 16;  /* inline align16(0x10) — avoids corrupted GOT */
+    allocSize += ((spriteAsset->numberOfFrames * 4 + 15) & ~15);  /* inline align16 — bypasses GOT */
     sprite = (Sprite *) mempool_alloc(allocSize, COLOUR_TAG_MAGENTA);
     if (sprite == NULL) {
         if (cacheFull) {
