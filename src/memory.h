@@ -103,8 +103,21 @@ void mempool_free_queue(void *dataAddress);
 s32 mempool_locked_set(u8 *address);
 s32 mempool_locked_unset(u8 *address);
 s32 mempool_get_pool(u8 *address);
+#ifdef PORT
+#include <stdint.h>
+/* PORT: inline to eliminate PLT call. GOT entry for align16 has been
+   seen corrupted at runtime; calling through PLT crashes. Inline form
+   has no memory dependency. N64 build retains the extern below. */
+static inline u8 *align16(u8 *address) {
+    return (u8 *)(((uintptr_t) address + 15) & ~(uintptr_t)15);
+}
+static inline u8 *align8(u8 *address) {
+    return (u8 *)(((uintptr_t) address + 7) & ~(uintptr_t)7);
+}
+#else
 u8 *align16(u8 *address);
 u8 *align8(u8 *address);
+#endif
 u8 *align4(u8 *address);
 void mempool_print_tags_usb(void);
 void mempool_print_tags_screen(void);

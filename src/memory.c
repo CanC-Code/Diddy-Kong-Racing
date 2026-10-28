@@ -539,6 +539,7 @@ s32 mempool_slot_assign(MemoryPools poolIndex, s32 slotIndex, s32 size, s32 slot
  * Returns the passed in address aligned to the next 16-byte boundary.
  * Official name: mmAlign16
  */
+#ifndef PORT
 u8 *align16(u8 *address) {
     /* PORT: uintptr_t — (s32) truncated 64-bit heap pointers to low 32 bits,
        returning wild addresses that corrupted GOT/data on write. */
@@ -562,6 +563,7 @@ UNUSED u8 *align8(u8 *address) {
     }
     return (u8 *) addr;
 }
+#endif
 
 /**
  * Returns the passed in address aligned to the next 4-byte boundary.
