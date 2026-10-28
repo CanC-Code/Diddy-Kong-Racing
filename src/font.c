@@ -147,6 +147,20 @@ void load_fonts(void) {
     gFonts = (FontData *) (fontAssetData + 1);
 
     for (i = 0; i < gNumberOfFonts; i++) {
+#ifdef PORT
+        /* PORT: FontData fields are BE in ROM, must bswap to LE. */
+        gFonts[i].x = __builtin_bswap16(gFonts[i].x);
+        gFonts[i].y = __builtin_bswap16(gFonts[i].y);
+        gFonts[i].charWidth = __builtin_bswap16(gFonts[i].charWidth);
+        gFonts[i].charHeight = __builtin_bswap16(gFonts[i].charHeight);
+        {
+            int _j;
+            for (_j = 0; _j < 32; _j++) {
+                if (gFonts[i].textureID[_j] == -1) break;
+                gFonts[i].textureID[_j] = (s16)__builtin_bswap16((u16)gFonts[i].textureID[_j]);
+            }
+        }
+#endif
         gFonts[i].loadedFonts[0] = 0;
     }
 
@@ -469,7 +483,11 @@ void render_text_string(Gfx **dList, DialogueBoxBackground *box, char *text, Ali
                     if (lastTextureIndex != textureIndex) {
                         lastTextureIndex = textureIndex;
                         texture = fontData->texturePointers[textureIndex];
-                        gDkrDmaDisplayList((*dList)++, OS_K0_TO_PHYSICAL(texture->cmd), texture->numberOfCommands);
+                        if (texture != NULL) {
+                            gDkrDmaDisplayList((*dList)++, OS_K0_TO_PHYSICAL(texture->cmd), texture->numberOfCommands);
+                        } else {
+                            /* PORT: font glyph texture missing (PNG miss + asset rejected). */
+                        }
                     }
                     textureWidth = fontData->letter[curChar].width;
                     textureHeight = fontData->letter[curChar].height;
