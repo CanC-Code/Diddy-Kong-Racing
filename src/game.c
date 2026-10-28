@@ -73,6 +73,7 @@ void level_global_init(void) {
     s32 j;
     header = mempool_alloc_safe(sizeof(LevelHeader), COLOUR_TAG_YELLOW);
     gTempAssetTable = (s32 *) asset_table_load(ASSET_LEVEL_HEADERS_TABLE);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LEVEL", "level_load: table=%p [0..7]=%d %d %d %d %d %d %d %d", (void*)gTempAssetTable, gTempAssetTable[0], gTempAssetTable[1], gTempAssetTable[2], gTempAssetTable[3], gTempAssetTable[4], gTempAssetTable[5], gTempAssetTable[6], gTempAssetTable[7]);
     /* ARM64: BE offset table needs byteswapping; terminator -1 survives bswap. */
     if (gTempAssetTable != NULL) {
         s32 _n = 0;
@@ -372,6 +373,7 @@ void level_load(s32 levelId, s32 numberOfPlayers, s32 entranceId, Vehicle vehicl
     s32 offset;
 
     rumble_kill();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LEVEL", "level_load: ENTERED levelId=%d numPlayers=%d cutsceneId=%d", levelId, numberOfPlayers, cutsceneId);
     if (cutsceneId == -1) {
         cutsceneId = CUTSCENE_NONE;
     }
@@ -391,17 +393,24 @@ void level_load(s32 levelId, s32 numberOfPlayers, s32 entranceId, Vehicle vehicl
     }
     settings = get_settings();
     gTempAssetTable = (s32 *) asset_table_load(ASSET_LEVEL_HEADERS_TABLE);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LEVEL", "level_load: table=%p [0..7]=%d %d %d %d %d %d %d %d", (void*)gTempAssetTable, gTempAssetTable[0], gTempAssetTable[1], gTempAssetTable[2], gTempAssetTable[3], gTempAssetTable[4], gTempAssetTable[5], gTempAssetTable[6], gTempAssetTable[7]);
 
     for (i = 0; gTempAssetTable[i] != -1; i++) {}
     i--;
     if (levelId >= i) {
         stubbed_printf("LOADLEVEL Error: Level out of range\n");
         levelId = ASSET_LEVEL_CENTRALAREAHUB;
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-LEVEL", "level_load: CLAMPED levelId -> %d", levelId);
     }
 
     offset = gTempAssetTable[levelId];
     size = gTempAssetTable[levelId + 1] - offset;
     gCurrentLevelHeader = (LevelHeader *) mempool_alloc_safe(size, COLOUR_TAG_YELLOW);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LEVEL", "level_load: levelId=%d offset=%d size=%d header=%p", levelId, offset, size, (void*)gCurrentLevelHeader);
+    if (gCurrentLevelHeader == NULL) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-LEVEL", "level_load: NULL header — aborting load (levelId=%d size=%d)", levelId, size);
+        return;
+    }
     asset_load(ASSET_LEVEL_HEADERS, gCurrentLevelHeader, offset, size);
     D_800DD330 = 0;
     prevLevelID = levelId;
