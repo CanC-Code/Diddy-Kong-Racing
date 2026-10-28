@@ -1,4 +1,5 @@
 #include <android/log.h>
+#include <unistd.h>
 #include "thread3_main.h"
 
 #include "asset_enums.h"
@@ -187,6 +188,12 @@ void thread3_main(UNUSED void *unused) {
         }
         main_game_loop();
         thread3_verify_stack();
+#ifdef PORT
+        /* PORT: Throttle to ~60 FPS. Without this, the game spins at
+           300+ FPS, starving the Android OS and triggering the
+           lowmemorykiller or watchdog kill. */
+        usleep(16666);
+#endif
 #ifdef PORT
         /* PORT: Throttle to ~60 FPS. Without this, the game spins at
            300+ FPS, starving the Android OS and triggering the
