@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include "tracks.h"
 
 #include "asset_loading.h"
@@ -2830,7 +2831,9 @@ s32 collision_get_y(s32 levelSegmentIndex, f32 xIn, f32 zIn, f32 *yOut) {
 
 // Loads a level track from the index in the models table.
 void generate_track(s32 modelId) {
-    s32 i, j, k;
+    extern void dkr_bswap_u32_buf(u32 *buf, u32 count);
+    s32 i, k;
+    uintptr_t j;
     s32 temp_s4;
     s32 temp;
     s32 mdl;
@@ -2844,6 +2847,8 @@ void generate_track(s32 modelId) {
     gLevelModelTable = (s32 *) asset_table_load(ASSET_LEVEL_MODELS_TABLE);
 
     for (i = 0; gLevelModelTable[i] != -1; i++) {}
+    dkr_bswap_u32_buf((u32 *)gLevelModelTable, i);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "generate_track: after bswap, %d models [0..7]=%d %d %d %d %d %d %d %d", i, gLevelModelTable[0], gLevelModelTable[1], gLevelModelTable[2], gLevelModelTable[3], gLevelModelTable[4], gLevelModelTable[5], gLevelModelTable[6], gLevelModelTable[7]);
     i--;
     if (modelId >= i) {
         modelId = 0;
@@ -2852,12 +2857,14 @@ void generate_track(s32 modelId) {
     mdl = gLevelModelTable[modelId];
     temp_s4 = gLevelModelTable[modelId + 1] - mdl;
 
-    temp = (s32) gCurrentLevelModel;
-    temp += (LEVEL_MODEL_MAX_SIZE - temp_s4);
-    temp -= ((s32) temp % 16); // Align to 16-byte boundary.
-
-    asset_load(ASSET_LEVEL_MODELS, temp, mdl, temp_s4);
-    gzip_inflate((u8 *) temp, (u8 *) gCurrentLevelModel);
+    {
+        uintptr_t _temp_p = (uintptr_t) gCurrentLevelModel;
+        _temp_p += (LEVEL_MODEL_MAX_SIZE - temp_s4);
+        _temp_p -= (_temp_p % 16);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "generate_track: mdl=%d temp_s4=%d tmp=%p", mdl, temp_s4, (void*)_temp_p);
+        asset_load(ASSET_LEVEL_MODELS, (void *) _temp_p, mdl, temp_s4);
+        gzip_inflate((u8 *) _temp_p, (u8 *) gCurrentLevelModel);
+    }
     mempool_free(gLevelModelTable); // Done with the level models table, so free it.
 
     mdl = (s32) gCurrentLevelModel;
@@ -2879,7 +2886,7 @@ void generate_track(s32 modelId) {
         gCurrentLevelModel->textures[k].texture =
             load_texture(((s32) gCurrentLevelModel->textures[k].texture) | 0x8000);
     }
-    j = (s32) gCurrentLevelModel + gCurrentLevelModel->modelSize;
+    j = (uintptr_t) gCurrentLevelModel + gCurrentLevelModel->modelSize;
     for (k = 0; k < gCurrentLevelModel->numberOfSegments; k++) {
         gCurrentLevelModel->segments[k].unk10 = (s16 *) j;
         j = (s32) align16(((u8 *) (gCurrentLevelModel->segments[k].numberOfTriangles * 2)) + j);
@@ -2891,7 +2898,7 @@ void generate_track(s32 modelId) {
         func_8002C71C(&gCurrentLevelModel->segments[k]);
         j = (s32) align16(((u8 *) (gCurrentLevelModel->segments[k].unk32 * 2)) + j);
     }
-    temp_s4 = j - (s32) gCurrentLevelModel;
+    temp_s4 = (s32) (j - (uintptr_t) gCurrentLevelModel);
     if (temp_s4 > LEVEL_MODEL_MAX_SIZE) {
         rmonPrintf("ERROR!! TrackMem overflow .. %d\n", temp_s4);
     }
