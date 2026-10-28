@@ -428,7 +428,25 @@ void tex_init_textures(void) {
     gNumberOfLoadedTextures = 0;
     gCiPalettesSize = 0;
     gTextureAssetTable[TEX_TABLE_2D] = (s32 *) asset_table_load(ASSET_TEXTURES_2D_TABLE);
-    if (gTextureAssetTable[TEX_TABLE_2D] != NULL) dkr_bswap_u32_buf((u32*)gTextureAssetTable[TEX_TABLE_2D], asset_table_size(ASSET_TEXTURES_2D_TABLE) / sizeof(u32));
+    if (gTextureAssetTable[TEX_TABLE_2D] != NULL) {
+        s32 _tsz = asset_table_size(ASSET_TEXTURES_2D_TABLE);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-TEXINIT",
+            "TEX_TABLE_2D ptr=%p size_bytes=%d entries=%d pre[0..3]=%d %d %d %d",
+            (void*)gTextureAssetTable[TEX_TABLE_2D], (int)_tsz,
+            (int)(_tsz / (s32)sizeof(u32)),
+            (int)gTextureAssetTable[TEX_TABLE_2D][0], (int)gTextureAssetTable[TEX_TABLE_2D][1],
+            (int)gTextureAssetTable[TEX_TABLE_2D][2], (int)gTextureAssetTable[TEX_TABLE_2D][3]);
+        if (_tsz > 0) {
+            dkr_bswap_u32_buf((u32*)gTextureAssetTable[TEX_TABLE_2D], _tsz / (s32)sizeof(u32));
+        } else {
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-TEXINIT",
+                "TEX_TABLE_2D: asset_table_size returned %d — SKIPPING bswap (BUG!)", (int)_tsz);
+        }
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-TEXINIT",
+            "TEX_TABLE_2D post[0..3]=%d %d %d %d",
+            (int)gTextureAssetTable[TEX_TABLE_2D][0], (int)gTextureAssetTable[TEX_TABLE_2D][1],
+            (int)gTextureAssetTable[TEX_TABLE_2D][2], (int)gTextureAssetTable[TEX_TABLE_2D][3]);
+    }
     gTextureAssetTable[TEX_TABLE_3D] = (s32 *) asset_table_load(ASSET_TEXTURES_3D_TABLE);
     if (gTextureAssetTable[TEX_TABLE_3D] != NULL) dkr_bswap_u32_buf((u32*)gTextureAssetTable[TEX_TABLE_3D], asset_table_size(ASSET_TEXTURES_3D_TABLE) / sizeof(u32));
 
@@ -681,6 +699,13 @@ TextureHeader *load_texture(s32 id) {
             TextureHeader * volatile _tex_v = tex;
             __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
                 "before asset_load: tex=%p", (void*)_tex_v);
+            if (assetSize <= 0 || assetSize > (s32)_alloc_size) {
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+                    "REJECT assetSize=%d > alloc_size=%u (id=0x%X assetIndex=%d assetOffset=0x%X)",
+                    (int)assetSize, (unsigned)_alloc_size, (int)id, (int)assetIndex, (unsigned)assetOffset);
+                mempool_free(tex);
+                return NULL;
+            }
             asset_load(assetSection, _tex_v, assetOffset, assetSize);
             // ARM64 BE/LE: swap texture header fields now that we have the body
             _tex_v->format              = __builtin_bswap16(_tex_v->format);
