@@ -14,7 +14,7 @@
 /* ARM64 port: byteswap an array of u32 in place (N64 BE -> host LE).
  * Used at every asset_load boundary where a table of u32 offsets/sizes is
  * loaded from ROM. Matches the OTR pattern: swap per-structure at use site. */
-static void dkr_bswap_u32_buf(u32 *buf, u32 count) {
+void dkr_bswap_u32_buf(u32 *buf, u32 count) {
     for (u32 i = 0; i < count; i++) {
         buf[i] = __builtin_bswap32(buf[i]);
     }
