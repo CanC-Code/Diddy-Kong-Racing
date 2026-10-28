@@ -1200,7 +1200,9 @@ Sprite *tex_load_sprite(s32 spriteID, s32 arg1) {
     size = gSpriteOffsetTable[spriteID];
     spriteAsset = gCurrentSpriteAsset;
     asset_load(ASSET_SPRITES, spriteAsset, size, gSpriteOffsetTable[spriteID + 1] - size);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SPRITE", "tex_load_sprite(id=%d): BEFORE bswap nFrames=%d (0x%04x) baseTexId=%d", spriteID, spriteAsset->numberOfFrames, (u16)spriteAsset->numberOfFrames, spriteAsset->baseTextureId);
     tex_bswap_sprite_asset(spriteAsset);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SPRITE", "tex_load_sprite(id=%d): AFTER bswap nFrames=%d baseTexId=%d", spriteID, spriteAsset->numberOfFrames, spriteAsset->baseTextureId);
 
     numTextures = spriteAsset->frameTexOffsets[spriteAsset->numberOfFrames];
     allocSize = numTextures * 4 * sizeof(Vertex);
