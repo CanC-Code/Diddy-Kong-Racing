@@ -397,6 +397,7 @@ s32 gFirstTexIsLoaded;
 s32 *gSpriteOffsetTable;
 
 s32 *gSpriteCache;
+uintptr_t gSpriteCachePtr64[MAX_NUM_SPRITES];
 
 SpriteAsset *gCurrentSpriteAsset;
 s32 gSpriteTableSize;
@@ -1213,7 +1214,7 @@ Sprite *tex_load_sprite(s32 spriteID, s32 arg1) {
 
     for (i = 0, cacheFull = 0; i < gSpriteCacheCount; i++) {
         if (spriteID == gSpriteCache[ASSETCACHE_ID(i)]) {
-            refSprite = (Sprite *) gSpriteCache[ASSETCACHE_PTR(i)];
+            refSprite = (Sprite *) gSpriteCachePtr64[i];
             refSprite->numberOfInstances++;
             return refSprite;
         }
@@ -1259,12 +1260,12 @@ Sprite *tex_load_sprite(s32 spriteID, s32 arg1) {
         return NULL;
     }
 
-    gSpriteTriangles = (Triangle *) ((s32) sprite + (s32) align16((u8 *) sizeof(Sprite)) +
-                                     (s32) align16((u8 *) (spriteAsset->numberOfFrames * 4)));
-    gSpriteDLists = (Gfx *) ((s32) gSpriteTriangles + numTextures * 0x20); // 0x20 = sizeof(Triangle) * 2
-    gSpriteVertices = (Vertex *) ((s32) gSpriteDLists + numTextures * 0x20 +
+    gSpriteTriangles = (Triangle *) ((uintptr_t) sprite + (uintptr_t) align16((u8 *) sizeof(Sprite)) +
+                                     (uintptr_t) align16((u8 *) (spriteAsset->numberOfFrames * 4)));
+    gSpriteDLists = (Gfx *) ((uintptr_t) gSpriteTriangles + numTextures * 0x20); // 0x20 = sizeof(Triangle) * 2
+    gSpriteVertices = (Vertex *) ((uintptr_t) gSpriteDLists + numTextures * 0x20 +
                                   spriteAsset->numberOfFrames * sizeof(Gfx)); // 0x20 = sizeof(Gfx) * 4
-    sprite->textures = (TextureHeader **) ((s32) gSpriteVertices + numTextures * sizeof(Vertex) * 4);
+    sprite->textures = (TextureHeader **) ((uintptr_t) gSpriteVertices + numTextures * sizeof(Vertex) * 4);
 
     allocFailed = FALSE;
     for (i = 0; i < numTextures; i++) {
@@ -1307,7 +1308,7 @@ Sprite *tex_load_sprite(s32 spriteID, s32 arg1) {
     }
 
     gSpriteCache[ASSETCACHE_ID(cacheNum)] = spriteID;
-    gSpriteCache[ASSETCACHE_PTR(cacheNum)] = (s32) sprite;
+    gSpriteCachePtr64[cacheNum] = (uintptr_t) sprite;
     sprite->numberOfInstances = 1;
     return sprite;
 }
