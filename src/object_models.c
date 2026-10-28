@@ -55,6 +55,12 @@ void allocate_object_model_pools(void) {
     }
     gNumModelIDs--;
     gAnimationTable = (s16 *) asset_table_load(ASSET_ANIMATION_IDS);
+    if (gAnimationTable != NULL) {
+        s32 _anim_count = asset_table_size(ASSET_ANIMATION_IDS) / sizeof(s16);
+        for (s32 _i = 0; _i < _anim_count; _i++) {
+            gAnimationTable[_i] = (s16)__builtin_bswap16((u16)gAnimationTable[_i]);
+        }
+    }
     gObjectAnimationTable = (s32 *) asset_table_load(ASSET_OBJECT_ANIMATIONS_TABLE);
     if (gObjectAnimationTable != NULL) dkr_bswap_u32_buf((u32*)gObjectAnimationTable, asset_table_size(ASSET_OBJECT_ANIMATIONS_TABLE) / sizeof(u32));
     D_8011D644 = (s32) mempool_alloc_safe(0xC00, COLOUR_TAG_GREEN);
