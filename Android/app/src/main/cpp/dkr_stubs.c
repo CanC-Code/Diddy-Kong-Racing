@@ -80,6 +80,7 @@ OSViMode osViModeMpalLpn1;
 Acmd *alAudioFrame(Acmd *cl, s32 *l, s16 *ob, s32 ol) { (void)cl; (void)l; (void)ob; (void)ol; return 0; }
 void alCSPNew(ALCSPlayer *sp, ALSeqpConfig *cfg) { (void)sp; (void)cfg; }
 void alSynNew(ALSynth *s, ALSynConfig *c) { (void)s; (void)c; }
+void alSynDelete(ALSynth *s) { (void)s; }
 u8 alCSPGetChlVol(ALCSPlayer *sp, u8 ch) { (void)sp; (void)ch; return 0; }
 s32 alCSPGetFadeIn(ALCSPlayer *sp) { (void)sp; return 0; }
 s32 alCSPGetState(ALCSPlayer *sp) { (void)sp; return 0; }
