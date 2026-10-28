@@ -1,36 +1,220 @@
-    /* PORT: seqFile setup broken on ARM64:
-     *  - 4-byte alloc but seqCount is at +0x4 (OOB heap garbage)
-     *  - alSeqFileNew double-inverts (bswap of LE-loaded value)
-     *  - ALSeqData struct shift (u8* offset = 8 bytes vs 4 on N64)
-     * Disable audio sequences entirely for Tier 1. Music silent, no crash. */
+#include <android/log.h>
+#include "audio.h"
+#include "memory.h"
+
+#include "asset_enums.h"
+#include "asset_loading.h"
+#include "audio_spatial.h"
+#include "audiomgr.h"
+#include "audiosfx.h"
+#include "libultra/src/audio/seqchannel.h"
+#include "sched.h"
+#include "types.h"
+
+/* ARM64 port: byteswap an array of u32 in place (N64 BE -> host LE).
+ * Used at every asset_load boundary where a table of u32 offsets/sizes is
+ * loaded from ROM. Matches the OTR pattern: swap per-structure at use site. */
+void dkr_bswap_u32_buf(u32 *buf, u32 count) {
+    for (u32 i = 0; i < count; i++) {
+        buf[i] = __builtin_bswap32(buf[i]);
+    }
+}
+
+
+/************ .data ************/
+
+ALCSPlayer *gMusicPlayer = NULL;  // Official Name: tuneSeqPlayer
+ALCSPlayer *gJinglePlayer = NULL; // Official Name: ambientSeqPlayer
+u8 gMusicBaseVolume = 127;
+u8 sfxRelativeVolume = 127;
+u8 gCanPlayMusic = TRUE;
+u8 gCanPlayJingle = FALSE;
+s32 gBlockMusicChange = FALSE;
+s32 audioPrevCount = 0;
+f32 sMusicFadeVolume = 1.0f;
+s32 gMusicSliderVolume = 256;
+s32 gDelayedSoundsCount = 0;
+u8 gMusicNextSeqID = SEQUENCE_NONE;
+u8 gJingleNextSeqID = SEQUENCE_NONE;
+UNUSED s32 D_800DC664 = 0;
+UNUSED s32 D_800DC668 = 0;
+s32 gGlobalMusicVolume = 256; // This is never not 256...
+u8 gBlockVoiceLimitChange = FALSE;
+
+/*******************************/
+
+/************ .bss ************/
+
+// The audio heap is located at the start of the BSS section.
+u8 gAudioHeapStack[AUDIO_HEAP_SIZE];
+
+ALHeap gALHeap;
+ALSeqFile *gSequenceTable;
+void *gMusicSequenceData;
+void *gJingleSequenceData;
+u8 gCurrentSequenceID;
+u8 gCurrentJingleID;
+s32 gMusicTempo;
+u32 *gSeqLengthTable;
+ALBankFile *gSequenceBank;
+ALBankFile *gSoundBank; // Official Name: sfxBankPtr
+SoundData *gSoundTable; // Official Name: sfxIndex
+MusicData *gSeqSoundTable;
+s32 gSoundCount; // Official Name: maxSound
+s32 gSeqSoundCount;
+u32 gSoundTableSize; // Official Name: sfxIndexSize
+u32 gSeqSoundTableSize;
+s16 sMusicTempo;
+f32 gMusicAnimationTick;
+s32 sMusicDelayTimer;
+s32 sMusicDelayLength;
+u8 gMusicPlaying;
+u8 gJinglePlaying;
+DelayedSound gDelayedSounds[8];
+ALCSeq gMusicSequence;
+ALCSeq gJingleSequence;
+u8 gSkipResetChannels; // Stored and used by a single function, but redundant.
+u8 gAudioVolumeSetting;
+u32 gDynamicMusicChannelMask;
+SoundHandle gGlobalSoundMask;
+SoundHandle gSpatialSoundMask;
+SoundHandle gRacerSoundMask;
+
+/******************************/
+
+/**
+ * Allocate memory for all the audio systems, including sequence data, sound data and heaps.
+ * Afterwards, set up the audio thread and start it.
+ */
+void audio_init(OSSched *sc) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "audio_init ENTERED");
+    s32 i;
+    ALSynConfig synth_config[2] = {0};
+    s32 *addrPtr;
+    u32 seqfSize;
+    u32 seqLength;
+    UNUSED u32 pad;
+    audioMgrConfig audConfig;
+
+    seqLength = 0;
+    alHeapInit(&gALHeap, gAudioHeapStack, sizeof(gAudioHeapStack));
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after alHeapInit");
+
+
+    addrPtr = (s32 *) asset_table_load(ASSET_AUDIO_TABLE);
+    if (addrPtr == NULL) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "FATAL: asset_table_load returned NULL");
+        return;
+    }
+    {
+        // ARM64 BE/LE shim: audio metadata table is BE in ROM.
+        // Per asset_audio.meta.json: 13 sub-assets (ASSET_AUDIO_0 .. ASSET_AUDIO_12)
+        const u32 audio_table_entries = 13;
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
+            "audio table BEFORE swap: [0]=%d [1]=%d [2]=%d [3]=%d [4]=%d [5]=%d [6]=%d [7]=%d",
+            addrPtr[0], addrPtr[1], addrPtr[2], addrPtr[3],
+            addrPtr[4], addrPtr[5], addrPtr[6], addrPtr[7]);
+        dkr_bswap_u32_buf((u32 *)addrPtr, audio_table_entries);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
+            "audio table AFTER swap: [0]=%d [1]=%d [2]=%d [3]=%d [4]=%d [5]=%d [6]=%d [7]=%d [8]=%d [9]=%d [10]=%d [11]=%d [12]=%d",
+            addrPtr[0], addrPtr[1], addrPtr[2], addrPtr[3],
+            addrPtr[4], addrPtr[5], addrPtr[6], addrPtr[7],
+            addrPtr[8], addrPtr[9], addrPtr[10], addrPtr[11], addrPtr[12]);
+    }
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after asset_table_load");
+
+
     __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
-        "seqFile: DISABLED for Tier 1 (audio sequences silent)");
-    gSequenceTable = NULL;
-    gSeqLengthTable = NULL;
-    seqfSize = 0;
-    seqLength = 4;
-#if 0
-    gSequenceTable = (ALSeqFile *) alHeapAlloc(&gALHeap, 1, 4);
-    asset_load(ASSET_AUDIO, gSequenceTable, addrPtr[ASSET_AUDIO_4], 4);
+        "LUT addrPtr=%p: [0]=%d [1]=%d [2]=%d [3]=%d [4]=%d [5]=%d [6]=%d [7]=%d",
+        (void*)addrPtr,
+        addrPtr ? addrPtr[ASSET_AUDIO_0] : -1,
+        addrPtr ? addrPtr[ASSET_AUDIO_1] : -1,
+        addrPtr ? addrPtr[ASSET_AUDIO_2] : -1,
+        addrPtr ? addrPtr[ASSET_AUDIO_3] : -1,
+        addrPtr ? addrPtr[ASSET_AUDIO_4] : -1,
+        addrPtr ? addrPtr[ASSET_AUDIO_5] : -1,
+        addrPtr ? addrPtr[ASSET_AUDIO_6] : -1,
+        addrPtr ? addrPtr[ASSET_AUDIO_7] : -1);
 
-    seqfSize = (gSequenceTable->seqCount) * 8 + 4;
-    gSequenceTable = mempool_alloc_safe(seqfSize, COLOUR_TAG_CYAN);
-    asset_load(ASSET_AUDIO, gSequenceTable, addrPtr[ASSET_AUDIO_4], seqfSize);
-    alSeqFileNew(gSequenceTable, asset_rom_offset(ASSET_AUDIO, addrPtr[ASSET_AUDIO_4]));
-    gSeqLengthTable = (u32 *) mempool_alloc_safe((gSequenceTable->seqCount) * 4, COLOUR_TAG_CYAN);
+    gSoundBank = (ALBankFile *) mempool_alloc_safe(addrPtr[ASSET_AUDIO_2] - addrPtr[ASSET_AUDIO_1], COLOUR_TAG_CYAN);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSoundBank alloc");
 
-    for (i = 0; i < gSequenceTable->seqCount; i++) {
-        pad = (u32) (gSequenceTable + 8 + i * 8); // Fakematch
-        gSeqLengthTable[i] = gSequenceTable->seqArray[i].len;
-        if (gSeqLengthTable[i] & 1) {
-            gSeqLengthTable[i]++;
-        }
-        if (seqLength < gSeqLengthTable[i]) {
-            seqLength = gSeqLengthTable[i];
+    asset_load(ASSET_AUDIO, gSoundBank, addrPtr[ASSET_AUDIO_1], addrPtr[ASSET_AUDIO_2] - addrPtr[ASSET_AUDIO_1]);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSoundBank load");
+
+    alBnkfNew(gSoundBank, asset_rom_offset(ASSET_AUDIO, addrPtr[ASSET_AUDIO_2]));
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSoundBank alBnkfNew");
+
+
+    gSoundTableSize = addrPtr[ASSET_AUDIO_7] - addrPtr[ASSET_AUDIO_6];
+    gSoundTable = (SoundData *) mempool_alloc_safe(gSoundTableSize, COLOUR_TAG_CYAN);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSoundTable alloc");
+
+    asset_load(ASSET_AUDIO, gSoundTable, addrPtr[ASSET_AUDIO_6], gSoundTableSize);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSoundTable load");
+
+    gSoundCount = gSoundTableSize / sizeof(SoundData);
+
+    gSeqSoundTableSize = addrPtr[ASSET_AUDIO_6] - addrPtr[ASSET_AUDIO_5];
+    gSeqSoundTable = (MusicData *) mempool_alloc_safe(gSeqSoundTableSize, COLOUR_TAG_CYAN);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSeqSoundTable alloc");
+
+    asset_load(ASSET_AUDIO, gSeqSoundTable, addrPtr[ASSET_AUDIO_5], gSeqSoundTableSize);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSeqSoundTable load");
+
+    gSeqSoundCount = gSeqSoundTableSize / sizeof(MusicData);
+
+    gSequenceBank = (ALBankFile *) mempool_alloc_safe(addrPtr[ASSET_AUDIO_0], COLOUR_TAG_CYAN);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSequenceBank alloc");
+
+    asset_load(ASSET_AUDIO, gSequenceBank, 0, addrPtr[ASSET_AUDIO_0]);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSequenceBank load");
+
+    alBnkfNew(gSequenceBank, asset_rom_offset(ASSET_AUDIO, addrPtr[ASSET_AUDIO_0]));
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSequenceBank alBnkfNew");
+
+    /* PORT: ALSeqFile = {u32 revision; u32 seqCount; ALSeqData seqArray[]}.
+       Original 4-byte alloc left seqCount reading uninit gALHeap → huge
+       garbage → alSeqFileNew walks millions of entries → SEGV. Load 8. */
+    gSequenceTable = (ALSeqFile *) alHeapAlloc(&gALHeap, 1, 8);
+    asset_load(ASSET_AUDIO, gSequenceTable, addrPtr[ASSET_AUDIO_4], 8);
+    {
+        u32 _raw = (u32)gSequenceTable->seqCount;
+        u32 _be  = __builtin_bswap32(_raw);
+        u32 _cnt = 0;
+        if (_raw >= 1 && _raw <= 500)    _cnt = _raw;
+        else if (_be >= 1 && _be <= 500) _cnt = _be;
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
+            "seqFile: raw=0x%X be=0x%X -> cnt=%u", _raw, _be, _cnt);
+        if (_cnt == 0) {
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
+                "seqFile: invalid count, disabling audio sequences (Tier 1)");
+            gSequenceTable = NULL;
+            gSeqLengthTable = NULL;
+            seqfSize = 0;
+            seqLength = 4;
+        } else {
+            gSequenceTable->seqCount = _cnt;
         }
     }
+    if (gSequenceTable != NULL) {
+        seqfSize = (gSequenceTable->seqCount) * 8 + 4;
+        gSequenceTable = mempool_alloc_safe(seqfSize, COLOUR_TAG_CYAN);
+        asset_load(ASSET_AUDIO, gSequenceTable, addrPtr[ASSET_AUDIO_4], seqfSize);
+        alSeqFileNew(gSequenceTable, asset_rom_offset(ASSET_AUDIO, addrPtr[ASSET_AUDIO_4]));
+        gSeqLengthTable = (u32 *) mempool_alloc_safe((gSequenceTable->seqCount) * 4, COLOUR_TAG_CYAN);
 
-#endif
+        for (i = 0; i < gSequenceTable->seqCount; i++) {
+            pad = (u32) (gSequenceTable + 8 + i * 8); // Fakematch
+            gSeqLengthTable[i] = gSequenceTable->seqArray[i].len;
+            if (gSeqLengthTable[i] & 1) {
+                gSeqLengthTable[i]++;
+            }
+            if (seqLength < gSeqLengthTable[i]) {
+                seqLength = gSeqLengthTable[i];
+            }
+        }
+    }
 
     synth_config[0].maxVVoices = 40;
     synth_config[0].maxPVoices = 40;
