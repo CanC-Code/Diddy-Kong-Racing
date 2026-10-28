@@ -1640,7 +1640,7 @@ static void Cmd_SetTImg(GfxCommand cmd) {
                   cmd.w0, cmd.w1, _fmt, (void*)resolved);
           /* Clear texAddr so a later LoadTLUT/LoadBlock cannot read
              from a stale pointer. */
-          s_rdp.texAddr = nullptr;
+          /* PORT: preserve texAddr (do not null) — walker drift, not bad data */
           return;
       } }
     uint32_t fmt = (cmd.w0 >> 21) & 0x7;
