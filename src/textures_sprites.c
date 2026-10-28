@@ -13,6 +13,23 @@ extern void dkr_bswap_u32_buf(u32 *buf, u32 count);
 
 #include <stdio.h>
 #include <stdarg.h>
+
+/* PORT: bswap SpriteAsset header fields (BE ROM -> LE host).
+ * Called immediately after asset_load(ASSET_SPRITES, spriteAsset, ...).
+ * Do NOT use dkr_bswap_u32_buf — would swap baseTextureId/numberOfFrames
+ * with each other in addition to endianness. */
+static void tex_bswap_sprite_asset(SpriteAsset *s) {
+    u16 *h;
+    tex_bswap_sprite_asset(spriteAsset);
+    if (s == NULL) return;
+    h = (u16 *)s;
+    h[0] = __builtin_bswap16(h[0]);   /* baseTextureId */
+    h[1] = __builtin_bswap16(h[1]);   /* numberOfFrames */
+    h[2] = __builtin_bswap16(h[2]);   /* anchor.x */
+    h[3] = __builtin_bswap16(h[3]);   /* anchor.y */
+    ((u32 *)s)[2] = __builtin_bswap32(((u32 *)s)[2]);  /* unused_field */
+}
+
 static void diag_log_c(const char* tag, const char* fmt, ...) {
     FILE* f = fopen("/data/user/0/com.dkrwrapper/files/diag.log", "a");
     if (!f) return;
@@ -1139,17 +1156,6 @@ void material_load_simple(Gfx **dList, s32 flags) {
  * If the sprite is already cached, returns it from the cache.
  * Official name: texLoadSprite
  */
-static void tex_bswap_sprite_asset(SpriteAsset *s) {
-    u16 *h;
-    if (s == NULL) return;
-    h = (u16 *)s;
-    h[0] = __builtin_bswap16(h[0]);   /* baseTextureId */
-    h[1] = __builtin_bswap16(h[1]);   /* numberOfFrames */
-    h[2] = __builtin_bswap16(h[2]);   /* anchor.x */
-    h[3] = __builtin_bswap16(h[3]);   /* anchor.y */
-    ((u32 *)s)[2] = __builtin_bswap32(((u32 *)s)[2]);  /* unused_field */
-}
-
 Sprite *tex_load_sprite(s32 spriteID, s32 arg1) {
     Sprite *refSprite;
     Sprite *sprite;
@@ -1196,7 +1202,6 @@ Sprite *tex_load_sprite(s32 spriteID, s32 arg1) {
     spriteAsset = gCurrentSpriteAsset;
     asset_load(ASSET_SPRITES, spriteAsset, size, gSpriteOffsetTable[spriteID + 1] - size);
     tex_bswap_sprite_asset(spriteAsset);
-    { __android_log_print(ANDROID_LOG_ERROR, "DKR-SPRITE", "tex_load_sprite(spriteID=%d): raw numFrames=0x%04x baseTexId=0x%04x", spriteID, (u16)spriteAsset->numberOfFrames, (u16)spriteAsset->baseTextureId); tex_bswap_sprite_asset(spriteAsset); __android_log_print(ANDROID_LOG_ERROR, "DKR-SPRITE", "tex_load_sprite: bswapped numFrames=%d baseTexId=%d", spriteAsset->numberOfFrames, spriteAsset->baseTextureId); }
 
     numTextures = spriteAsset->frameTexOffsets[spriteAsset->numberOfFrames];
     allocSize = numTextures * 4 * sizeof(Vertex);
@@ -1335,9 +1340,8 @@ UNUSED u8 func_8007C660(s32 texID) {
         for (i = 0; i < gSpriteTableSize; i++) {
             spriteAsset = gCurrentSpriteAsset;
             asset_load(ASSET_SPRITES, spriteAsset, gSpriteOffsetTable[i],
-    tex_bswap_sprite_asset(spriteAsset);
-    tex_bswap_sprite_asset(spriteAsset);
                        gSpriteOffsetTable[i + 1] - gSpriteOffsetTable[i]);
+    tex_bswap_sprite_asset(spriteAsset);
             numTextures = spriteAsset->frameTexOffsets[spriteAsset->numberOfFrames];
             for (j = 0; j < numTextures; j++) {
                 D_80126370[spriteAsset->baseTextureId + j] = TRUE;
