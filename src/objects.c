@@ -42,6 +42,21 @@ extern void dkr_bswap_u32_buf(u32 *buf, u32 count);
 #include "waves.h"
 #include "weather.h"
 
+#ifdef PORT
+#define OBJ_HEADER_GET_MODEL_IDS(h) ((s32 *)((uintptr_t)(h) + (h)->modelIds))
+#define OBJ_HEADER_GET_VEHICLE_PART_IDS(h) ((s32 *)((uintptr_t)(h) + (h)->vehiclePartIds))
+#define OBJ_HEADER_GET_VEHICLE_PART_INDICES(h) ((s8 *)((uintptr_t)(h) + (h)->vehiclePartIndices))
+#define OBJ_HEADER_GET_OBJECT_PARTICLES(h) ((ObjHeaderParticleEntry *)((uintptr_t)(h) + (h)->objectParticles))
+#define OBJ_HEADER_GET_UNK24(h) ((ObjectHeader24 *)((uintptr_t)(h) + (h)->unk24))
+#else
+#define OBJ_HEADER_GET_MODEL_IDS(h) ((h)->modelIds)
+#define OBJ_HEADER_GET_VEHICLE_PART_IDS(h) ((h)->vehiclePartIds)
+#define OBJ_HEADER_GET_VEHICLE_PART_INDICES(h) ((h)->vehiclePartIndices)
+#define OBJ_HEADER_GET_OBJECT_PARTICLES(h) ((h)->objectParticles)
+#define OBJ_HEADER_GET_UNK24(h) ((h)->unk24)
+#endif
+
+
 #define OBJECT_MAP_SIZE 0x3000
 #define MAX_CHECKPOINTS 60
 #define OBJECT_POOL_SIZE 0x15800
