@@ -187,6 +187,12 @@ void thread3_main(UNUSED void *unused) {
         }
         main_game_loop();
         thread3_verify_stack();
+#ifdef PORT
+        /* PORT: Throttle to ~60 FPS. Without this, the game spins at
+           300+ FPS, starving the Android OS and triggering the
+           lowmemorykiller. 16.6ms per frame = 60.2 FPS. */
+        usleep(16666);
+#endif
     }
 }
 
