@@ -1,3 +1,4 @@
+extern void dkr_bswap_u32_buf(u32 *buf, u32 count);
 #include <android/log.h>
 #include "game.h"
 
@@ -73,6 +74,7 @@ void level_global_init(void) {
     s32 j;
     header = mempool_alloc_safe(sizeof(LevelHeader), COLOUR_TAG_YELLOW);
     gTempAssetTable = (s32 *) asset_table_load(ASSET_LEVEL_HEADERS_TABLE);
+    if (gTempAssetTable != NULL) dkr_bswap_u32_buf((u32*)gTempAssetTable, asset_table_size(ASSET_LEVEL_HEADERS_TABLE) / sizeof(u32));
     __android_log_print(ANDROID_LOG_ERROR, "DKR-LEVEL", "level_load: table=%p [0..7]=%d %d %d %d %d %d %d %d", (void*)gTempAssetTable, gTempAssetTable[0], gTempAssetTable[1], gTempAssetTable[2], gTempAssetTable[3], gTempAssetTable[4], gTempAssetTable[5], gTempAssetTable[6], gTempAssetTable[7]);
     /* ARM64: BE offset table needs byteswapping; terminator -1 survives bswap. */
     if (gTempAssetTable != NULL) {
@@ -128,6 +130,7 @@ void level_global_init(void) {
     mempool_free(gTempAssetTable);
     mempool_free(header);
     gTempAssetTable = (s32 *) asset_table_load(ASSET_LEVEL_NAMES_TABLE);
+    if (gTempAssetTable != NULL) dkr_bswap_u32_buf((u32*)gTempAssetTable, asset_table_size(ASSET_LEVEL_NAMES_TABLE) / sizeof(u32));
     for (i = 0; gTempAssetTable[i] != (-1); i++) {}
     i--;
     size = gTempAssetTable[i] - gTempAssetTable[0];
@@ -768,6 +771,7 @@ void aitable_init(s8 *aiLevelTable) {
         aiLevel = 5;
     }
     gTempAssetTable = (s32 *) asset_table_load(ASSET_AI_BEHAVIOUR_TABLE);
+    if (gTempAssetTable != NULL) dkr_bswap_u32_buf((u32*)gTempAssetTable, asset_table_size(ASSET_AI_BEHAVIOUR_TABLE) / sizeof(u32));
     tableIndexCount = 0;
     while (-1 != (s32) gTempAssetTable[tableIndexCount]) {
         tableIndexCount++;

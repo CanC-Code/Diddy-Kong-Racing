@@ -1,3 +1,4 @@
+extern void dkr_bswap_u32_buf(u32 *buf, u32 count);
 #include "object_models.h"
 #include "asset_enums.h"
 #include "asset_loading.h"
@@ -47,6 +48,7 @@ void allocate_object_model_pools(void) {
     gModelCacheCount = 0;
     D_8011D634 = 0;
     gObjectModelTable = (s32 *) asset_table_load(ASSET_OBJECT_MODELS_TABLE);
+    if (gObjectModelTable != NULL) dkr_bswap_u32_buf((u32*)gObjectModelTable, asset_table_size(ASSET_OBJECT_MODELS_TABLE) / sizeof(u32));
     gNumModelIDs = 0;
     while (gObjectModelTable[gNumModelIDs] != -1) {
         gNumModelIDs++;
@@ -54,6 +56,7 @@ void allocate_object_model_pools(void) {
     gNumModelIDs--;
     gAnimationTable = (s16 *) asset_table_load(ASSET_ANIMATION_IDS);
     gObjectAnimationTable = (s32 *) asset_table_load(ASSET_OBJECT_ANIMATIONS_TABLE);
+    if (gObjectAnimationTable != NULL) dkr_bswap_u32_buf((u32*)gObjectAnimationTable, asset_table_size(ASSET_OBJECT_ANIMATIONS_TABLE) / sizeof(u32));
     D_8011D644 = (s32) mempool_alloc_safe(0xC00, COLOUR_TAG_GREEN);
     gModelAnimOffsetID = 0;
 

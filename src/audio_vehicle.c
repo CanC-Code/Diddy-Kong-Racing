@@ -1,3 +1,4 @@
+extern void dkr_bswap_u32_buf(u32 *buf, u32 count);
 #include "audio_vehicle.h"
 
 #include "asset_loading.h"
@@ -66,6 +67,7 @@ VehicleSoundData *racer_sound_init(s32 characterId, s32 vehicleId) {
     // There is no type check for vehicleId, so passing an unsupported type (e.g. VEHICLE_LOOPDELOOP)
     // will cause out-of-bounds access and undefined behavior.
     table = (s32 *) asset_table_load(ASSET_AUDIO_TABLE);
+    if (table != NULL) dkr_bswap_u32_buf((u32*)table, asset_table_size(ASSET_AUDIO_TABLE) / sizeof(u32));
     assetOffset = table[ASSET_AUDIO_7] + (vehicleId * 10 + characterId) * sizeof(VehicleSoundAsset);
     asset = (VehicleSoundAsset *) mempool_alloc_safe(sizeof(VehicleSoundAsset), COLOUR_TAG_CYAN);
     asset_load(ASSET_AUDIO, asset, assetOffset, sizeof(VehicleSoundAsset));

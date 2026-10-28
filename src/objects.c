@@ -1,3 +1,4 @@
+extern void dkr_bswap_u32_buf(u32 *buf, u32 count);
 #include "objects.h"
 #include "memory.h"
 
@@ -737,6 +738,7 @@ void allocate_object_pools(void) {
     }
     gSpawnObjectHeap = mempool_alloc_safe(OBJECT_BLUEPRINT_SIZE, COLOUR_TAG_BLUE);
     gAssetsObjectHeadersTable = (s32 *) asset_table_load(ASSET_OBJECT_HEADERS_TABLE);
+    if (gAssetsObjectHeadersTable != NULL) dkr_bswap_u32_buf((u32*)gAssetsObjectHeadersTable, asset_table_size(ASSET_OBJECT_HEADERS_TABLE) / sizeof(u32));
     gAssetsObjectHeadersTableLength = 0;
     while (-1 != gAssetsObjectHeadersTable[gAssetsObjectHeadersTableLength]) {
         gAssetsObjectHeadersTableLength++;
@@ -985,6 +987,7 @@ void track_spawn_objects(s32 mapID, s32 index) {
     gObjectMapSize[index] = NULL;
     gObjectMapID[index] = mapID;
     objMapTable = (u32 *) asset_table_load(ASSET_LEVEL_OBJECT_MAPS_TABLE);
+    if (objMapTable != NULL) dkr_bswap_u32_buf((u32*)objMapTable, asset_table_size(ASSET_LEVEL_OBJECT_MAPS_TABLE) / sizeof(u32));
     for (i = 0; objMapTable[i] != 0xFFFFFFFF; i++) {}
     i--;
     if (mapID >= i) {

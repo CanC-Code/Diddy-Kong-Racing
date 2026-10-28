@@ -1,3 +1,4 @@
+extern void dkr_bswap_u32_buf(u32 *buf, u32 count);
 #include "ptr_shim.h"
 #include "textures_sprites.h"
 #include <android/log.h>
@@ -411,7 +412,9 @@ void tex_init_textures(void) {
     gNumberOfLoadedTextures = 0;
     gCiPalettesSize = 0;
     gTextureAssetTable[TEX_TABLE_2D] = (s32 *) asset_table_load(ASSET_TEXTURES_2D_TABLE);
+    if (gTextureAssetTable[TEX_TABLE_2D] != NULL) dkr_bswap_u32_buf((u32*)gTextureAssetTable[TEX_TABLE_2D], asset_table_size(ASSET_TEXTURES_2D_TABLE) / sizeof(u32));
     gTextureAssetTable[TEX_TABLE_3D] = (s32 *) asset_table_load(ASSET_TEXTURES_3D_TABLE);
+    if (gTextureAssetTable[TEX_TABLE_3D] != NULL) dkr_bswap_u32_buf((u32*)gTextureAssetTable[TEX_TABLE_3D], asset_table_size(ASSET_TEXTURES_3D_TABLE) / sizeof(u32));
 
     // ARM64 BE/LE shim: gTextureAssetTable holds BE offsets from ROM.
     // Byteswap in place until the terminator (-1 in BE becomes -1 in LE, so
@@ -439,6 +442,7 @@ void tex_init_textures(void) {
     gCurrentSpriteAsset = mempool_alloc_safe(MAX_SPRITE_ASSET_SIZE, COLOUR_TAG_MAGENTA);
     gSpriteCacheCount = 0;
     gSpriteOffsetTable = (s32 *) asset_table_load(ASSET_SPRITES_TABLE);
+    if (gSpriteOffsetTable != NULL) dkr_bswap_u32_buf((u32*)gSpriteOffsetTable, asset_table_size(ASSET_SPRITES_TABLE) / sizeof(u32));
     gSpriteTableSize = 0;
     while (gSpriteOffsetTable[gSpriteTableSize] != -1) {
         gSpriteTableSize++;

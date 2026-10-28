@@ -1,3 +1,4 @@
+extern void dkr_bswap_u32_buf(u32 *buf, u32 count);
 #include "audiomgr.h"
 #include "asset_loading.h"
 #include "common.h"
@@ -140,6 +141,7 @@ void amCreateAudioMgr(ALSynConfig *c, OSPri pri, OSSched *audSched) {
 
     if (c->fxType[0] == AL_FX_CUSTOM) {
         assetAudioTable = asset_table_load(ASSET_AUDIO_TABLE);
+        if (assetAudioTable != NULL) dkr_bswap_u32_buf((u32*)assetAudioTable, asset_table_size(ASSET_AUDIO_TABLE) / sizeof(u32));
         assetSize = assetAudioTable[ASSET_AUDIO_9] - assetAudioTable[ASSET_AUDIO_8];
         asset8 = mempool_alloc_safe(assetSize, COLOUR_TAG_CYAN);
         asset_load(ASSET_AUDIO, asset8, assetAudioTable[ASSET_AUDIO_8], assetSize);
