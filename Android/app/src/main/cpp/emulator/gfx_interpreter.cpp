@@ -1791,6 +1791,17 @@ static void Cmd_LoadTile(GfxCommand cmd) {
 }
 
 static void Cmd_LoadTLUT(GfxCommand cmd) {
+    /* PORT: Early NULL check. The diagnostic block below dereferences
+       s_rdp.texAddr[0], which crashes if a preceding SetTImg was bogus
+       and set texAddr to nullptr. */
+    if (s_rdp.texAddr == nullptr) {
+        static int s_ltn = 0;
+        if (s_ltn++ < 20)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-LOADTLUT",
+                "SKIP early: texAddr=null");
+        return;
+    }
+
     { uint32_t _s2 = (uint32_t)s_rdp.segmentBase[2];
       if (_s2 == 0xB28625F0u || _s2 == 0xB553D480u || _s2 == 0xB27FB050u || _s2 == 0xB284E050u) {
           __android_log_print(ANDROID_LOG_ERROR, "BKA-LT-RARE",
