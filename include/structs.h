@@ -648,6 +648,24 @@ typedef struct ObjectModel_44 {
     /* 0x04 */ s32 animLength; // Animation length is the result of 16-frame length keyframes.
 } ObjectModel_44;
 
+typedef struct ObjectModelRaw {
+    u32 textures;             u32 vertices;             u32 triangles;
+    u32 collisionFacets;      u32 collisionPlanes;      u32 attachPoints;
+    s16 numberOfAttachPoints; s16 unk1A;
+    u32 collisionSpheres;     s16 collisionSpheresSize;
+    s16 numberOfTextures;     s16 numberOfVertices;
+    s16 numberOfTriangles;    s16 numberOfBatches;
+    u8 pad2A[2];              s32 fileSize;
+    s16 references;           s16 collisionFacetCount;  u8 pad34[4];
+    u32 batches;              f32 unk3C;
+    u32 normals;              u32 animations;
+    s16 numberOfAnimations;   s16 numberOfAnimatedVertices;
+    u32 animatedVertexIndices;
+    s16 hasAnimatedTexture;   s16 texOffsetUpdateRate;
+    u8 pad[0x2C];
+} ObjectModelRaw;
+
+
 typedef struct CollisionFacetPlanes {
     u16 basePlaneIndex;       // Index of the triangle's main collision plane
     u16 edgeBisectorPlane[3]; // Indices of edge bisector planes for triangle edges

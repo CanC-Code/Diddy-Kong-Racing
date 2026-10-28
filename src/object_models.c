@@ -138,23 +138,75 @@ ModelInstance *object_model_init(s32 modelID, s32 flags) {
 
     temp_s0 = gObjectModelTable[modelID];
     sp48 = gObjectModelTable[modelID + 1] - temp_s0;
+#ifdef PORT
+    {
+        u32 uncompressed_size = gzip_size_uncompressed(ASSET_OBJECT_MODELS, temp_s0);
+        s32 arm64_size = (s32)sizeof(ObjectModel);
+        s32 alloc_size = arm64_size + (s32)uncompressed_size + sp48 + 64;
+
+        objMdl = (ObjectModel *) mempool_alloc(alloc_size, COLOUR_TAG_RED);
+        if (objMdl == NULL) {
+#if VERSION >= VERSION_79
+            if (var_a2) { D_8011D634++; }
+            if (cacheChanged) { gModelCacheCount--; }
+#endif
+            return NULL;
+        }
+
+        u8 *raw = (u8 *) objMdl + arm64_size;
+        u8 *compressed = (u8 *) objMdl + alloc_size - sp48;
+        asset_load(ASSET_OBJECT_MODELS, compressed, temp_s0, sp48);
+        gzip_inflate(compressed, raw);
+
+        ObjectModelRaw *r = (ObjectModelRaw *) raw;
+        uintptr_t base = (uintptr_t) raw;
+
+        objMdl->textures              = (TextureInfo *) (base + __builtin_bswap32(r->textures));
+        objMdl->vertices              = (Vertex *)      (base + __builtin_bswap32(r->vertices));
+        objMdl->triangles             = (Triangle *)    (base + __builtin_bswap32(r->triangles));
+        objMdl->collisionFacets       = NULL;
+        objMdl->collisionPlanes       = NULL;
+        objMdl->attachPoints          = (s16 *)         (base + __builtin_bswap32(r->attachPoints));
+        objMdl->numberOfAttachPoints  = (s16) __builtin_bswap16((u16)r->numberOfAttachPoints);
+        objMdl->unk1A                 = (s16) __builtin_bswap16((u16)r->unk1A);
+        objMdl->collisionSpheres      = (s16 *)         (base + __builtin_bswap32(r->collisionSpheres));
+        objMdl->collisionSpheresSize  = (s16) __builtin_bswap16((u16)r->collisionSpheresSize);
+        objMdl->numberOfTextures      = (s16) __builtin_bswap16((u16)r->numberOfTextures);
+        objMdl->numberOfVertices      = (s16) __builtin_bswap16((u16)r->numberOfVertices);
+        objMdl->numberOfTriangles     = (s16) __builtin_bswap16((u16)r->numberOfTriangles);
+        objMdl->numberOfBatches       = (s16) __builtin_bswap16((u16)r->numberOfBatches);
+        objMdl->fileSize              = (s32) __builtin_bswap32((u32)r->fileSize);
+        objMdl->references            = 1;
+        objMdl->collisionFacetCount   = 0;
+        objMdl->batches               = (TriangleBatchInfo *)(base + __builtin_bswap32(r->batches));
+        objMdl->unk3C                 = (f32) __builtin_bswap32((u32)r->unk3C);
+        objMdl->normals               = NULL;
+        objMdl->animations            = NULL;
+        objMdl->numberOfAnimations    = 0;
+        objMdl->numberOfAnimatedVertices = (s16) __builtin_bswap16((u16)r->numberOfAnimatedVertices);
+        objMdl->animatedVertexIndices = (s32 *)         (base + __builtin_bswap32(r->animatedVertexIndices));
+        objMdl->hasAnimatedTexture    = (s16) __builtin_bswap16((u16)r->hasAnimatedTexture);
+        objMdl->texOffsetUpdateRate   = 0;
+
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-MODEL",
+            "modelID=%d uncompressed=%u tex=%d verts=%d tris=%d batches=%d",
+            modelID, uncompressed_size, (int)objMdl->numberOfTextures,
+            (int)objMdl->numberOfVertices, (int)objMdl->numberOfTriangles,
+            (int)objMdl->numberOfBatches);
+    }
+#else
     modelSize = gzip_size_uncompressed(ASSET_OBJECT_MODELS, temp_s0) + sizeof(ObjectModel);
     objMdl = (ObjectModel *) mempool_alloc(modelSize, COLOUR_TAG_RED);
     if (objMdl == NULL) {
 #if VERSION >= VERSION_79
-        if (var_a2) {
-            D_8011D634++;
-        }
-        if (cacheChanged) {
-            gModelCacheCount--;
-        }
+        if (var_a2) { D_8011D634++; }
+        if (cacheChanged) { gModelCacheCount--; }
 #endif
         return NULL;
     }
     compressedData = (u8 *) objMdl + modelSize - sp48;
     asset_load(ASSET_OBJECT_MODELS, compressedData, temp_s0, sp48);
     gzip_inflate((u8 *) compressedData, (u8 *) objMdl);
-#ifdef PORT
     objMdl->textures = (TextureInfo *) ((uintptr_t) objMdl->textures + (uintptr_t) objMdl);
     objMdl->vertices = (Vertex *) ((uintptr_t) objMdl->vertices + (uintptr_t) objMdl);
     objMdl->triangles = (Triangle *) ((uintptr_t) objMdl->triangles + (uintptr_t) objMdl);
@@ -162,16 +214,6 @@ ModelInstance *object_model_init(s32 modelID, s32 flags) {
     objMdl->attachPoints = (s16 *) ((uintptr_t) objMdl->attachPoints + (uintptr_t) objMdl);
     objMdl->collisionSpheres = (s16 *) ((uintptr_t) objMdl->collisionSpheres + (uintptr_t) objMdl);
     objMdl->animatedVertexIndices = (s32 *) ((uintptr_t) objMdl->animatedVertexIndices + (uintptr_t) objMdl);
-#else
-    objMdl->textures = (TextureInfo *) ((s32) objMdl->textures + (u8 *) objMdl);
-    objMdl->vertices = (Vertex *) ((s32) objMdl->vertices + (u8 *) objMdl);
-    objMdl->triangles = (Triangle *) ((s32) objMdl->triangles + (u8 *) objMdl);
-    objMdl->batches = (TriangleBatchInfo *) ((s32) objMdl->batches + (u8 *) objMdl);
-    objMdl->attachPoints = (s16 *) ((s32) objMdl->attachPoints + (u8 *) objMdl);
-    objMdl->collisionSpheres = (s16 *) ((s32) objMdl->collisionSpheres + (u8 *) objMdl);
-    objMdl->animatedVertexIndices = (s32 *) ((s32) objMdl->animatedVertexIndices + (u8 *) objMdl);
-#endif
-    objMdl->references = 1;
     objMdl->collisionFacets = NULL;
     objMdl->collisionPlanes = NULL;
     objMdl->collisionFacetCount = 0;
@@ -179,6 +221,9 @@ ModelInstance *object_model_init(s32 modelID, s32 flags) {
     objMdl->normals = NULL;
     objMdl->numberOfAnimations = 0;
     objMdl->animations = NULL;
+    objMdl->references = 1;
+#endif
+
     sp3F = 0;
     for (i = 0; i < objMdl->numberOfTextures; i++) {
         objMdl->textures[i].texture = load_texture(((s32) objMdl->textures[i].texture) | 0x8000);
@@ -936,7 +981,7 @@ s32 model_anim_init(ObjectModel *model, s32 modelID) {
         }
     }
     model->numberOfAnimations = end - start;
-    allocAnimData = (ObjectModel_44 *) mempool_alloc(model->numberOfAnimations * 8, COLOUR_TAG_RED);
+    allocAnimData = (ObjectModel_44 *) mempool_alloc(model->numberOfAnimations * sizeof(ObjectModel_44), COLOUR_TAG_RED);
     model->animations = allocAnimData;
     if (allocAnimData == NULL) {
         return 1;
@@ -961,7 +1006,11 @@ s32 model_anim_init(ObjectModel *model, s32 modelID) {
         asset_load(ASSET_OBJECT_ANIMATIONS, animAddress, assetOffset, assetSize);
         gzip_inflate((u8 *) animAddress, (u8 *) model->animations[i].anim);
         temp = model->animations[i].anim;
+#ifdef PORT
+        model->animations[i].animLength = (s32)__builtin_bswap32((u32)*temp);
+#else
         model->animations[i].animLength = *temp;
+#endif
         model->animations[i].anim++;
         i++;
         start++;
