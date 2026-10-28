@@ -193,14 +193,14 @@ void audio_init(OSSched *sc) {
         }
     }
 
-    synth_config.maxVVoices = 40;
-    synth_config.maxPVoices = 40;
-    synth_config.maxUpdates = 96;
-    synth_config.dmaproc = NULL;
-    synth_config.fxType[0] = AL_FX_CUSTOM;
-    synth_config.fxType[1] = AL_FX_BIGROOM;
-    synth_config.outputRate = 0;
-    synth_config.heap = &gALHeap;
+    synth_config[0].maxVVoices = 40;
+    synth_config[0].maxPVoices = 40;
+    synth_config[0].maxUpdates = 96;
+    synth_config[0].dmaproc = NULL;
+    synth_config[0].fxType[0] = AL_FX_CUSTOM;
+    synth_config[0].fxType[1] = AL_FX_BIGROOM;
+    synth_config[0].outputRate = 0;
+    synth_config[0].heap = &gALHeap;
     amCreateAudioMgr(&synth_config[0], 12, sc);
     __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after amCreateAudioMgr");
 
