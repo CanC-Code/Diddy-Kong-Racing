@@ -1195,6 +1195,7 @@ Sprite *tex_load_sprite(s32 spriteID, s32 arg1) {
     size = gSpriteOffsetTable[spriteID];
     spriteAsset = gCurrentSpriteAsset;
     asset_load(ASSET_SPRITES, spriteAsset, size, gSpriteOffsetTable[spriteID + 1] - size);
+    tex_bswap_sprite_asset(spriteAsset);
     { __android_log_print(ANDROID_LOG_ERROR, "DKR-SPRITE", "tex_load_sprite(spriteID=%d): raw numFrames=0x%04x baseTexId=0x%04x", spriteID, (u16)spriteAsset->numberOfFrames, (u16)spriteAsset->baseTextureId); tex_bswap_sprite_asset(spriteAsset); __android_log_print(ANDROID_LOG_ERROR, "DKR-SPRITE", "tex_load_sprite: bswapped numFrames=%d baseTexId=%d", spriteAsset->numberOfFrames, spriteAsset->baseTextureId); }
 
     numTextures = spriteAsset->frameTexOffsets[spriteAsset->numberOfFrames];
@@ -1335,6 +1336,7 @@ UNUSED u8 func_8007C660(s32 texID) {
             spriteAsset = gCurrentSpriteAsset;
             asset_load(ASSET_SPRITES, spriteAsset, gSpriteOffsetTable[i],
     tex_bswap_sprite_asset(spriteAsset);
+    tex_bswap_sprite_asset(spriteAsset);
                        gSpriteOffsetTable[i + 1] - gSpriteOffsetTable[i]);
             numTextures = spriteAsset->frameTexOffsets[spriteAsset->numberOfFrames];
             for (j = 0; j < numTextures; j++) {
@@ -1389,6 +1391,7 @@ s32 load_sprite_info(s32 spriteIndex, s32 *anchorXOut, s32 *anchorYOut, s32 *num
     spriteAsset = gCurrentSpriteAsset;
     new_var = size;
     asset_load(ASSET_SPRITES, spriteAsset, start, new_var);
+    tex_bswap_sprite_asset(spriteAsset);
     tex = load_texture(spriteAsset->frameTexOffsets[0] + spriteAsset->baseTextureId);
     if (tex != NULL) {
         *formatOut = TEX_FORMAT(tex->format);
@@ -1432,6 +1435,7 @@ void func_8007CA68(s32 arg0, s32 arg1, s32 *arg2, s32 *arg3, s32 *arg4) {
     // clang-format off
     spriteAsset = gCurrentSpriteAsset; \
     asset_load(ASSET_SPRITES, spriteAsset, temp_a2, gSpriteOffsetTable[arg0 + 1] - temp_a2);
+    tex_bswap_sprite_asset(spriteAsset);
     // clang-format on
 
     if (spriteAsset->numberOfFrames < arg1) {
