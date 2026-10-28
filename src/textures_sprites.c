@@ -15,19 +15,18 @@ extern void dkr_bswap_u32_buf(u32 *buf, u32 count);
 #include <stdarg.h>
 
 /* PORT: bswap SpriteAsset header fields (BE ROM -> LE host).
- * Called immediately after asset_load(ASSET_SPRITES, spriteAsset, ...).
- * Do NOT use dkr_bswap_u32_buf — would swap baseTextureId/numberOfFrames
- * with each other in addition to endianness. */
+ * Called after every sprite load. Per-field bswap16/32.
+ * Do NOT use dkr_bswap_u32_buf — would swap the two leading s16s with
+ * each other in addition to endianness. */
 static void tex_bswap_sprite_asset(SpriteAsset *s) {
     u16 *h;
-    tex_bswap_sprite_asset(spriteAsset);
     if (s == NULL) return;
     h = (u16 *)s;
-    h[0] = __builtin_bswap16(h[0]);   /* baseTextureId */
-    h[1] = __builtin_bswap16(h[1]);   /* numberOfFrames */
-    h[2] = __builtin_bswap16(h[2]);   /* anchor.x */
-    h[3] = __builtin_bswap16(h[3]);   /* anchor.y */
-    ((u32 *)s)[2] = __builtin_bswap32(((u32 *)s)[2]);  /* unused_field */
+    h[0] = __builtin_bswap16(h[0]);
+    h[1] = __builtin_bswap16(h[1]);
+    h[2] = __builtin_bswap16(h[2]);
+    h[3] = __builtin_bswap16(h[3]);
+    ((u32 *)s)[2] = __builtin_bswap32(((u32 *)s)[2]);
 }
 
 static void diag_log_c(const char* tag, const char* fmt, ...) {
