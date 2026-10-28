@@ -1885,6 +1885,21 @@ void tex_animate_texture(TextureHeader *texture, u32 *triangleBatchInfoFlags, s3
 void func_8007F1E8(LevelHeader_70 *arg0) {
     s32 i;
 
+    /* Port: BE->LE bswap LevelHeader_70 if unk0 looks BE-inverted (idempotent) */
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LEVEL", "func_8007F1E8: unk0 pre=0x%x", (u32)arg0->unk0);
+    if ((u32)arg0->unk0 > 0x00010000) {
+        s32 _frames = __builtin_bswap32(arg0->unk0);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-LEVEL", "func_8007F1E8: bswap _frames=%d", _frames);
+        arg0->unk0 = _frames;
+        arg0->unk4 = __builtin_bswap32(arg0->unk4);
+        arg0->unk8 = __builtin_bswap32(arg0->unk8);
+        arg0->unkC = __builtin_bswap32(arg0->unkC);
+        arg0->rgba.word = __builtin_bswap32(arg0->rgba.word);
+        arg0->rgba2.word = __builtin_bswap32(arg0->rgba2.word);
+        for (i = 0; i < _frames; i++) {
+            arg0->unk18[i].unk0 = __builtin_bswap32(arg0->unk18[i].unk0);
+        }
+    }
     arg0->unk4 = 0;
     arg0->unk8 = 0;
     arg0->unkC = 0;

@@ -490,7 +490,8 @@ void level_load(s32 levelId, s32 numberOfPlayers, s32 entranceId, Vehicle vehicl
     for (var_s0 = 0; var_s0 < 7; var_s0++) {
         if ((s32) gCurrentLevelHeader->unk74[var_s0] != -1) {
             gCurrentLevelHeader->unk74[var_s0] =
-                (LevelHeader_70 *) get_misc_asset((s32) gCurrentLevelHeader->unk74[var_s0]);
+                (LevelHeader_70 *) get_misc_asset((s32)__builtin_bswap32((u32)(s32) gCurrentLevelHeader->unk74[var_s0]));
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-LEVEL", "level_load: unk74[%d] resolved=%p", var_s0, (void*)gCurrentLevelHeader->unk74[var_s0]);
             func_8007F1E8((LevelHeader_70 *) gCurrentLevelHeader->unk74[var_s0]);
         }
     }
