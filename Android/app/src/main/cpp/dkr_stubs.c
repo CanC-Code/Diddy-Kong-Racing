@@ -77,8 +77,6 @@ OSViMode osViModeMpalLan1;
 OSViMode osViModeMpalLpn1;
 
 /* Audio — silent boot */
-ALGlobals *alGlobals = 0;
-void alClose(ALGlobals *g) { (void)g; }
 Acmd *alAudioFrame(Acmd *cl, s32 *l, s16 *ob, s32 ol) { (void)cl; (void)l; (void)ob; (void)ol; return 0; }
 void alCSPNew(ALCSPlayer *sp, ALSeqpConfig *cfg) { (void)sp; (void)cfg; }
 void alSynNew(ALSynth *s, ALSynConfig *c) { (void)s; (void)c; }
@@ -88,12 +86,11 @@ s32 alCSPGetState(ALCSPlayer *sp) { (void)sp; return 0; }
 void alCSPSetChlPan(ALCSPlayer *sp, u8 ch, ALPan p) { (void)sp; (void)ch; (void)p; }
 void alCSPSetChlVol(ALCSPlayer *sp, u8 ch, u8 v) { (void)sp; (void)ch; (void)v; }
 void alCSPSetFadeIn(ALCSPlayer *sp, void *ft, f32 t) { (void)sp; (void)ft; (void)t; }
-void alCSeqNew(ALCSeq *sq, u8 *p) { (void)sq; (void)p; }
 void alFxReverbSet(void *fx, void *rv) { (void)fx; (void)rv; }
 void alSeqChOff(ALSeqPlayer *sp, u8 ch) { (void)sp; (void)ch; }
 void alSeqChOn(ALSeqPlayer *sp, u8 ch) { (void)sp; (void)ch; }
-void alSeqFileNew(ALSeqFile *fl, u8 *b) { (void)fl; (void)b; }
 u8 alSeqpGetChlFXMix(ALSeqPlayer *sp, u8 ch) { (void)sp; (void)ch; return 0; }
+void alSynAddPlayer(ALSynth *sy, ALPlayer *pl) { (void)sy; (void)pl; }
 s32 alSynAllocVoice(ALSynth *s, ALVoice *v, ALVoiceConfig *vc) { (void)s; (void)v; (void)vc; return 0; }
 void alSynFreeVoice(ALSynth *sy, ALVoice *v) { (void)sy; (void)v; }
 void alSynSetFXMix(ALSynth *sy, ALVoice *v, u8 mx) { (void)sy; (void)v; (void)mx; }

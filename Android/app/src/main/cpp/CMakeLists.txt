@@ -58,7 +58,6 @@ if(NOT EXCLUDE_GAME_SRC)
         "${REPO_ROOT}/libultra/src/audio/heapalloc.c"
         "${REPO_ROOT}/libultra/src/audio/event.c"
         "${REPO_ROOT}/libultra/src/audio/sl.c"
-        "${REPO_ROOT}/libultra/src/audio/synaddplayer.c"
         "${REPO_ROOT}/libultra/src/audio/bnkf.c"
         "${REPO_ROOT}/libultra/src/audio/load.c"
         "${REPO_ROOT}/libultra/src/audio/cseq.c")

@@ -16,17 +16,13 @@ typedef uint64_t u64;
 typedef int      n64_bool;
 
 // Audio library
-void alBnkfNew(void *f, void *table) {}
 void alCSPSetBank(void *seqp, void *b) {}
 void alCSPStop(void *seqp) {}
 void alCSPSetSeq(void *seqp, void *seq) {}
 void alCSPPlay(void *seqp) {}
 void alCSPSetVol(void *seqp, s32 vol) { (void)vol; }
 void alCSPSetTempo(void *seqp, s32 tempo) { (void)tempo; }
-s32  alCSeqGetTicks(void *seq) { return 0; }
 s32  alCSPGetTempo(void *seqp) { return 0; }
-void alLink(void *element, void *after) {}
-void alUnlink(void *element) {}
 
 // OS
 void osInitialize(void) {}
@@ -128,7 +124,6 @@ s32  osSetTimer(void *t, u64 countdown, u64 interval, void *mq, void *msg) { ret
 u32  osClockRate(void) { return 0; }
 u32  bkGetSR(void) { return 0; }
 void bkmemcpy64(void *dst, void *src, u32 size) {}
-s32  __alCSeqNextDelta(void *seq, void *state) { return 0; }
 void init_lpfilter(void *filter) {}
 void alCopy(void *src, void *dst, s32 len) {}
 s32  _doModFunc(s32 val, s32 mod, s32 rate) { return 0; }
