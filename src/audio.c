@@ -155,6 +155,17 @@ void audio_init(OSSched *sc) {
 
     gSoundCount = gSoundTableSize / sizeof(SoundData);
 
+#ifdef PORT
+    /* PORT: SoundData.soundBite and SoundData.range are u16 fields stored
+       in Big-Endian in ROM. Read as Little-Endian on ARM64, they become
+       garbage (e.g. 5 -> 1280), causing sndp_play_with_priority to read
+       out of bounds and crash. MusicData is all u8, so no bswap needed. */
+    for (i = 0; i < gSoundCount; i++) {
+        gSoundTable[i].soundBite = __builtin_bswap16(gSoundTable[i].soundBite);
+        gSoundTable[i].range = __builtin_bswap16(gSoundTable[i].range);
+    }
+#endif
+
     gSeqSoundTableSize = addrPtr[ASSET_AUDIO_6] - addrPtr[ASSET_AUDIO_5];
     gSeqSoundTable = (MusicData *) mempool_alloc_safe(gSeqSoundTableSize, COLOUR_TAG_CYAN);
     __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSeqSoundTable alloc");
