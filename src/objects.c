@@ -908,12 +908,53 @@ ObjectHeader *load_object_header(s32 index) {
     address = mempool_alloc_pool((MemoryPoolSlot *) gObjectMemoryPool, size);
     if (address != NULL) {
         asset_load(ASSET_OBJECTS, address, assetOffset, size);
+#ifdef PORT
+        /* PORT: Byteswap numeric fields and leave pointers as offsets. */
+        address->unk0 = __builtin_bswap32(address->unk0);
+        address->shadowScale = __builtin_bswap32(address->shadowScale);
+        address->unk8 = __builtin_bswap32(address->unk8);
+        address->scale = __builtin_bswap32(address->scale);
+        address->pad20 = __builtin_bswap32(address->pad20);
+        address->shadeAmbient = __builtin_bswap32(address->shadeAmbient);
+        address->shadeDiffuse = __builtin_bswap32(address->shadeDiffuse);
+        
+        address->flags = __builtin_bswap16(address->flags);
+        address->shadowGroup = __builtin_bswap16(address->shadowGroup);
+        address->unk34 = __builtin_bswap16(address->unk34);
+        address->waterEffectGroup = __builtin_bswap16(address->waterEffectGroup);
+        address->unk38 = __builtin_bswap16(address->unk38);
+        address->shadeAngleY = __builtin_bswap16(address->shadeAngleY);
+        address->shadeAngleZ = __builtin_bswap16(address->shadeAngleZ);
+        address->unk42 = __builtin_bswap16(address->unk42);
+        address->unk44 = __builtin_bswap16(address->unk44);
+        address->shadowBottom = __builtin_bswap16(address->shadowBottom);
+        address->shadowTop = __builtin_bswap16(address->shadowTop);
+        address->shadowFadeMin = __builtin_bswap16(address->shadowFadeMin);
+        address->shadowFadeMax = __builtin_bswap16(address->shadowFadeMax);
+        address->drawDistance = __builtin_bswap16(address->drawDistance);
+        address->unk50 = __builtin_bswap16(address->unk50);
+
+        address->modelIds = __builtin_bswap32(address->modelIds);
+        address->vehiclePartIds = __builtin_bswap32(address->vehiclePartIds);
+        address->vehiclePartIndices = __builtin_bswap32(address->vehiclePartIndices);
+        address->objectParticles = __builtin_bswap32(address->objectParticles);
+        address->unk24 = __builtin_bswap32(address->unk24);
+
+        /* Bswap the modelIds array */
+        if (address->modelIds != 0) {
+            s32 *realModelIds = (s32 *)((uintptr_t)address + address->modelIds);
+            for (int m = 0; m < address->numberOfModelIds; m++) {
+                realModelIds[m] = __builtin_bswap32(realModelIds[m]);
+            }
+        }
+#else
         address->unk24 = (ObjectHeader24 *) ((uintptr_t) address + (uintptr_t) address->unk24);
         address->objectParticles =
             (ObjHeaderParticleEntry *) ((uintptr_t) address + (uintptr_t) address->objectParticles);
         address->vehiclePartIds = (s32 *) ((uintptr_t) address + (uintptr_t) address->vehiclePartIds);
         address->vehiclePartIndices = (s8 *) ((uintptr_t) address + (uintptr_t) address->vehiclePartIndices);
         address->modelIds = (s32 *) ((uintptr_t) address + (uintptr_t) address->modelIds);
+#endif
         (*gLoadedObjectHeaders)[index] = address;
         (*gObjectHeaderReferences)[index] = 1;
     } else {
@@ -2038,7 +2079,7 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
         case BHV_GOLDEN_BALLOON:
             assetCount = 1;
             if (is_in_adventure_two()) {
-                curObj->header->modelIds[0] = curObj->header->modelIds[1];
+                ((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[0] = ((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[1];
             }
             curObj->header->numberOfModelIds = 1;
             break;
@@ -2048,14 +2089,14 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
             case ASSET_OBJECT_ID_POLYGOLDBALOON:
                 assetCount = 1;
                 if (is_in_adventure_two()) {
-                    curObj->header->modelIds[0] = curObj->header->modelIds[1];
+                    ((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[0] = ((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[1];
                 }
                 curObj->header->numberOfModelIds = 1;
                 break;
             case ASSET_OBJECT_ID_LEVELDOOR:
                 if (is_in_adventure_two()) {
                     for (i = 0; i < 5; i++) {
-                        curObj->header->modelIds[i] = curObj->header->modelIds[i + 5];
+                        ((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[i] = ((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[i + 5];
                     }
                 }
                 assetCount = 5;
@@ -2073,7 +2114,7 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
             } else if (i == 1 && (spawnFlags & OBJECT_SPAWN_UNK08)) {
                 curObj->modelInstances[i] = NULL;
             } else {
-                curObj->modelInstances[i] = object_model_init(curObj->header->modelIds[i], behaviourFlags);
+                curObj->modelInstances[i] = object_model_init(((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[i], behaviourFlags);
                 if (curObj->modelInstances[i] == NULL) {
                     failed = TRUE;
                 }
@@ -2082,7 +2123,7 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
         }
     } else if (objType == OBJECT_MODEL_TYPE_MISC) {
         while (i < assetCount) {
-            curObj->textures[i] = load_texture(curObj->header->modelIds[i]);
+            curObj->textures[i] = load_texture(((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[i]);
             if (curObj->textures[i] == NULL) {
                 failed = TRUE;
             }
@@ -2090,7 +2131,7 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
         }
     } else {
         while (i < assetCount) {
-            curObj->sprites[i] = tex_load_sprite(curObj->header->modelIds[i], 10);
+            curObj->sprites[i] = tex_load_sprite(((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[i], 10);
             if (curObj->sprites[i] == NULL) {
                 failed = TRUE;
             }

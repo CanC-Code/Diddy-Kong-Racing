@@ -812,12 +812,22 @@ typedef struct ObjectHeader {
     /* 0x04 */ f32 shadowScale;
     /* 0x08 */ f32 unk8;
     /* 0x0C */ f32 scale;
+#ifdef PORT
+    /* PORT: N64 pointers are 32-bit offsets. Keep as u32 to preserve layout. */
+    /* 0x10 */ u32 modelIds;
+    /* 0x14 */ u32 vehiclePartIds;
+    /* 0x18 */ u32 vehiclePartIndices;
+    /* 0x1C */ u32 objectParticles;
+    s32 pad20;
+    /* 0x24 */ u32 unk24;
+#else
     /* 0x10 */ s32 *modelIds;
     /* 0x14 */ s32 *vehiclePartIds;
     /* 0x18 */ s8 *vehiclePartIndices;
     /* 0x1C */ ObjHeaderParticleEntry *objectParticles;
     s32 pad20;
     /* 0x24 */ ObjectHeader24 *unk24;
+#endif
     /* 0x28 */ f32 shadeAmbient;
     /* 0x2C */ f32 shadeDiffuse;
     /* 0x30 */ u16 flags;
