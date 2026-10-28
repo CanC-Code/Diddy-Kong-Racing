@@ -109,7 +109,7 @@ extern "C" {
     // (a host-side array in lowlevel_bridge.cpp), but the video plugin
     // reads from gN64_RDRAM + g_active_fb_offset. We need to copy the
     // active framebuffer to RDRAM each frame.
-    extern uint16_t gFramebuffers[2][292 * 216];
+    extern uint16_t gFramebuffers[2][320 * 240];
     extern uint32_t g_active_fb_offset;
     extern int getActiveFramebuffer(void);
 
@@ -354,7 +354,7 @@ static void bka_update_texture_impl(int textureId) {
     {
         int activeFb = getActiveFramebuffer();
         size_t fbSize = (size_t)gFramebufferWidth * gFramebufferHeight * sizeof(uint16_t);
-        { static int s_cp = 0; if (s_cp++ < 8) { uint16_t* src_fb = gFramebuffers[activeFb]; int nz = 0; for (int i = 105 * 292; i < 115 * 292; i++) if (src_fb[i]) { nz++; if (nz > 20) break; } __android_log_print(ANDROID_LOG_ERROR, "BKA-UPD", "COPYCHECK #%d activeFb=%d src_fb=%p nz_first1000=%d", s_cp, activeFb, (void*)src_fb, nz); } }
+        { static int s_cp = 0; if (s_cp++ < 8) { uint16_t* src_fb = gFramebuffers[activeFb]; int nz = 0; for (int i = 105 * 320; i < 115 * 320; i++) if (src_fb[i]) { nz++; if (nz > 20) break; } __android_log_print(ANDROID_LOG_ERROR, "BKA-UPD", "COPYCHECK #%d activeFb=%d src_fb=%p nz_first1000=%d", s_cp, activeFb, (void*)src_fb, nz); } }
         // DIAG(D) 2026-09-22: memcpy disabled. gFramebuffers[activeFb] is never
         // written by any render path; this memcpy was zeroing the freshly-
         // rasterized pixels at gN64_RDRAM + g_active_fb_offset. The rasterizer

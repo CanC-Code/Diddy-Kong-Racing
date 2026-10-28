@@ -903,6 +903,11 @@ GLOBAL_ASM("asm/math_util/set_breakpoint.s")
 #ifdef NON_MATCHING
 void dmacopy_doubleword(void *src, void *dst, u32 end) {
     s32 size = end - (u32) dst;
+    /* PORT: Bounds check to prevent JVM heap corruption.
+       Max framebuffer size = 320 * 240 * 2 = 153,600 bytes. */
+    if (size <= 0 || size > (320 * 240 * 2)) {
+        return;
+    }
     memcpy(dst, src, size);
 }
 #else
