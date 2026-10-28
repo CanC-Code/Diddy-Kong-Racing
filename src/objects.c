@@ -2079,7 +2079,7 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
         case BHV_GOLDEN_BALLOON:
             assetCount = 1;
             if (is_in_adventure_two()) {
-                ((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[0] = ((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[1];
+                OBJ_HEADER_GET_MODEL_IDS(curObj->header)[0] = OBJ_HEADER_GET_MODEL_IDS(curObj->header)[1];
             }
             curObj->header->numberOfModelIds = 1;
             break;
@@ -2089,14 +2089,14 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
             case ASSET_OBJECT_ID_POLYGOLDBALOON:
                 assetCount = 1;
                 if (is_in_adventure_two()) {
-                    ((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[0] = ((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[1];
+                    OBJ_HEADER_GET_MODEL_IDS(curObj->header)[0] = OBJ_HEADER_GET_MODEL_IDS(curObj->header)[1];
                 }
                 curObj->header->numberOfModelIds = 1;
                 break;
             case ASSET_OBJECT_ID_LEVELDOOR:
                 if (is_in_adventure_two()) {
                     for (i = 0; i < 5; i++) {
-                        ((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[i] = ((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[i + 5];
+                        OBJ_HEADER_GET_MODEL_IDS(curObj->header)[i] = OBJ_HEADER_GET_MODEL_IDS(curObj->header)[i + 5];
                     }
                 }
                 assetCount = 5;
@@ -2114,7 +2114,7 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
             } else if (i == 1 && (spawnFlags & OBJECT_SPAWN_UNK08)) {
                 curObj->modelInstances[i] = NULL;
             } else {
-                curObj->modelInstances[i] = object_model_init(((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[i], behaviourFlags);
+                curObj->modelInstances[i] = object_model_init(OBJ_HEADER_GET_MODEL_IDS(curObj->header)[i], behaviourFlags);
                 if (curObj->modelInstances[i] == NULL) {
                     failed = TRUE;
                 }
@@ -2123,7 +2123,7 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
         }
     } else if (objType == OBJECT_MODEL_TYPE_MISC) {
         while (i < assetCount) {
-            curObj->textures[i] = load_texture(((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[i]);
+            curObj->textures[i] = load_texture(OBJ_HEADER_GET_MODEL_IDS(curObj->header)[i]);
             if (curObj->textures[i] == NULL) {
                 failed = TRUE;
             }
@@ -2131,7 +2131,7 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
         }
     } else {
         while (i < assetCount) {
-            curObj->sprites[i] = tex_load_sprite(((s32 *)((uintptr_t)curObj->header + curObj->header->modelIds))[i], 10);
+            curObj->sprites[i] = tex_load_sprite(OBJ_HEADER_GET_MODEL_IDS(curObj->header)[i], 10);
             if (curObj->sprites[i] == NULL) {
                 failed = TRUE;
             }
@@ -2329,7 +2329,7 @@ void objFreeAssets(Object *obj, s32 count, s32 objType) {
 void light_setup_light_sources(Object *obj) {
     s32 i;
     for (i = 0; i < obj->header->numLightSources; i++) {
-        obj->lightData[i] = light_add_from_object_header(obj, &obj->header->unk24[i]);
+        obj->lightData[i] = light_add_from_object_header(obj, &OBJ_HEADER_GET_UNK24(obj->header)[i]);
     }
 }
 
@@ -2383,7 +2383,7 @@ s32 obj_init_attachpoint(Object *obj) {
     attachPoint->count = attachPoint->count; // Fakematch?
     failed = FALSE;
     for (i = 0; i < attachPoint->count; i++) {
-        attachPoint->obj[i] = obj_spawn_attachment(obj->header->vehiclePartIds[i ^ 0]); // i ^ 0 fakematch
+        attachPoint->obj[i] = obj_spawn_attachment(OBJ_HEADER_GET_VEHICLE_PART_IDS(obj->header)[i ^ 0]); // i ^ 0 fakematch
         if (attachPoint->obj[i] == NULL) {
             failed = TRUE;
         }
@@ -2533,14 +2533,14 @@ Object *obj_spawn_attachment(s32 objID) {
     failedToLoadModel = FALSE;
     if (modelType == OBJECT_MODEL_TYPE_3D_MODEL) {
         for (i = 0; i < numModelIds; i++) {
-            object->modelInstances[i] = object_model_init(object->header->modelIds[i], 0);
+            object->modelInstances[i] = object_model_init(OBJ_HEADER_GET_MODEL_IDS(object->header)[i], 0);
             if (object->modelInstances[i] == NULL) {
                 failedToLoadModel = TRUE;
             }
         }
     } else {
         for (i = 0; i < numModelIds; i++) {
-            object->sprites[i] = tex_load_sprite(object->header->modelIds[i], 10);
+            object->sprites[i] = tex_load_sprite(OBJ_HEADER_GET_MODEL_IDS(object->header)[i], 10);
             if (object->sprites[i] == NULL) {
                 failedToLoadModel = TRUE;
             }
