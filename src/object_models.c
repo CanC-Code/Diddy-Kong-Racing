@@ -100,7 +100,7 @@ ModelInstance *object_model_init(s32 modelID, s32 flags) {
     // Check if the model already exists in the cache.
     for (i = 0; i < gModelCacheCount; i++) {
         if (modelID == gModelCache[ASSETCACHE_ID(i)]) {
-            objMdl = (ObjectModel *) gModelCache[ASSETCACHE_PTR(i)];
+            objMdl = (ObjectModel *) gModelCachePtr64[i];
             instance = model_instance_init(objMdl, flags);
             if (instance != NULL) {
                 objMdl->references++;
@@ -189,7 +189,7 @@ ModelInstance *object_model_init(s32 modelID, s32 flags) {
             instance = model_instance_init(objMdl, flags);
             if (instance != NULL) {
                 gModelCache[ASSETCACHE_ID(cacheIndex)] = modelID;
-                gModelCache[ASSETCACHE_PTR(cacheIndex)] = (s32) objMdl;
+                gModelCachePtr64[cacheIndex] = (uintptr_t) objMdl;
                 if (gModelCacheCount < MODEL_LOADED_MAX) {
                     instance->animUpdateTimer = 0;
                     return instance;
@@ -912,7 +912,7 @@ s32 model_anim_init(ObjectModel *model, s32 modelID) {
     s32 assetSize;
     s32 i;
     s32 i2;
-    u32 animAddress;
+    u8 *animAddress;
     s32 *temp;
 
     start = gAnimationTable[modelID];
@@ -948,7 +948,7 @@ s32 model_anim_init(ObjectModel *model, s32 modelID) {
             model->animations = NULL;
             return 1;
         }
-        animAddress = (u32) (model->animations[i].animData + size) - assetSize;
+        animAddress = (u8 *) model->animations[i].animData + size - assetSize;
         asset_load(ASSET_OBJECT_ANIMATIONS, animAddress, assetOffset, assetSize);
         gzip_inflate((u8 *) animAddress, (u8 *) model->animations[i].anim);
         temp = model->animations[i].anim;
