@@ -1468,7 +1468,7 @@ static void Cmd_SetTImg(GfxCommand cmd) {
         static int s_bogus = 0; if (s_bogus++ < 20)
             __android_log_print(ANDROID_LOG_ERROR, "BKA-SETIMG-BOGUS",
                 "rejected w0=%08X w1=%08X", cmd.w0, cmd.w1);
-        // PORT: Ignore bogus command, keep previous valid texAddr
+        /* PORT: preserve previous valid texAddr on bogus SetTImg (do not reset to null) */
         return;
     }
     { static int s_r = 0; if (s_r++ < 60) {
@@ -1629,7 +1629,7 @@ static void Cmd_SetTImg(GfxCommand cmd) {
         static int s_bogus = 0; if (s_bogus++ < 20)
             __android_log_print(ANDROID_LOG_ERROR, "BKA-SETIMG-BOGUS",
                 "rejected w0=%08X w1=%08X", cmd.w0, cmd.w1);
-        // PORT: Ignore bogus command, keep previous valid texAddr
+        /* PORT: preserve previous valid texAddr on bogus SetTImg (alt path) */
         return;
     }
     { uint32_t _fmt = (cmd.w0 >> 21) & 0x7;
@@ -1792,7 +1792,7 @@ static void Cmd_LoadTile(GfxCommand cmd) {
 
 static void Cmd_LoadTLUT(GfxCommand cmd) {
     /* PORT: Early NULL check. The diagnostic block below dereferences
-    /* PORT: Removed early NULL guard — SetTImg no longer nulls texAddr */
+    if (s_rdp.texAddr == nullptr) { return; } // PORT: Early NULL guard
        s_rdp.texAddr[0], which crashes if a preceding SetTImg was bogus
        and set texAddr to nullptr. */
     if (s_rdp.texAddr == nullptr) {
