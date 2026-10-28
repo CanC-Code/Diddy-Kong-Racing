@@ -602,6 +602,19 @@ TextureHeader *load_texture(s32 id) {
     }
     assetOffset = gTextureAssetTable[tableType][assetIndex];
     assetSize = gTextureAssetTable[tableType][assetIndex + 1] - assetOffset;
+    /* PORT: defensive on-read bswap. Handles the case where the table
+       gets reloaded or recycled after tex_init_textures bswapped it. */
+    if ((s32)assetOffset > 0x1000000 || (s32)assetSize > 0x1000000 || (s32)assetSize < 0) {
+        u32 _raw_off = (u32)assetOffset;
+        u32 _raw_next = (u32)gTextureAssetTable[tableType][assetIndex + 1];
+        assetOffset = (s32)__builtin_bswap32(_raw_off);
+        assetSize = (s32)__builtin_bswap32(_raw_next) - assetOffset;
+        { static int _orr = 0; if (_orr++ < 20)
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-TEX",
+                "ON-READ bswap: id=0x%X ai=%d rawOff=0x%X rawNext=0x%X -> off=0x%X size=%d ptr=%p",
+                id, assetIndex, _raw_off, _raw_next, (unsigned)assetOffset, assetSize,
+                (void*)gTextureAssetTable[tableType]); }
+    }
     { static int _ac = 0; if (_ac++ < 3) {
         /* PORT: for the first valid texture request, dump 16 bytes at
            three candidate asset bases so we can identify the correct one */
