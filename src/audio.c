@@ -89,7 +89,7 @@ SoundHandle gRacerSoundMask;
 void audio_init(OSSched *sc) {
     __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "audio_init ENTERED");
     s32 i;
-    ALSynConfig synth_config;
+    ALSynConfig synth_config[2] = {0};
     s32 *addrPtr;
     u32 seqfSize;
     u32 seqLength;
@@ -201,22 +201,27 @@ void audio_init(OSSched *sc) {
     synth_config.fxType[1] = AL_FX_BIGROOM;
     synth_config.outputRate = 0;
     synth_config.heap = &gALHeap;
-    amCreateAudioMgr(&synth_config, 12, sc);
+    amCreateAudioMgr(&synth_config[0], 12, sc);
     __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after amCreateAudioMgr");
 
     gMusicPlayer = sound_seqplayer_init(24, 120);
     __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after sound_seqplayer_init");
 
     set_voice_limit(gMusicPlayer, 18);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after set_voice_limit");
     gJinglePlayer = sound_seqplayer_init(16, 50);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after jingle_seqplayer_init");
     gMusicSequenceData = mempool_alloc_safe(seqLength, COLOUR_TAG_CYAN);
     gJingleSequenceData = mempool_alloc_safe(seqLength, COLOUR_TAG_CYAN);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after seq_data alloc");
     audConfig.maxEvents = 150;
     audConfig.maxSounds = 32;
     audConfig.maxChannels = AUDIO_CHANNELS;
     audConfig.numGroups = 1;
     audConfig.heap = &gALHeap;
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "before sndp_init_player");
     sndp_init_player(&audConfig);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after sndp_init_player");
     audioStartThread();
     sound_volume_change(VOLUME_NORMAL);
     mempool_free(addrPtr);
