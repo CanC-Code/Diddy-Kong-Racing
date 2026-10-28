@@ -362,6 +362,7 @@ s32 level_is_race(void) {
  * Official Name: levelInit
  */
 void level_load(s32 levelId, s32 numberOfPlayers, s32 entranceId, Vehicle vehicleId, s32 cutsceneId) {
+    extern void dkr_bswap_u32_buf(u32 *buf, u32 count);
     s8 *someAsset;
     s32 i;
     s32 size;
@@ -396,6 +397,8 @@ void level_load(s32 levelId, s32 numberOfPlayers, s32 entranceId, Vehicle vehicl
     __android_log_print(ANDROID_LOG_ERROR, "DKR-LEVEL", "level_load: table=%p [0..7]=%d %d %d %d %d %d %d %d", (void*)gTempAssetTable, gTempAssetTable[0], gTempAssetTable[1], gTempAssetTable[2], gTempAssetTable[3], gTempAssetTable[4], gTempAssetTable[5], gTempAssetTable[6], gTempAssetTable[7]);
 
     for (i = 0; gTempAssetTable[i] != -1; i++) {}
+    dkr_bswap_u32_buf((u32 *)gTempAssetTable, i);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LEVEL", "level_load: after bswap, %d entries [0..7]=%d %d %d %d %d %d %d %d", i, gTempAssetTable[0], gTempAssetTable[1], gTempAssetTable[2], gTempAssetTable[3], gTempAssetTable[4], gTempAssetTable[5], gTempAssetTable[6], gTempAssetTable[7]);
     i--;
     if (levelId >= i) {
         stubbed_printf("LOADLEVEL Error: Level out of range\n");
