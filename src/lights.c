@@ -7,6 +7,7 @@
 #include "memory.h"
 #include "objects.h"
 #include "types.h"
+extern LevelHeader_70 *gUnk74Resolved[7];
 
 /************ .data ************/
 
@@ -116,8 +117,8 @@ ObjectLight *light_add_from_level_object_entry(Object *obj, LevelObjectEntry_Rgb
         light->unk44 = NULL;
         if (lightEntry->unk1C < 7) {
             levelHeader = level_header();
-            if (((s32) levelHeader->unk74[lightEntry->unk1C]) != -1) {
-                light->unk44_asset = (MiscAssetObjectHeader24 *) levelHeader->unk74[lightEntry->unk1C];
+            if (levelHeader->unk74[lightEntry->unk1C] != 0xFFFFFFFFu) {
+                light->unk44_asset = (MiscAssetObjectHeader24 *) gUnk74Resolved[lightEntry->unk1C];
                 light->unk48 = light->unk44_asset->unk0;
                 light->unk4A = 0;
                 light->unk4C = 0;

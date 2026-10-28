@@ -436,7 +436,11 @@ typedef struct LevelHeader {
     /* 0x08 */ f32 course_height;
     /* 0x0C */ u8 unkC[10];
     /* 0x16 */ u8 unk16[10];
+#ifdef PORT
+    /* 0x20 */ u32 AILevelTable;   /* N64 pointer as u32 (ARM64 has 8-byte ptrs) */
+#else
     /* 0x20 */ s8 *AILevelTable;
+#endif
     /* 0x24 */ u8 pad24[6];
     /* 0x2A */ s8 unk2A[10];
     /* 0x34 */ s16 geometry;
@@ -487,14 +491,22 @@ typedef struct LevelHeader {
 
     // waves_init_header Seems to use this struct, and it differs on unk70 only.
     union {
-        /* 0x70 */ LevelHeader_70 *unk70[1]; // unknown size, however only size of 1 matches
+#ifdef PORT
+        /* 0x70 */ u32 unk70[1];       /* N64 pointer as u32 */
+#else
+        /* 0x70 */ LevelHeader_70 *unk70[1];
+#endif // unknown size, however only size of 1 matches
         struct {
             /* 0x70 */ u8 wavesXlu;          // always 1 except in Hot Top Volcano where it's 0
             /* 0x71 */ u8 waveDoubleDensity; // possible values: 0,1
         };
     };
 
+#ifdef PORT
+    /* 0x74 */ u32 unk74[7];       /* N64 pointers as u32 */
+#else
     /* 0x74 */ LevelHeader_70 *unk74[7];
+#endif
 
     // Weather related?
     /* 0x90 */ s16 weatherEnable; // This affects snow density, but for rain, it simply needs to be nonzero.
