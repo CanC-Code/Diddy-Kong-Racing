@@ -77,6 +77,9 @@ void allocate_object_model_pools(void) {
  * Also loads textures and animations.
  * v79 and newer have a bugfix that revert the cache count if allocation fails.
  */
+#ifdef PORT
+uintptr_t gModelCachePtr64[256];
+#endif
 ModelInstance *object_model_init(s32 modelID, s32 flags) {
     s32 i;
     s32 cacheIndex;
