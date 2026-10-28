@@ -105,6 +105,10 @@ u32 *asset_table_load(u32 assetIndex) {
     osSendMesg(&gDmaMutex, (OSMesg) 1, OS_MESG_NOBLOCK);
 #endif
 
+    {
+        u32 *_p = (u32 *) (out);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-ASSET", "a[%d] R=%08x %08x %08x %08x %08x %08x %08x %08x B=%08x %08x %08x %08x %08x %08x %08x %08x", (int)assetIndex, _p?_p[0]:0, _p?_p[1]:0, _p?_p[2]:0, _p?_p[3]:0, _p?_p[4]:0, _p?_p[5]:0, _p?_p[6]:0, _p?_p[7]:0, _p?__builtin_bswap32(_p[0]):0, _p?__builtin_bswap32(_p[1]):0, _p?__builtin_bswap32(_p[2]):0, _p?__builtin_bswap32(_p[3]):0, _p?__builtin_bswap32(_p[4]):0, _p?__builtin_bswap32(_p[5]):0, _p?__builtin_bswap32(_p[6]):0, _p?__builtin_bswap32(_p[7]):0);
+    }
     return out;
 }
 
