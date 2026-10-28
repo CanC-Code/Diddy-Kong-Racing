@@ -2830,6 +2830,57 @@ s32 collision_get_y(s32 levelSegmentIndex, f32 xIn, f32 zIn, f32 *yOut) {
 }
 
 // Loads a level track from the index in the models table.
+
+#ifdef PORT
+static void resolve_level_model(LevelModel *dest, u8 *raw) {
+    LevelModelRaw *r = (LevelModelRaw *)raw;
+    uintptr_t base = (uintptr_t)raw;
+    LevelModelSegmentRaw *segRaw;
+    int i;
+
+    dest->textures = (TextureInfo *)(base + __builtin_bswap32(r->textures));
+    dest->segmentsBoundingBoxes = (LevelModelSegmentBoundingBox *)(base + __builtin_bswap32(r->segmentsBoundingBoxes));
+    dest->unkC = (u8 *)(base + __builtin_bswap32(r->unkC));
+    dest->segmentsBitfields = (u8 *)(base + __builtin_bswap32(r->segmentsBitfields));
+    dest->segmentsBspTree = (BspTreeNode *)(base + __builtin_bswap32(r->segmentsBspTree));
+    dest->numberOfTextures = __builtin_bswap16(r->numberOfTextures);
+    dest->numberOfSegments = __builtin_bswap16(r->numberOfSegments);
+    dest->unk1C = __builtin_bswap16(r->unk1C);
+    dest->numberOfAnimatedTextures = __builtin_bswap16(r->numberOfAnimatedTextures);
+    dest->minimapSpriteIndex = __builtin_bswap32(r->minimapSpriteIndex);
+    dest->minimapRotation = __builtin_bswap16(r->minimapRotation);
+
+    segRaw = (LevelModelSegmentRaw *)(base + __builtin_bswap32(r->segments));
+    dest->segments = (LevelModelSegment *)mempool_alloc_safe(
+        dest->numberOfSegments * sizeof(LevelModelSegment), COLOUR_TAG_CYAN);
+
+    for (i = 0; i < dest->numberOfSegments; i++) {
+        LevelModelSegment *d = &dest->segments[i];
+        LevelModelSegmentRaw *s = &segRaw[i];
+        d->vertices = (Vertex *)(base + __builtin_bswap32(s->vertices));
+        d->triangles = (Triangle *)(base + __builtin_bswap32(s->triangles));
+        d->unk8 = __builtin_bswap32(s->unk8);
+        d->batches = (TriangleBatchInfo *)(base + __builtin_bswap32(s->batches));
+        d->unk10 = (s16 *)(base + __builtin_bswap32(s->unk10));
+        d->collisionFacets = (CollisionFacetPlanes *)(base + __builtin_bswap32(s->collisionFacets));
+        d->collisionPlanes = (f32 *)(base + __builtin_bswap32(s->collisionPlanes));
+        d->numberOfVertices = __builtin_bswap16(s->numberOfVertices);
+        d->numberOfTriangles = __builtin_bswap16(s->numberOfTriangles);
+        d->numberOfBatches = __builtin_bswap16(s->numberOfBatches);
+        d->unk28 = __builtin_bswap16(s->unk28);
+        d->unk2A = s->unk2A;
+        d->hasWaves = s->hasWaves;
+        d->unk2C = (Vertex *)(base + __builtin_bswap32(s->unk2C));
+        d->unk30 = __builtin_bswap16(s->unk30);
+        d->unk32 = __builtin_bswap16(s->unk32);
+        d->unk34 = (s16 *)(base + __builtin_bswap32(s->unk34));
+        d->unk38 = __builtin_bswap16(s->unk38);
+        d->unk3C = __builtin_bswap32(s->unk3C);
+        d->numberofOpaqueBatches = s->numberofOpaqueBatches;
+    }
+}
+#endif
+
 void generate_track(s32 modelId) {
     extern void dkr_bswap_u32_buf(u32 *buf, u32 count);
     s32 i, k;
@@ -2863,24 +2914,54 @@ void generate_track(s32 modelId) {
         _temp_p -= (_temp_p % 16);
         __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "generate_track: mdl=%d temp_s4=%d tmp=%p", mdl, temp_s4, (void*)_temp_p);
         asset_load(ASSET_LEVEL_MODELS, (void *) _temp_p, mdl, temp_s4);
+#ifdef PORT
+        {
+            u32 uncompressed_size = gzip_size_uncompressed(ASSET_LEVEL_MODELS, mdl);
+            u8 *raw = (u8 *)mempool_alloc_safe(uncompressed_size, COLOUR_TAG_CYAN);
+            gzip_inflate((u8 *)_temp_p, raw);
+            resolve_level_model(gCurrentLevelModel, raw);
+            mempool_free(raw);
+        }
+#else
         gzip_inflate((u8 *) _temp_p, (u8 *) gCurrentLevelModel);
+#endif
     }
     mempool_free(gLevelModelTable); // Done with the level models table, so free it.
 
     mdl = (s32) gCurrentLevelModel;
 
+    #ifndef PORT
     LOCAL_OFFSET_TO_RAM_ADDRESS(TextureInfo *, gCurrentLevelModel->textures);
+#endif
+    #ifndef PORT
     LOCAL_OFFSET_TO_RAM_ADDRESS(LevelModelSegment *, gCurrentLevelModel->segments);
+#endif
+    #ifndef PORT
     LOCAL_OFFSET_TO_RAM_ADDRESS(LevelModelSegmentBoundingBox *, gCurrentLevelModel->segmentsBoundingBoxes);
+#endif
+    #ifndef PORT
     LOCAL_OFFSET_TO_RAM_ADDRESS(u8 *, gCurrentLevelModel->unkC);
+#endif
+    #ifndef PORT
     LOCAL_OFFSET_TO_RAM_ADDRESS(u8 *, gCurrentLevelModel->segmentsBitfields);
+#endif
+    #ifndef PORT
     LOCAL_OFFSET_TO_RAM_ADDRESS(BspTreeNode *, gCurrentLevelModel->segmentsBspTree);
+#endif
 
     for (k = 0; k < gCurrentLevelModel->numberOfSegments; k++) {
-        LOCAL_OFFSET_TO_RAM_ADDRESS(Vertex *, gCurrentLevelModel->segments[k].vertices);
-        LOCAL_OFFSET_TO_RAM_ADDRESS(Triangle *, gCurrentLevelModel->segments[k].triangles);
-        LOCAL_OFFSET_TO_RAM_ADDRESS(TriangleBatchInfo *, gCurrentLevelModel->segments[k].batches);
-        LOCAL_OFFSET_TO_RAM_ADDRESS(CollisionFacetPlanes *, gCurrentLevelModel->segments[k].collisionFacets);
+        #ifndef PORT
+    LOCAL_OFFSET_TO_RAM_ADDRESS(Vertex *, gCurrentLevelModel->segments[k].vertices);
+#endif
+        #ifndef PORT
+    LOCAL_OFFSET_TO_RAM_ADDRESS(Triangle *, gCurrentLevelModel->segments[k].triangles);
+#endif
+        #ifndef PORT
+    LOCAL_OFFSET_TO_RAM_ADDRESS(TriangleBatchInfo *, gCurrentLevelModel->segments[k].batches);
+#endif
+        #ifndef PORT
+    LOCAL_OFFSET_TO_RAM_ADDRESS(CollisionFacetPlanes *, gCurrentLevelModel->segments[k].collisionFacets);
+#endif
     }
     for (k = 0; k < gCurrentLevelModel->numberOfTextures; k++) {
         gCurrentLevelModel->textures[k].texture =

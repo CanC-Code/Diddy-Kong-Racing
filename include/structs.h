@@ -764,6 +764,48 @@ typedef struct BspTreeNode {
     /* 0x06 */ s16 splitValue; // Decides left or right
 } BspTreeNode;
 
+
+typedef struct LevelModelSegmentRaw {
+    u32 vertices;
+    u32 triangles;
+    s32 unk8;
+    u32 batches;
+    u32 unk10;
+    u32 collisionFacets;
+    u32 collisionPlanes;
+    s16 numberOfVertices;
+    s16 numberOfTriangles;
+    s16 numberOfBatches;
+    u8 pad22[0x06];
+    s16 unk28;
+    s8 unk2A;
+    s8 hasWaves;
+    u32 unk2C;
+    s16 unk30;
+    s16 unk32;
+    u32 unk34;
+    s16 unk38;
+    u8 pad3A[2];
+    s32 unk3C;
+    u8 numberofOpaqueBatches;
+    u8 pad41[0x3];
+} LevelModelSegmentRaw;
+
+typedef struct LevelModelRaw {
+    u32 textures;
+    u32 segments;
+    u32 segmentsBoundingBoxes;
+    u32 unkC;
+    u32 segmentsBitfields;
+    u32 segmentsBspTree;
+    s16 numberOfTextures;
+    s16 numberOfSegments;
+    s16 unk1C;
+    s16 numberOfAnimatedTextures;
+    s32 minimapSpriteIndex;
+    u16 minimapRotation;
+} LevelModelRaw;
+
 typedef struct LevelModel {
     /* 0x00 */ TextureInfo *textures;
     /* 0x04 */ LevelModelSegment *segments;
