@@ -89,7 +89,7 @@ ModelInstance *object_model_init(s32 modelID, s32 flags) {
     s8 var_a2;
     s8 cacheChanged;
 #endif
-    u32 compressedData;
+    u8 *compressedData;
     s32 modelSize;
 
     if (modelID >= gNumModelIDs) {
@@ -142,9 +142,18 @@ ModelInstance *object_model_init(s32 modelID, s32 flags) {
 #endif
         return NULL;
     }
-    compressedData = (u32) ((u8 *) objMdl + modelSize) - sp48;
+    compressedData = (u8 *) objMdl + modelSize - sp48;
     asset_load(ASSET_OBJECT_MODELS, compressedData, temp_s0, sp48);
     gzip_inflate((u8 *) compressedData, (u8 *) objMdl);
+#ifdef PORT
+    objMdl->textures = (TextureInfo *) ((uintptr_t) objMdl->textures + (uintptr_t) objMdl);
+    objMdl->vertices = (Vertex *) ((uintptr_t) objMdl->vertices + (uintptr_t) objMdl);
+    objMdl->triangles = (Triangle *) ((uintptr_t) objMdl->triangles + (uintptr_t) objMdl);
+    objMdl->batches = (TriangleBatchInfo *) ((uintptr_t) objMdl->batches + (uintptr_t) objMdl);
+    objMdl->attachPoints = (s16 *) ((uintptr_t) objMdl->attachPoints + (uintptr_t) objMdl);
+    objMdl->collisionSpheres = (s16 *) ((uintptr_t) objMdl->collisionSpheres + (uintptr_t) objMdl);
+    objMdl->animatedVertexIndices = (s32 *) ((uintptr_t) objMdl->animatedVertexIndices + (uintptr_t) objMdl);
+#else
     objMdl->textures = (TextureInfo *) ((s32) objMdl->textures + (u8 *) objMdl);
     objMdl->vertices = (Vertex *) ((s32) objMdl->vertices + (u8 *) objMdl);
     objMdl->triangles = (Triangle *) ((s32) objMdl->triangles + (u8 *) objMdl);
@@ -152,6 +161,7 @@ ModelInstance *object_model_init(s32 modelID, s32 flags) {
     objMdl->attachPoints = (s16 *) ((s32) objMdl->attachPoints + (u8 *) objMdl);
     objMdl->collisionSpheres = (s16 *) ((s32) objMdl->collisionSpheres + (u8 *) objMdl);
     objMdl->animatedVertexIndices = (s32 *) ((s32) objMdl->animatedVertexIndices + (u8 *) objMdl);
+#endif
     objMdl->references = 1;
     objMdl->collisionFacets = NULL;
     objMdl->collisionPlanes = NULL;

@@ -65,10 +65,7 @@ u8 *gzip_inflate(u8 *compressedInput, u8 *decompressedOutput) {
     /* PORT: on-device extraction. Replace MIPS asm gzip_inflate_block with
        zlib raw DEFLATE. DKR format: 4-byte BE uncompressed size +
        1-byte flag + raw deflate stream. Works entirely on-device. */
-    uint32_t uncompressed_size = ((uint32_t)compressedInput[0] << 24)
-                               | ((uint32_t)compressedInput[1] << 16)
-                               | ((uint32_t)compressedInput[2] << 8)
-                               |  (uint32_t)compressedInput[3];
+    uint32_t uncompressed_size = (uint32_t)byteswap32((u8 *)compressedInput);
     { static int _gz = 0; if (_gz++ < 20)
         __android_log_print(ANDROID_LOG_ERROR, "BKA-GZIP",
             "ENTER in=%p out=%p uncompressed=%u flag=%02X first8=%02X%02X%02X%02X%02X%02X%02X%02X",
