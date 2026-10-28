@@ -1792,6 +1792,7 @@ static void Cmd_LoadTile(GfxCommand cmd) {
 
 static void Cmd_LoadTLUT(GfxCommand cmd) {
     /* PORT: Early NULL check. The diagnostic block below dereferences
+    if (s_rdp.texAddr == nullptr) { return; } // PORT: Early NULL guard
        s_rdp.texAddr[0], which crashes if a preceding SetTImg was bogus
        and set texAddr to nullptr. */
     if (s_rdp.texAddr == nullptr) {
