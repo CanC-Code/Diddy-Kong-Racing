@@ -2877,6 +2877,32 @@ static void resolve_level_model(LevelModel *dest, u8 *raw) {
         d->unk38 = __builtin_bswap16(s->unk38);
         d->unk3C = __builtin_bswap32(s->unk3C);
         d->numberofOpaqueBatches = s->numberofOpaqueBatches;
+
+        if (d->batches != NULL) {
+            int _bj;
+            for (_bj = 0; _bj <= d->numberOfBatches; _bj++) {
+                TriangleBatchInfo *_b = &d->batches[_bj];
+                _b->verticesOffset = __builtin_bswap16(_b->verticesOffset);
+                _b->facesOffset = __builtin_bswap16(_b->facesOffset);
+                _b->flags = __builtin_bswap32(_b->flags);
+            }
+        }
+
+        if (d->triangles != NULL) {
+            int _tj;
+            for (_tj = 0; _tj < d->numberOfTriangles; _tj++) {
+                d->triangles[_tj].flags = __builtin_bswap32(d->triangles[_tj].flags);
+            }
+        }
+
+        if (d->vertices != NULL) {
+            int _vj;
+            for (_vj = 0; _vj < d->numberOfVertices; _vj++) {
+                d->vertices[_vj].x = __builtin_bswap16(d->vertices[_vj].x);
+                d->vertices[_vj].y = __builtin_bswap16(d->vertices[_vj].y);
+                d->vertices[_vj].z = __builtin_bswap16(d->vertices[_vj].z);
+            }
+        }
     }
 }
 #endif
@@ -2920,7 +2946,7 @@ void generate_track(s32 modelId) {
             u8 *raw = (u8 *)mempool_alloc_safe(uncompressed_size, COLOUR_TAG_CYAN);
             gzip_inflate((u8 *)_temp_p, raw);
             resolve_level_model(gCurrentLevelModel, raw);
-            mempool_free(raw);
+            /* PORT: do NOT free raw - all model pointers reference it */
         }
 #else
         gzip_inflate((u8 *) _temp_p, (u8 *) gCurrentLevelModel);
@@ -2970,14 +2996,14 @@ void generate_track(s32 modelId) {
     j = (uintptr_t) gCurrentLevelModel + gCurrentLevelModel->modelSize;
     for (k = 0; k < gCurrentLevelModel->numberOfSegments; k++) {
         gCurrentLevelModel->segments[k].unk10 = (s16 *) j;
-        j = (s32) align16(((u8 *) (gCurrentLevelModel->segments[k].numberOfTriangles * 2)) + j);
+        j = (uintptr_t) align16(((u8 *) (gCurrentLevelModel->segments[k].numberOfTriangles * 2)) + j);
         gCurrentLevelModel->segments[k].collisionPlanes = (f32 *) j;
-        j = (s32) & ((u8 *) j)[track_init_collision(&gCurrentLevelModel->segments[k])];
+        j = (uintptr_t) & ((u8 *) j)[track_init_collision(&gCurrentLevelModel->segments[k])];
         func_8002C954(&gCurrentLevelModel->segments[k], &gCurrentLevelModel->segmentsBoundingBoxes[k], k);
         gCurrentLevelModel->segments[k].unk30 = 0;
         gCurrentLevelModel->segments[k].unk34 = (s16 *) j;
         func_8002C71C(&gCurrentLevelModel->segments[k]);
-        j = (s32) align16(((u8 *) (gCurrentLevelModel->segments[k].unk32 * 2)) + j);
+        j = (uintptr_t) align16(((u8 *) (gCurrentLevelModel->segments[k].unk32 * 2)) + j);
     }
     temp_s4 = (s32) (j - (uintptr_t) gCurrentLevelModel);
     if (temp_s4 > LEVEL_MODEL_MAX_SIZE) {
