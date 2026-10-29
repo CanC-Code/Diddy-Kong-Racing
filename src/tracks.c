@@ -1989,6 +1989,13 @@ void traverse_segments_bsp_tree(s32 nodeIndex, s32 segmentIndex, s32 segmentInde
     BspTreeNode *curNode;
     s32 camValue;
 
+#ifdef PORT
+    if (!gCurrentLevelModel || !gCurrentLevelModel->segmentsBspTree) return;
+    s32 _maxNodes = gCurrentLevelModel->numberOfSegments * 2;
+    if (nodeIndex < 0 || nodeIndex >= _maxNodes) return;
+    if (*segmentsOrderIndex >= gCurrentLevelModel->numberOfSegments) return;
+#endif
+
     curNode = &gCurrentLevelModel->segmentsBspTree[nodeIndex];
     if (curNode->splitType == 0) {
         camValue = gSceneActiveCamera->trans.x_position; // Camera X
@@ -2843,6 +2850,14 @@ static void resolve_level_model(LevelModel *dest, u8 *raw) {
     dest->unkC = (u8 *)(base + __builtin_bswap32(r->unkC));
     dest->segmentsBitfields = (u8 *)(base + __builtin_bswap32(r->segmentsBitfields));
     dest->segmentsBspTree = (BspTreeNode *)(base + __builtin_bswap32(r->segmentsBspTree));
+    if (dest->segmentsBspTree) {
+        int _bspNodes = dest->numberOfSegments > 0 ? dest->numberOfSegments - 1 : 0;
+        for (int _bi = 0; _bi < _bspNodes; _bi++) {
+            dest->segmentsBspTree[_bi].leftNode  = __builtin_bswap16(dest->segmentsBspTree[_bi].leftNode);
+            dest->segmentsBspTree[_bi].rightNode = __builtin_bswap16(dest->segmentsBspTree[_bi].rightNode);
+            dest->segmentsBspTree[_bi].splitValue= __builtin_bswap16(dest->segmentsBspTree[_bi].splitValue);
+        }
+    }
     dest->numberOfTextures = __builtin_bswap16(r->numberOfTextures);
     dest->numberOfSegments = __builtin_bswap16(r->numberOfSegments);
     dest->unk1C = __builtin_bswap16(r->unk1C);
@@ -2880,7 +2895,7 @@ static void resolve_level_model(LevelModel *dest, u8 *raw) {
 
         if (d->batches != NULL) {
             int _bj;
-            for (_bj = 0; _bj <= d->numberOfBatches; _bj++) {
+            for (_bj = 0; _bj < d->numberOfBatches; _bj++) {
                 TriangleBatchInfo *_b = &d->batches[_bj];
                 _b->verticesOffset = __builtin_bswap16(_b->verticesOffset);
                 _b->facesOffset = __builtin_bswap16(_b->facesOffset);
