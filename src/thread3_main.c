@@ -1000,6 +1000,7 @@ void unload_level_menu(void) {
  * In the tracks menu, this only runs if there's a track actively loaded.
  */
 void update_menu_scene(s32 updateRate) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "ums bg=%d ld=%d rn=%d", bgload_active(), gIsLoading, gRenderMenu);
     if (1) { // PORT: bypass bgload gate
 #ifdef PORT
         /* PORT: skip obj_update (shadow ptr crash) but DO walk the 3D scene DL.

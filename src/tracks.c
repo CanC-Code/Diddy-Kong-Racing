@@ -1739,9 +1739,11 @@ void render_level_geometry_and_objects(void) {
 
     sp160 = get_first_active_object(&objCount);
 
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-SCENE", "rs-model=%p ns=%d drw=%d cam=%p", (void*)gCurrentLevelModel, gCurrentLevelModel->numberOfSegments, gDrawLevelSegments, (void*)gSceneActiveCamera);
     if (gCurrentLevelModel->numberOfSegments > 1) {
         numberOfSegments = 0;
         traverse_segments_bsp_tree(0, 0, gCurrentLevelModel->numberOfSegments - 1, segmentIds, &numberOfSegments);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-SCENE", "rs-after nsegs=%d", numberOfSegments);
     } else {
         numberOfSegments = 1;
         segmentIds[0] = 0;
