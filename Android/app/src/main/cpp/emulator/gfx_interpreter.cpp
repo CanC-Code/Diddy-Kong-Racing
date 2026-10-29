@@ -844,7 +844,7 @@ static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
 
     uint32_t bppBits = 4u << (tdesc.size & 3);
 
-    uint32_t rowWord   = (tdesc.tmemAddr + v * tdesc.line) & 0x1FFu;
+    uint32_t _line = tdesc.line; if (_line == 0) { uint32_t _bpp = 4u << (tdesc.size & 3); _line = (texW * _bpp) / 64u; if (_line == 0) _line = 1; } uint32_t rowWord = (tdesc.tmemAddr + v * _line) & 0x1FFu;
     uint32_t bitInRow  = u * bppBits;
     uint32_t wordInRow = bitInRow >> 6;
     uint32_t bitInWord = bitInRow & 63u;
