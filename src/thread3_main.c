@@ -245,7 +245,9 @@ void init_game(void) {
         gDmemInvalid = TRUE;
     }
 #endif
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "before video_init");
     video_init(VIDEO_MODE_LOWRES_LPN, &gMainSched);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "after video_init");
     __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "init_game step 2 after: video_init(VIDEO_MODE_LOWRES_LPN, &gMain");
     pi_init();
     __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "init_game step 3 after: pi_init();");

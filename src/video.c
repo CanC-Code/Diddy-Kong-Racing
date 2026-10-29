@@ -57,6 +57,7 @@ OSScClient gVideoSched;
  * Official Name: viInit
  */
 void video_init(s32 videoModeIndex, OSSched *sc) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "video_init ENTER");
     if (osTvType == OS_TV_TYPE_PAL) {
         gVideoRefreshRate = REFRESH_50HZ;
         gVideoAspectRatio = ASPECT_RATIO_PAL;
@@ -78,14 +79,19 @@ void video_init(s32 videoModeIndex, OSSched *sc) {
         }
     }
 
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "video_init before video_delta_reset");
     video_delta_reset();
     fb_mode_set(videoModeIndex);
     gVideoFramebuffers[0] = NULL;
     gVideoFramebuffers[1] = NULL;
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "video_init before fb_alloc 0");
     fb_alloc(0);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "video_init before fb_alloc 1");
     fb_alloc(1);
     gVideoCurrFbIndex = 1;
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "video_init before fb_swap");
     fb_swap();
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "video_init before osCreateMesgQueue");
     osCreateMesgQueue((OSMesgQueue *) &gVideoMesgQueue, gVideoMesgBuf, ARRAY_COUNT(gVideoMesgBuf));
     osScAddClient(sc, &gVideoSched, (OSMesgQueue *) &gVideoMesgQueue, OS_SC_ID_VIDEO);
     fb_init_vi();
@@ -296,6 +302,7 @@ s32 fb_update(s32 mesg) {
     /* Android: no VI hardware; original body blocks on vblank. */
     if (sBlackScreenTimer) { sBlackScreenTimer--; }
     gVideoDeltaCounter = 0;
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "video_init before fb_swap");
     fb_swap();  /* Android: swap RDRAM buffers so wrapper reads fresh frame */
     return LOGIC_60FPS;
 #endif
@@ -309,6 +316,7 @@ s32 fb_update(s32 mesg) {
         }
     }
     if (mesg != MESG_SKIP_BUFFER_SWAP) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-GAME", "video_init before fb_swap");
         fb_swap();
     }
     while (osRecvMesg(gVideoMesgQueue, NULL, OS_MESG_NOBLOCK) != -1) {

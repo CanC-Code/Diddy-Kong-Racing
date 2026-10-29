@@ -13,10 +13,13 @@ void *mempool_alloc_safe(int size, int tag)  {
     return p;
 }
 void *mempool_alloc(int size, int tag) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-MPAS", "mempool_alloc(%d) ENTER", size);
     (void)tag;
     if (size <= 0) return NULL;
     void *p = malloc((size_t)size);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-MPAS", "mempool_alloc(%d) -> %p", size, p);
     ptd_register_alloc(p, (size_t)size);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-MPAS", "mempool_alloc(%d) REGISTERED", size);
     return p;
 }
 void *mempool_alloc_fixed(int size, int tag) { (void)tag; if (size <= 0) return NULL; return malloc((size_t)size); }
