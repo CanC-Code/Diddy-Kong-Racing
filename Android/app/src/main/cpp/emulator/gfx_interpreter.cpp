@@ -845,6 +845,7 @@ static void RDP_FetchTexel(int tile, uint32_t s, uint32_t t, uint8_t* outRGBA) {
     uint32_t bppBits = 4u << (tdesc.size & 3);
 
     uint32_t _line = tdesc.line; if (_line == 0) { uint32_t _bpp = 4u << (tdesc.size & 3); _line = (texW * _bpp) / 64u; if (_line == 0) _line = 1; } uint32_t rowWord = (tdesc.tmemAddr + v * _line) & 0x1FFu;
+    { static int _fllog = 0; if (_fllog++ < 10) __android_log_print(ANDROID_LOG_ERROR, "BKA-LINEFIX", "tile=%d tdesc.line=%u _line=%u texW=%u texH=%u u=%u v=%u rowWord=%u", tile, tdesc.line, _line, texW, texH, u, v, rowWord); }
     uint32_t bitInRow  = u * bppBits;
     uint32_t wordInRow = bitInRow >> 6;
     uint32_t bitInWord = bitInRow & 63u;
@@ -1927,6 +1928,11 @@ static void Cmd_LoadBlock(GfxCommand cmd) {
 
     uint32_t texSizeBytes = (sh + 1) * 8; // G_LOADBLOCK fix: sh is 64-bit word count - 1
     if (texSizeBytes == 0) texSizeBytes = 1;
+    if (texSizeBytes > 4096) {
+        /* PORT: TMEM is 4KB. Game may send huge sizes due to walker drift
+           or multi-chunk tricks. Clamp to prevent corruption. */
+        texSizeBytes = 4096;
+    }
     uint32_t tmemBase = t.tmemAddr * 8;
 
     /* ARM64 port 2026-10-13: scope the 2KB reject to ASCII-only.
