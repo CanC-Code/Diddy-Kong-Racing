@@ -2851,7 +2851,7 @@ static void resolve_level_model(LevelModel *dest, u8 *raw) {
     dest->segmentsBitfields = (u8 *)(base + __builtin_bswap32(r->segmentsBitfields));
     dest->segmentsBspTree = (BspTreeNode *)(base + __builtin_bswap32(r->segmentsBspTree));
     if (dest->segmentsBspTree) {
-        int _bspNodes = dest->numberOfSegments > 0 ? dest->numberOfSegments - 1 : 0;
+        int _bspNodes = __builtin_bswap16(r->numberOfSegments) > 0 ? __builtin_bswap16(r->numberOfSegments) - 1 : 0;
         for (int _bi = 0; _bi < _bspNodes; _bi++) {
             dest->segmentsBspTree[_bi].leftNode  = __builtin_bswap16(dest->segmentsBspTree[_bi].leftNode);
             dest->segmentsBspTree[_bi].rightNode = __builtin_bswap16(dest->segmentsBspTree[_bi].rightNode);
