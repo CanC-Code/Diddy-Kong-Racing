@@ -192,19 +192,19 @@ void thread3_main(UNUSED void *unused) {
         /* PORT: Throttle to ~60 FPS. Without this, the game spins at
            300+ FPS, starving the Android OS and triggering the
            lowmemorykiller or watchdog kill. */
-        usleep(33333);
+        usleep(16666);
 #endif
 #ifdef PORT
         /* PORT: Throttle to ~60 FPS. Without this, the game spins at
            300+ FPS, starving the Android OS and triggering the
            lowmemorykiller (or watchdog kill). */
-        usleep(33333);
+        usleep(16666);
 #endif
 #ifdef PORT
         /* PORT: Throttle to ~60 FPS. Without this, the game spins at
            300+ FPS, starving the Android OS and triggering the
            lowmemorykiller. 16.6ms per frame = 60.2 FPS. */
-        usleep(33333);
+        usleep(16666);
 #endif
     }
 }
