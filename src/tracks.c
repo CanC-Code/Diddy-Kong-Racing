@@ -2962,8 +2962,11 @@ void generate_track(s32 modelId) {
 #ifdef PORT
         {
             u32 uncompressed_size = gzip_size_uncompressed(ASSET_LEVEL_MODELS, mdl);
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: usz=%u mdl=%d", uncompressed_size, mdl);
             u8 *raw = (u8 *)mempool_alloc_safe(uncompressed_size, COLOUR_TAG_CYAN);
+        { const uint8_t *_cp = (const uint8_t*)_temp_p; __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: cmp=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", _cp[0],_cp[1],_cp[2],_cp[3],_cp[4],_cp[5],_cp[6],_cp[7],_cp[8],_cp[9],_cp[10],_cp[11],_cp[12],_cp[13],_cp[14],_cp[15]); }
             gzip_inflate((u8 *)_temp_p, raw);
+        if (raw) __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: raw=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", raw[0],raw[1],raw[2],raw[3],raw[4],raw[5],raw[6],raw[7],raw[8],raw[9],raw[10],raw[11],raw[12],raw[13],raw[14],raw[15]);
             resolve_level_model(gCurrentLevelModel, raw);
             /* PORT: do NOT free raw - all model pointers reference it */
         }
