@@ -73,7 +73,7 @@ u8 *gzip_inflate(u8 *compressedInput, u8 *decompressedOutput) {
             compressedInput[0],compressedInput[1],compressedInput[2],compressedInput[3],
             compressedInput[4],compressedInput[5],compressedInput[6],compressedInput[7]); }
 
-    if (uncompressed_size == 0 || uncompressed_size > 65536) {
+    if (uncompressed_size == 0 || uncompressed_size > (32u * 1024u * 1024u)) {
         return decompressedOutput;  /* Not our format - return as-is */
     }
 
@@ -85,7 +85,7 @@ u8 *gzip_inflate(u8 *compressedInput, u8 *decompressedOutput) {
     }
 
     strm.next_in = compressedInput + 5;
-    strm.avail_in = 65536;
+    strm.avail_in = uncompressed_size + 1024;
     strm.next_out = decompressedOutput;
     strm.avail_out = uncompressed_size;
 
