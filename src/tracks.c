@@ -2842,6 +2842,7 @@ s32 collision_get_y(s32 levelSegmentIndex, f32 xIn, f32 zIn, f32 *yOut) {
 
 #ifdef PORT
 static void resolve_level_model(LevelModel *dest, u8 *raw) {
+    { const uint8_t *_rb = (const uint8_t*)raw; const LevelModelRaw *_r = (const LevelModelRaw*)raw; __android_log_print(ANDROID_LOG_ERROR, "DKR-LVL", "rlm-IN raw=%p seg=%08X nseg=%08X b18_1F=%02X%02X%02X%02X%02X%02X%02X%02X", (void*)raw, _r->segments, (unsigned)_r->numberOfSegments, _rb[0x18],_rb[0x19],_rb[0x1A],_rb[0x1B],_rb[0x1C],_rb[0x1D],_rb[0x1E],_rb[0x1F]); }
     LevelModelRaw *r = (LevelModelRaw *)raw;
     uintptr_t base = (uintptr_t)raw;
     LevelModelSegmentRaw *segRaw;
@@ -2862,6 +2863,7 @@ static void resolve_level_model(LevelModel *dest, u8 *raw) {
     }
     dest->numberOfTextures = __builtin_bswap16(r->numberOfTextures);
     dest->numberOfSegments = __builtin_bswap16(r->numberOfSegments);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LVL", "rlm-AFTER ns=%d", (int)dest->numberOfSegments);
     dest->unk1C = __builtin_bswap16(r->unk1C);
     dest->numberOfAnimatedTextures = __builtin_bswap16(r->numberOfAnimatedTextures);
     dest->minimapSpriteIndex = __builtin_bswap32(r->minimapSpriteIndex);
