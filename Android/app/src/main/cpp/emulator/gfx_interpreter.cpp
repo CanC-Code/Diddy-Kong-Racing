@@ -3063,7 +3063,7 @@ static void Cmd_TexRect(GfxCommand cmd) {
     int32_t yh = (int32_t)(cmd.w0 & 0xFFF) >> 2;
     int32_t xl = (int32_t)((cmd.w1 >> 12) & 0xFFF) >> 2;
     int32_t yl = (int32_t)(cmd.w1 & 0xFFF) >> 2;
-    int tile = 0; /* PORT: force tile 0 */
+    int tile = s_rdp.activeTile; /* PORT: use the active tile set by G_SETTILE */
     
     // Coordinates are .2 fixed-point; >>2 converts to pixels.
     if (xl < 0) xl = 0; if (yl < 0) yl = 0;
@@ -3117,15 +3117,7 @@ static void Cmd_TexRect(GfxCommand cmd) {
             uint8_t g = (uint8_t)(((uint16_t)texel[1] * s_rdp.primG) / 255);
             uint8_t b = (uint8_t)(((uint16_t)texel[2] * s_rdp.primB) / 255);
             uint8_t a = (uint8_t)(((uint16_t)texel[3] * s_rdp.primA) / 255);
-            /* PORT: tmem not populated (DMA upload never ran) — texel all-zero.
-               Force white so walker→framebuffer→Chrome pipeline is proven. */
-            /* Fallback disabled: we have real texture data now */
-            if (a < 8) {
-                r = s_rdp.fillR;
-                g = s_rdp.fillG;
-                b = s_rdp.fillB;
-                a = 255;
-            }
+            /* PORT: Directly sample texel. No fallback. */
             
             int32_t px = xl + dx, py = yl + dy;
             if (px >= 0 && px < FB_WIDTH && py >= 0 && py < FB_HEIGHT)
