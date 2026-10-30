@@ -3033,6 +3033,7 @@ __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: table-freed");
         j = (uintptr_t) align16(((u8 *) (gCurrentLevelModel->segments[k].unk32 * 2)) + j);
     }
     temp_s4 = (s32) (j - (uintptr_t) gCurrentLevelModel);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: layout-done");
     if (temp_s4 > LEVEL_MODEL_MAX_SIZE) {
         rmonPrintf("ERROR!! TrackMem overflow .. %d\n", temp_s4);
     }
@@ -3041,6 +3042,7 @@ __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: table-freed");
     /* PORT: skip redundant realloc - original buffer still in use */
     mempool_free_timer(2);
     minimap_init(gCurrentLevelModel);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: minimap-done");
 
     for (i = 0; i < gCurrentLevelModel->numberOfSegments; i++) {
         for (temp_s4 = 0; temp_s4 < gCurrentLevelModel->segments[i].numberOfBatches; temp_s4++) {
@@ -3058,6 +3060,7 @@ __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: table-freed");
             }
         }
     }
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: vertloop-done");
     set_texture_colour_tag(COLOUR_TAG_MAGENTA);
     __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: gen-track-END");
 }
