@@ -2907,7 +2907,7 @@ if (i < 10) __android_log_print(ANDROID_LOG_ERROR, "DKR-LVL", "rlm-i%d nb=%d nt=
 
         if (d->batches != NULL) {
             int _bj;
-            for (_bj = 0; _bj < d->numberOfBatches; _bj++) {
+            for (_bj = 0; _bj <= d->numberOfBatches; _bj++) {
                 TriangleBatchInfo *_b = &d->batches[_bj];
                 _b->verticesOffset = __builtin_bswap16(_b->verticesOffset);
                 _b->facesOffset = __builtin_bswap16(_b->facesOffset);
@@ -3243,6 +3243,7 @@ s32 track_init_collision(LevelModelSegment *block) {
         facesOffset = block->batches[batchIndex].facesOffset;
         verticesOffset = block->batches[batchIndex].verticesOffset;
         nextFacesOffset = block->batches[batchIndex + 1].facesOffset;
+        if (nextFacesOffset > block->numberOfTriangles || nextFacesOffset < facesOffset) nextFacesOffset = block->numberOfTriangles;
 
         for (triIndex = facesOffset; triIndex < nextFacesOffset; triIndex++) {
             if (block->triangles[triIndex].flags & TRI_FLAG_80) {
@@ -3296,6 +3297,7 @@ s32 track_init_collision(LevelModelSegment *block) {
         facesOffset = block->batches[batchIndex].facesOffset;
         verticesOffset = block->batches[batchIndex].verticesOffset;
         nextFacesOffset = block->batches[batchIndex + 1].facesOffset;
+        if (nextFacesOffset > block->numberOfTriangles || nextFacesOffset < facesOffset) nextFacesOffset = block->numberOfTriangles;
 
         if (block->batches[batchIndex].flags & RENDER_NO_COLLISION) {
             facesOffset = nextFacesOffset;
