@@ -49,6 +49,10 @@ Vec3f D_800DC8AC[3][3] = {
 };
 
 LevelModel *gCurrentLevelModel = NULL; // Official Name: track
+#ifdef PORT
+static u8 *gPortModelRaw = NULL;
+static u32 gPortModelRawSize = 0;
+#endif
 LevelHeader *gCurrentLevelHeader2 = NULL;
 
 s32 D_800DC920 = -1;
@@ -2899,7 +2903,7 @@ static void resolve_level_model(LevelModel *dest, u8 *raw) {
         d->unk38 = __builtin_bswap16(s->unk38);
         d->unk3C = __builtin_bswap32(s->unk3C);
         d->numberofOpaqueBatches = s->numberofOpaqueBatches;
-if (i < 3) __android_log_print(ANDROID_LOG_ERROR, "DKR-LVL", "rlm-i%d nb=%d nt=%d nv=%d bat=%p tri=%p vtx=%p", i, (int)d->numberOfBatches, (int)d->numberOfTriangles, (int)d->numberOfVertices, (void*)d->batches, (void*)d->triangles, (void*)d->vertices);
+if (i < 10) __android_log_print(ANDROID_LOG_ERROR, "DKR-LVL", "rlm-i%d nb=%d nt=%d nv=%d cf=%p", i, (int)d->numberOfBatches, (int)d->numberOfTriangles, (int)d->numberOfVertices, (void*)d->collisionFacets);
 
         if (d->batches != NULL) {
             int _bj;
@@ -2969,7 +2973,7 @@ void generate_track(s32 modelId) {
         {
             u32 uncompressed_size = gzip_size_uncompressed(ASSET_LEVEL_MODELS, mdl);
         __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: usz=%u mdl=%d", uncompressed_size, mdl);
-            u8 *raw = (u8 *)mempool_alloc_safe(uncompressed_size, COLOUR_TAG_CYAN);
+            u8 *raw = (u8 *)mempool_alloc_safe(uncompressed_size, COLOUR_TAG_CYAN); gPortModelRaw = raw; gPortModelRawSize = uncompressed_size;
         { const uint8_t *_cp = (const uint8_t*)_temp_p; __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: cmp=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", _cp[0],_cp[1],_cp[2],_cp[3],_cp[4],_cp[5],_cp[6],_cp[7],_cp[8],_cp[9],_cp[10],_cp[11],_cp[12],_cp[13],_cp[14],_cp[15]); }
             gzip_inflate((u8 *)_temp_p, raw);
         if (raw) __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: raw=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", raw[0],raw[1],raw[2],raw[3],raw[4],raw[5],raw[6],raw[7],raw[8],raw[9],raw[10],raw[11],raw[12],raw[13],raw[14],raw[15]);
@@ -3031,7 +3035,7 @@ __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: table-freed");
         gCurrentLevelModel->segments[k].unk10 = (s16 *) j;
         j = (uintptr_t) align16(((u8 *) (gCurrentLevelModel->segments[k].numberOfTriangles * 2)) + j);
         gCurrentLevelModel->segments[k].collisionPlanes = (f32 *) j;
-        j = (uintptr_t) & ((u8 *) j)[track_init_collision(&gCurrentLevelModel->segments[k])];
+        { uintptr_t _cf = (uintptr_t)gCurrentLevelModel->segments[k].collisionFacets; uintptr_t _lo = (uintptr_t)gPortModelRaw; uintptr_t _hi = _lo + gPortModelRawSize; if (_cf >= _lo && _cf < _hi) { j = (uintptr_t) & ((u8 *) j)[track_init_collision(&gCurrentLevelModel->segments[k])]; } else { __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: layout-k%d cf-SKIP cf=%p", k, (void*)_cf); j += 64; } }
         func_8002C954(&gCurrentLevelModel->segments[k], &gCurrentLevelModel->segmentsBoundingBoxes[k], k);
         gCurrentLevelModel->segments[k].unk30 = 0;
         gCurrentLevelModel->segments[k].unk34 = (s16 *) j;
