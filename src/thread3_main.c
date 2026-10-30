@@ -1032,6 +1032,7 @@ void mode_menu(s32 updateRate) {
             _dkr_menu_init_done = 1;
             __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "mode_menu: FRONTEND + MENU_LOGOS");
             load_menu_with_level_background(MENU_LOGOS, ASSET_LEVEL_FRONTEND, CUTSCENE_NONE);
+__android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "mode_menu: bgload DONE");
         }
     }
 #endif

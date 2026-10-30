@@ -2896,6 +2896,7 @@ static void resolve_level_model(LevelModel *dest, u8 *raw) {
         d->unk38 = __builtin_bswap16(s->unk38);
         d->unk3C = __builtin_bswap32(s->unk3C);
         d->numberofOpaqueBatches = s->numberofOpaqueBatches;
+if (i < 3) __android_log_print(ANDROID_LOG_ERROR, "DKR-LVL", "rlm-i%d nb=%d nt=%d nv=%d bat=%p tri=%p vtx=%p", i, (int)d->numberOfBatches, (int)d->numberOfTriangles, (int)d->numberOfVertices, (void*)d->batches, (void*)d->triangles, (void*)d->vertices);
 
         if (d->batches != NULL) {
             int _bj;
@@ -2907,6 +2908,7 @@ static void resolve_level_model(LevelModel *dest, u8 *raw) {
             }
         }
 
+if (i < 3) __android_log_print(ANDROID_LOG_ERROR, "DKR-LVL", "rlm-i%d batch-OK", i);
         if (d->triangles != NULL) {
             int _tj;
             for (_tj = 0; _tj < d->numberOfTriangles; _tj++) {
@@ -2914,6 +2916,7 @@ static void resolve_level_model(LevelModel *dest, u8 *raw) {
             }
         }
 
+if (i < 3) __android_log_print(ANDROID_LOG_ERROR, "DKR-LVL", "rlm-i%d tri-OK", i);
         if (d->vertices != NULL) {
             int _vj;
             for (_vj = 0; _vj < d->numberOfVertices; _vj++) {
@@ -2968,6 +2971,7 @@ void generate_track(s32 modelId) {
             gzip_inflate((u8 *)_temp_p, raw);
         if (raw) __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: raw=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", raw[0],raw[1],raw[2],raw[3],raw[4],raw[5],raw[6],raw[7],raw[8],raw[9],raw[10],raw[11],raw[12],raw[13],raw[14],raw[15]);
             resolve_level_model(gCurrentLevelModel, raw);
+__android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: rlm-returned");
             /* PORT: do NOT free raw - all model pointers reference it */
         }
 #else
@@ -2975,6 +2979,7 @@ void generate_track(s32 modelId) {
 #endif
     }
     mempool_free(gLevelModelTable); // Done with the level models table, so free it.
+__android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: table-freed");
 
     mdl = (s32) gCurrentLevelModel;
 
