@@ -933,9 +933,9 @@ void load_menu_with_level_background(s32 menuId, s32 levelId, s32 cutsceneId) {
         }
     }
     if (menuId == MENU_UNUSED_2 || menuId == MENU_LOGOS || menuId == MENU_TITLE) {
-        reset_title_logo_scale();
+        reset_title_logo_scale(); __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "lmwlb: after-reset_logo");
     }
-    menu_init(menuId);
+    menu_init(menuId); __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "lmwlb: after-menu_init");
     gGameCurrentEntrance = 0;
 }
 
@@ -966,15 +966,16 @@ Vehicle get_level_default_vehicle(void) {
  * Used for menus.
  */
 void load_level_menu(s32 levelId, s32 numberOfPlayers, s32 entranceId, Vehicle vehicleId, s32 cutsceneId) {
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "llm-ENTER");
     mempool_free_timer(0);
     cam_init();
     load_game_text_table();
-    level_load(levelId, numberOfPlayers, entranceId, vehicleId, cutsceneId);
-    hud_init(cam_get_viewport_layout());
-    init_particle_buffers(4, 4, 110, 48, 32, 0);
-    ainode_update();
+    level_load(levelId, numberOfPlayers, entranceId, vehicleId, cutsceneId); __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "llm: after-level_load");
+    hud_init(cam_get_viewport_layout()); __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "llm: after-hud_init");
+    init_particle_buffers(4, 4, 110, 48, 32, 0); __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "llm: after-init_particles");
+    ainode_update(); __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "llm: after-ainode_update");
     osSetTime(0);
-    mempool_free_timer(2);
+    mempool_free_timer(2); __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "llm: RETURNED");
 }
 
 /**
