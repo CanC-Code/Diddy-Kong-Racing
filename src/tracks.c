@@ -238,9 +238,11 @@ void init_track(u32 geometry, u32 skybox, s32 numberOfPlayers, Vehicle vehicle, 
 
     if (gWaveBlockCount) {
         __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: before-waves cnt=%d", (int)gWaveBlockCount);
-        waves_init(gCurrentLevelModel, gCurrentLevelHeader2, i); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-waves");
+        if (0) waves_init(gCurrentLevelModel, gCurrentLevelHeader2, i); /* PORT: waves_init crashes (gWaveTexture likely NULL for FRONTEND) - skip */
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-waves");
     }
 
+    gWaveBlockCount = 0; /* PORT: force 0 so render_scene skips waves_render */
     __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: wave-loop-done cnt=%d", (int)gWaveBlockCount);
     cam_set_layout(numberOfPlayers); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-cam1");
     skydome_spawn(skybox); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-skydome");
