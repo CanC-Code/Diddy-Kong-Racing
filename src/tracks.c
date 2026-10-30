@@ -2868,7 +2868,9 @@ static void resolve_level_model(LevelModel *dest, u8 *raw) {
     dest->numberOfAnimatedTextures = __builtin_bswap16(r->numberOfAnimatedTextures);
     dest->minimapSpriteIndex = __builtin_bswap32(r->minimapSpriteIndex);
     dest->minimapRotation = __builtin_bswap16(r->minimapRotation);
+    dest->modelSize = (s32)((sizeof(LevelModel) + 15) & ~(u32)15);
 
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-LVL", "rlm-msz raw48=%02X%02X%02X%02X set=%d", ((u8*)raw)[0x48], ((u8*)raw)[0x49], ((u8*)raw)[0x4A], ((u8*)raw)[0x4B], (int)dest->modelSize);
     segRaw = (LevelModelSegmentRaw *)(base + __builtin_bswap32(r->segments));
     dest->segments = (LevelModelSegment *)mempool_alloc_safe(
         dest->numberOfSegments * sizeof(LevelModelSegment), COLOUR_TAG_CYAN);
