@@ -3037,8 +3037,8 @@ __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: table-freed");
         rmonPrintf("ERROR!! TrackMem overflow .. %d\n", temp_s4);
     }
     mempool_free_timer(0);
-    mempool_free(gTrackModelHeap);
-    mempool_alloc_fixed(temp_s4, (u8 *) gTrackModelHeap, COLOUR_TAG_YELLOW);
+    /* PORT: skip UAF - gCurrentLevelModel still points here */
+    /* PORT: skip redundant realloc - original buffer still in use */
     mempool_free_timer(2);
     minimap_init(gCurrentLevelModel);
 
@@ -3059,6 +3059,7 @@ __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: table-freed");
         }
     }
     set_texture_colour_tag(COLOUR_TAG_MAGENTA);
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: gen-track-END");
 }
 
 void func_8002C71C(LevelModelSegment *segment) {
