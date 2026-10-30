@@ -3016,12 +3016,15 @@ __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: table-freed");
     LOCAL_OFFSET_TO_RAM_ADDRESS(CollisionFacetPlanes *, gCurrentLevelModel->segments[k].collisionFacets);
 #endif
     }
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: before-texloop ntex=%d t0=%08X t1=%08X", (int)gCurrentLevelModel->numberOfTextures, (unsigned)gCurrentLevelModel->textures[0].texture, (unsigned)gCurrentLevelModel->textures[1].texture);
     for (k = 0; k < gCurrentLevelModel->numberOfTextures; k++) {
         gCurrentLevelModel->textures[k].texture =
             load_texture(((s32) gCurrentLevelModel->textures[k].texture) | 0x8000);
     }
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: after-texloop msz=%d", (int)gCurrentLevelModel->modelSize);
     j = (uintptr_t) gCurrentLevelModel + gCurrentLevelModel->modelSize;
     for (k = 0; k < gCurrentLevelModel->numberOfSegments; k++) {
+        if (k < 3) __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: layout-k%d j=%p", k, (void*)j);
         gCurrentLevelModel->segments[k].unk10 = (s16 *) j;
         j = (uintptr_t) align16(((u8 *) (gCurrentLevelModel->segments[k].numberOfTriangles * 2)) + j);
         gCurrentLevelModel->segments[k].collisionPlanes = (f32 *) j;
@@ -3029,6 +3032,7 @@ __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: table-freed");
         func_8002C954(&gCurrentLevelModel->segments[k], &gCurrentLevelModel->segmentsBoundingBoxes[k], k);
         gCurrentLevelModel->segments[k].unk30 = 0;
         gCurrentLevelModel->segments[k].unk34 = (s16 *) j;
+        if (k < 3) __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "gt: layout-k%d after-coll", k);
         func_8002C71C(&gCurrentLevelModel->segments[k]);
         j = (uintptr_t) align16(((u8 *) (gCurrentLevelModel->segments[k].unk32 * 2)) + j);
     }
