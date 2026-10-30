@@ -202,7 +202,10 @@ static void renderFrame() {
     if (g_rs.lastNs && t - g_rs.lastNs < 33000000LL) return;
     g_rs.lastNs = t;
 
+    if (!gN64_RDRAM || g_active_fb_offset > (0x04000000u - (320u*240u*2u))) { static int _fb_guard = 0; if (_fb_guard++ < 5) __android_log_print(ANDROID_LOG_ERROR, "BKA-STREAM", "guard: bad fb_offset=%u rddram=%p", g_active_fb_offset, (void*)gN64_RDRAM); return; }
     uint16_t* src = (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
+    if (!gN64_RDRAM || g_active_fb_offset > 0x04000000u - (320u*240u*2u)) { memset(gN64_RDRAM ? (void*)(gN64_RDRAM + 0x1000) : (void*)0, 0, 0); goto fillArgb_skip; }
+    fillArgb_skip: (void)0;
 
     ANativeWindow_Buffer buf;
     if (ANativeWindow_lock(g_native_window, &buf, nullptr) == 0) {
@@ -378,12 +381,13 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
 
     uint16_t* src_a = (uint16_t*)gVideoLastFramebuffer;
     uint16_t* src_b = (uint16_t*)gVideoCurrFramebuffer;
+    { static int _fa = 0; if (_fa++ < 5) __android_log_print(ANDROID_LOG_ERROR, "BKA-STREAM", "fillArgb curr=%p last=%p", (void*)gVideoCurrFramebuffer, (void*)gVideoLastFramebuffer); }
     int nb_a = 0, nb_b = 0;
-    for (int i = 0; i < W * H; i++) { if (src_a[i]) nb_a++; if (src_b[i]) nb_b++; }
+    for (int i = 0; i < 292 * 216; i++) { if (src_a[i]) nb_a++; if (src_b[i]) nb_b++; }
     uint16_t* src = (nb_a >= nb_b) ? src_a : src_b;
 
     for (int i = 0; i < W * H; i++) {
-        uint16_t px = src[i];
+        uint16_t px = (i < 292*216) ? src[i] : 0;
         uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
         uint8_t g = (px >> 5)  & 0x3F; g = (g << 2) | (g >> 4);
         uint8_t b = px & 0x1F;         b = (b << 3) | (b >> 2);

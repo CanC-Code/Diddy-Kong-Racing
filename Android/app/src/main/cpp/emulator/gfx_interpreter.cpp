@@ -1923,7 +1923,7 @@ static void Cmd_LoadBlock(GfxCommand cmd) {
         uintptr_t addr = (uintptr_t)s_rdp.texAddr;
         uintptr_t base = (uintptr_t)gN64_RDRAM;
         bool is_heap = gN64_RDRAM && ((addr < base) || (addr >= base + 0x800000));
-        diag_log("BKA-DIAG-LB", "tile=%u sh=%u bytes=%u tm=0x%X line=%u texAddr=%p %s", tile, sh, (sh+1)*8, t.tmemAddr, t.line, (void*)s_rdp.texAddr, is_heap ? "HEAP(PNG)" : "RDRAM(game)");
+        if (0) diag_log("BKA-DIAG-LB", "");
     } }
 
     uint32_t texSizeBytes = (sh + 1) * 8; // G_LOADBLOCK fix: sh is 64-bit word count - 1
