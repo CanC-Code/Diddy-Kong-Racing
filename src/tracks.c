@@ -328,9 +328,14 @@ void render_scene(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 upd
     if (gCurrentLevelHeader2->pulseLightData != (PulsatingLightData *) -1) {
         update_pulsating_light_data(gCurrentLevelHeader2->pulseLightData, tempUpdateRate);
     }
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-SCENE", "func12C30 race=%d drw-pre=%d", (int)gCurrentLevelHeader2->race_type, (int)gDrawLevelSegments);
     gDrawLevelSegments = TRUE;
     if (gCurrentLevelHeader2->race_type == RACETYPE_CUTSCENE_2) {
         gDrawLevelSegments = FALSE;
+#ifdef PORT
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-SCENE", "func12C30 CUTSCENE2 race=%d - FORCING drw=1", (int)gCurrentLevelHeader2->race_type);
+        gDrawLevelSegments = TRUE;
+#endif
         gAntiAliasing = TRUE;
     }
     if (gCurrentLevelHeader2->race_type == RACETYPE_CUTSCENE_1 || gCurrentLevelHeader2->unkBD) {
