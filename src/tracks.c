@@ -212,7 +212,7 @@ void init_track(u32 geometry, u32 skybox, s32 numberOfPlayers, Vehicle vehicle, 
         D_8011B0F8 = TRUE;
     }
 
-    generate_track(geometry);
+    generate_track(geometry); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-gen-track");
 
     gWaveBlockCount = 0;
 
@@ -233,19 +233,19 @@ void init_track(u32 geometry, u32 skybox, s32 numberOfPlayers, Vehicle vehicle, 
     }
 
     if (gWaveBlockCount) {
-        waves_init(gCurrentLevelModel, gCurrentLevelHeader2, i);
+        waves_init(gCurrentLevelModel, gCurrentLevelHeader2, i); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-waves");
     }
 
-    cam_set_layout(numberOfPlayers);
-    skydome_spawn(skybox);
+    cam_set_layout(numberOfPlayers); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-cam1");
+    skydome_spawn(skybox); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-skydome");
     gTrackTexAnimOffset = 0;
     gTrackTexAnimFlags = RENDER_TEX_ANIM;
-    path_enable();
-    track_spawn_objects(arg6, 0);
-    track_spawn_objects(collectables, 1);
+    path_enable(); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-path");
+    track_spawn_objects(arg6, 0); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-spawn0");
+    track_spawn_objects(collectables, 1); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-spawn1");
     gScenePlayerViewports = numberOfPlayers;
-    track_setup_racers(vehicle, entranceId, numberOfPlayers);
-    racerfx_alloc(72, 64);
+    track_setup_racers(vehicle, entranceId, numberOfPlayers); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-racers");
+    racerfx_alloc(72, 64); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-racerfx");
 
     if (geometry == 0 && entranceId == 0) {
         transition_begin(&gCircleFadeToBlack);
@@ -266,17 +266,18 @@ void init_track(u32 geometry, u32 skybox, s32 numberOfPlayers, Vehicle vehicle, 
 
     gShadowHeapFlip = 0;
     shadow_update(SHADOW_SCENERY, SHADOW_SCENERY, LOGIC_NULL);
-    shadow_update(SHADOW_ACTORS, SHADOW_ACTORS, LOGIC_NULL);
+    shadow_update(SHADOW_ACTORS, SHADOW_ACTORS, LOGIC_NULL); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-shadow");
     gShadowHeapFlip = 1;
     shadow_update(SHADOW_SCENERY, SHADOW_SCENERY, LOGIC_NULL);
-    shadow_update(SHADOW_ACTORS, SHADOW_ACTORS, LOGIC_NULL);
+    shadow_update(SHADOW_ACTORS, SHADOW_ACTORS, LOGIC_NULL); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-shadow");
     gShadowHeapFlip = 0;
     if (gCurrentLevelHeader2->useVoid) {
         gVoidColourR = gCurrentLevelHeader2->voidColour.red;
         gVoidColourG = gCurrentLevelHeader2->voidColour.green;
         gVoidColourB = gCurrentLevelHeader2->voidColour.blue;
-        void_init(numberOfPlayers + 1);
+        void_init(numberOfPlayers + 1); __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: after-void");
     }
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-TRACK", "it: RETURN");
 }
 
 /**
