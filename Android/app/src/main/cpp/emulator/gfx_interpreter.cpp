@@ -1265,7 +1265,7 @@ static void TransformVertex(const BKVertex* v, float* sx, float* sy) {
                 s_rdp.projection[i][j] = (i == j) ? 1.0f : 0.0f;
         }
     }
-    float x = (float)v->x, y = (float)v->y, z = (float)v->z;
+    float x = ((float)v->x * (1.0f/32768.0f)), y = ((float)v->y * (1.0f/32768.0f)), z = ((float)v->z * (1.0f/32768.0f));
     {
         static int s_tv = 0;
         if (s_tv++ < 0) {
@@ -1321,7 +1321,7 @@ static void TransformVertex(const BKVertex* v, float* sx, float* sy) {
         if (s_txfm++ < 5) {
             __android_log_print(ANDROID_LOG_ERROR, "BKA-TXFM",
                 "world=(%.0f,%.0f,%.0f) view=(%.1f,%.1f,%.1f) wv=%.3f | clip=(%.1f,%.1f,%.1f) wc=%.3f | ndc=(%.3f,%.3f)",
-                (float)v->x, (float)v->y, (float)v->z,
+                ((float)v->x * (1.0f/32768.0f)), ((float)v->y * (1.0f/32768.0f)), ((float)v->z * (1.0f/32768.0f)),
                 view_x, view_y, view_z, view_w,
                 px, py, pz, pw,
                 (pw != 0.0f) ? (px / pw) : 0.0f,
@@ -1343,7 +1343,7 @@ static void TransformVertex(const BKVertex* v, float* sx, float* sy) {
             __android_log_print(ANDROID_LOG_ERROR, "BKA-VERT",
                 "V world=(%.0f,%.0f,%.0f) view=(%.1f,%.1f,%.1f) w=%.1f "
                 "clip=(%.1f,%.1f,%.1f,%.1f)",
-                (float)v->x, (float)v->y, (float)v->z,
+                ((float)v->x * (1.0f/32768.0f)), ((float)v->y * (1.0f/32768.0f)), ((float)v->z * (1.0f/32768.0f)),
                 ox, oy, oz, ow,
                 px, py, pz, pw);
     }
