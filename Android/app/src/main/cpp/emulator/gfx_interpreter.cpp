@@ -632,6 +632,13 @@ static void RDP_InitState() {
     // Clear all state except vertices.
     memset(&s_rdp, 0, sizeof(s_rdp));
     __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX", "INIT-MEMSET-RAN");
+    
+    // Re-seed matrices to identity so the first MUL/PUSH ops are well-defined.
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            s_rdp.projection[i][j] = s_rdp.modelview[i][j] =
+                s_rdp.viewProj[i][j] = (i == j) ? 1.0f : 0.0f;
+    s_rdp.modelviewStackDepth = 0;
 
     // Re-seed segment bases — the memset above wipes them.
     // These match the defaults set by the RDPStateDefaultSegments constructor.
@@ -2218,6 +2225,17 @@ static void Cmd_Polygon(GfxCommand cmd) {
         }
     }
 
+    {
+        static int _md = 0;
+        if (_md++ < 4) {
+            diag_log("BKA-MTX-DIAG",
+                "proj[0][0]=%.3f [1][1]=%.3f [2][2]=%.3f [3][3]=%.3f "
+                "mv[0][0]=%.3f [1][1]=%.3f [2][2]=%.3f [3][3]=%.3f",
+                s_rdp.projection[0][0], s_rdp.projection[1][1], s_rdp.projection[2][2], s_rdp.projection[3][3],
+                s_rdp.modelview[0][0], s_rdp.modelview[1][1], s_rdp.modelview[2][2], s_rdp.modelview[3][3]);
+        }
+    }
+
     int saved_enabled = s_rdp.textureEnabled;
     s_rdp.textureEnabled = (int)texEn;
 
@@ -2261,9 +2279,7 @@ static void Cmd_Polygon(GfxCommand cmd) {
 
     for (uint32_t i = 0; i < numTris; i++, tri++) {
         uint32_t vi0 = tri->vi0, vi1 = tri->vi1, vi2 = tri->vi2;
-        if (vi0 >= (uint32_t)s_rdp.dmemVertexCount ||
-            vi1 >= (uint32_t)s_rdp.dmemVertexCount ||
-            vi2 >= (uint32_t)s_rdp.dmemVertexCount) continue;
+        if (vi0 >= 256 || vi1 >= 256 || vi2 >= 256) continue;
 
         BKVertex* v0 = &s_rdp.dmem[vi0];
         BKVertex* v1 = &s_rdp.dmem[vi1];
