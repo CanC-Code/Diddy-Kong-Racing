@@ -2013,7 +2013,7 @@ static void Cmd_Vtx(GfxCommand cmd) {
             __android_log_print(ANDROID_LOG_ERROR, "BKA-VTXDKR",
                 "n=%u v0=%u w0=%08X w1=%08X", n, v0, cmd.w0, cmd.w1);
     } else {
-        v0 = ((packed >> 16) & 0xFF) / 2;
+        v0 = ((cmd.w0 >> 16) & 0xFF) / 2;
         n = std_n;
     }
     uint32_t addr = cmd.w1;
