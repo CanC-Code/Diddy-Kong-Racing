@@ -129,7 +129,39 @@ void *__osGetActiveQueue(void) { return 0; }
 void __osSpSetStatus(u32 status) { (void)status; }
 
 /* GU — matrices (wrong values but defined) */
-void _guMtxF2L(void) {}
+/* Real _guMtxF2L: convert float[4][4] -> N64 fixed-point int16.uint16 layout.
+ * Also registers the buffer's truncated low-32 with the address map so
+ * RDP_TranslateAddr(w1) can recover the full 64-bit pointer.
+ *
+ * Layout written (64 bytes at offset 0 of the Mtx buffer):
+ *   int32_t slot[16], each = (int16 int_part << 16) | uint16 frac_part
+ * Standard N64 Mtx format. sizeof(Mtx)=128 on aarch64 (long=64-bit), so the
+ * second 64 bytes of the slot remain zero and are never read.
+ */
+#include <stdint.h>
+extern void bka_add_addr_mapping_c(uint32_t key, void *ptr);
+
+void _guMtxF2L(float mf[4][4], void *m)
+{
+    int32_t *ip = (int32_t *)m;
+    int i, j;
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 4; j++) {
+            float f = mf[i][j];
+            int32_t v;
+            if (f > 32767.999f) v = 0x7FFFFFFF;
+            else if (f < -32768.0f) v = (int32_t)0x80000000;
+            else v = (int32_t)(f * 65536.0f);
+            uint16_t ipart = (uint16_t)((v >> 16) & 0xFFFF);
+            uint16_t fpart = (uint16_t)(v & 0xFFFF);
+            ip[i * 4 + j] = ((uint32_t)ipart << 16) | fpart;
+        }
+    }
+    /* Register so RDP_TranslateAddr(w1) with truncated low-32 resolves back
+     * to this full 64-bit pointer. Matches how gbi.h macros register via
+     * linker_stubs.c:bka_add_addr_mapping_c. */
+    bka_add_addr_mapping_c((uint32_t)(uintptr_t)m, m);
+}
 void _guRotateF(void) {}
 void _guTranslateF(void) {}
 void guPerspectiveF(float mf[4][4], u16 *pn, float fovy, float aspect, float near, float far, float scale) { (void)mf; (void)pn; (void)fovy; (void)aspect; (void)near; (void)far; (void)scale; }
