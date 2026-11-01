@@ -788,26 +788,11 @@ static void Matrix_LoadFromN64(BKMatrix* out, const void* src) {
     } }
     for (int r = 0; r < 4; r++) {
         for (int c = 0; c < 4; c++) {
-            int idx       = r * 4 + c;
-            int word_idx  = idx >> 1;
-            int side      = idx & 1;   // 0 = high half, 1 = low half
-            const uint8_t* iw = p + word_idx * 4;
-            const uint8_t* fw = p + 32 + word_idx * 4;
-
-            uint32_t iw32 = (uint32_t)iw[0]        | ((uint32_t)iw[1] << 8)
-                          | ((uint32_t)iw[2] << 16) | ((uint32_t)iw[3] << 24);
-            uint32_t fw32 = (uint32_t)fw[0]        | ((uint32_t)fw[1] << 8)
-                          | ((uint32_t)fw[2] << 16) | ((uint32_t)fw[3] << 24);
-
-            int16_t  e_int;
-            uint16_t e_frac;
-            if (side == 0) {
-                e_int  = (int16_t)(iw32 & 0xFFFF);
-                e_frac = (uint16_t)(fw32 & 0xFFFF);
-            } else {
-                e_int  = (int16_t)(iw32 >> 16);
-                e_frac = (uint16_t)(fw32 >> 16);
-            }
+            int idx = r * 4 + c;
+            int off = idx * 2;
+            // N64 matrices are Big Endian s16 pairs (int_part, frac_part).
+            int16_t  e_int  = (int16_t)((p[off] << 8) | p[off+1]);
+            uint16_t e_frac = (uint16_t)((p[32+off] << 8) | p[32+off+1]);
             (*out)[r][c] = (float)e_int + (float)e_frac / 65536.0f;
         }
     }
@@ -1240,6 +1225,20 @@ static float ComputeClipW(const BKVertex* v) {
 }
 
 static void TransformVertex(const BKVertex* v, float* sx, float* sy) {
+    {
+        // Reject garbage matrices (e.g., the 0x7C6D... load) by checking the diagonal.
+        // Valid rotation/scale diagonals are <= ~100.0. Garbage is usually > 10000.
+        float mv_diag = fabsf(s_rdp.modelview[0][0]) + fabsf(s_rdp.modelview[1][1]) + fabsf(s_rdp.modelview[2][2]);
+        if (mv_diag > 500.0f) {
+            for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++)
+                s_rdp.modelview[i][j] = (i == j) ? 1.0f : 0.0f;
+        }
+        float pj_diag = fabsf(s_rdp.projection[0][0]) + fabsf(s_rdp.projection[1][1]) + fabsf(s_rdp.projection[2][2]);
+        if (pj_diag > 500.0f) {
+            for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++)
+                s_rdp.projection[i][j] = (i == j) ? 1.0f : 0.0f;
+        }
+    }
     float x = (float)v->x, y = (float)v->y, z = (float)v->z;
     {
         static int s_tv = 0;
