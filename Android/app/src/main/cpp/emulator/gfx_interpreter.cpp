@@ -2993,6 +2993,34 @@ static void Cmd_Mtx(GfxCommand cmd) {
                 (void*)gN64_RDRAM, mtx_src, low);
         }
     }
+    /* MULTI-CANDIDATE probe: dump bytes at every plausible matrix address.
+       Whichever starts with 00 01 00 00 / 00 00 00 00 / FF FF is the real
+       source; that identifier becomes the segment-ID fix. */
+    {
+        static int _cand = 0;
+        if (_cand++ < 4) {
+            uint32_t off = cmd.w1 & 0xFFFFFFu;
+            uintptr_t s1 = s_rdp.segmentBase[1];
+            uintptr_t s2 = s_rdp.segmentBase[2];
+            uintptr_t s4 = s_rdp.segmentBase[4];
+            uintptr_t c_s1 = s1 + off;
+            uintptr_t c_s2 = s2 + off;
+            uintptr_t c_s4 = s4 + off;
+            uintptr_t c_7D = 0x7D00000000ULL | (uint64_t)cmd.w1;
+            uintptr_t c_79 = 0x7900000000ULL | (uint64_t)cmd.w1;
+            #define _DUMP(lbl, ptr) do {                 const uint8_t* _b = (const uint8_t*)(ptr);                 diag_log("BKA-MTX-CAND", lbl " %p rd=%d b=%02X%02X%02X%02X "                     "%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X",                     (void*)(ptr), bka_is_readable((void*)(ptr)),                     bka_is_readable((void*)(ptr))?_b[0]:0,                     bka_is_readable((void*)(ptr))?_b[1]:0,                     bka_is_readable((void*)(ptr))?_b[2]:0,                     bka_is_readable((void*)(ptr))?_b[3]:0,                     bka_is_readable((void*)(ptr))?_b[4]:0,                     bka_is_readable((void*)(ptr))?_b[5]:0,                     bka_is_readable((void*)(ptr))?_b[6]:0,                     bka_is_readable((void*)(ptr))?_b[7]:0,                     bka_is_readable((void*)(ptr))?_b[8]:0,                     bka_is_readable((void*)(ptr))?_b[9]:0,                     bka_is_readable((void*)(ptr))?_b[10]:0,                     bka_is_readable((void*)(ptr))?_b[11]:0,                     bka_is_readable((void*)(ptr))?_b[12]:0,                     bka_is_readable((void*)(ptr))?_b[13]:0,                     bka_is_readable((void*)(ptr))?_b[14]:0,                     bka_is_readable((void*)(ptr))?_b[15]:0); } while(0)
+            diag_log("BKA-MTX-CAND-HDR",
+                "w1=0x%08X off=0x%06X s1=0x%lX s2=0x%lX s4=0x%lX",
+                cmd.w1, off,
+                (unsigned long)s1, (unsigned long)s2, (unsigned long)s4);
+            _DUMP("cand_s1", c_s1);
+            _DUMP("cand_s2", c_s2);
+            _DUMP("cand_s4", c_s4);
+            _DUMP("cand_7D", c_7D);
+            _DUMP("cand_79", c_79);
+            #undef _DUMP
+        }
+    }
     if (mtx_src && (flag & G_MTX_PROJECTION) && (flag & G_MTX_LOAD)) {
         static int s_projsrc = 0;
         if (s_projsrc++ < 8) {
