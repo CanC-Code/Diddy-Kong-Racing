@@ -2993,6 +2993,36 @@ static void Cmd_Mtx(GfxCommand cmd) {
                 (void*)gN64_RDRAM, mtx_src, low);
         }
     }
+    /* One-shot: locate real matrices in RDRAM by scanning for the row-0
+       signature int[0][0]=1.0, int[0][1]=0.0 (bytes 00 01 00 00 00 00 00 00).
+       Compare each match's offset against w1 & 0xFFFFFF to reverse-engineer
+       the correct address resolution. */
+    {
+        static int _scan = 0;
+        if (_scan == 0 && (cmd.w1 >> 28) == 0x2 && cmd.w1 != 0xFFFFFFFFu) {
+            _scan = 1;
+            extern uint8_t *gN64_RDRAM;
+            if (gN64_RDRAM) {
+                uint32_t want = cmd.w1 & 0xFFFFFFu;
+                int found = 0;
+                for (uint32_t i = 0; i < 0x7FFFF0; i += 4) {
+                    const uint8_t *p = gN64_RDRAM + i;
+                    if (p[0]==0x00 && p[1]==0x01 && p[2]==0x00 && p[3]==0x00 &&
+                        p[4]==0x00 && p[5]==0x00 && p[6]==0x00 && p[7]==0x00) {
+                        if (found < 64) {
+                            diag_log("BKA-MTX-SCAN",
+                                "off=0x%06X w1off=0x%06X delta=0x%06X",
+                                i, want, (i - want) & 0xFFFFFFu);
+                        }
+                        found++;
+                    }
+                }
+                diag_log("BKA-MTX-SCAN-END",
+                    "found=%d w1=0x%08X want=0x%06X",
+                    found, cmd.w1, want);
+            }
+        }
+    }
     /* DIAG: test whether segment bases have full-64-bit pointers registered,
        so lookup_addr_by_low32(segmentBase[seg]) + off yields the real matrix. */
     {
