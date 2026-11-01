@@ -116,7 +116,7 @@ void guMtxIdentF(void *mf) {
 
 extern void bka_add_addr_mapping_c(uint32_t key, void *ptr);
 
-void guMtxF2L(void *mf, void *m) {
+void guMtxF2L(void *mf, void *m) { static int _c=0; if(_c++<20) __android_log_print(ANDROID_LOG_ERROR,"BKA-PROBE","guMtxF2L m=%p",m);
     /* Register the FULL pointer under both truncation variants the recomp
      * might emit: raw low-32 and KSEG0-stripped low-32. Emulator resolves
      * w1 back to the actual matrix buffer via bka_lookup_addr_by_low32.
