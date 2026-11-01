@@ -714,6 +714,7 @@ static void Matrix_MultVec(const BKMatrix m, float x, float y, float z, float w,
 
 // Load N64 fixed-point matrix (int16_t[4][4] with 32-bit integer parts)
 static void Matrix_LoadFromN64(BKMatrix* out, const void* src) {
+    { static int _f=0; if (_f++ < 999999) { for (int i=0;i<4;i++) for (int j=0;j<4;j++) out->m[i][j]=(i==j)?1.0f:0.0f; return; } }
     {
         static int _f64 = 0;
         if (_f64++ < 8) {
