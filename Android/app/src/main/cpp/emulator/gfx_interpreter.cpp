@@ -2007,7 +2007,7 @@ static void Cmd_Vtx(GfxCommand cmd) {
     bool is_dkr = (std_check != std_n * 2);
     if (is_dkr) {
         n = ((packed >> 3) & 0x1F) + 1;
-        v0 = (packed & 0x1) ? 32 : 0;
+        v0 = ((cmd.w0 >> 16) & 0xFF) / 2;
         static int _dkrlog = 0;
         if (_dkrlog++ < 20)
             __android_log_print(ANDROID_LOG_ERROR, "BKA-VTXDKR",
