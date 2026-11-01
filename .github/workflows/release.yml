@@ -1,0 +1,50 @@
+name: Build Signed Release APK
+on:
+  workflow_dispatch:
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > /tmp/dkr-release.jks
+          chmod 600 /tmp/dkr-release.jks
+      - name: Locate NDK
+        run: |
+          NDK=$(ls $ANDROID_HOME/ndk | head -1)
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK" >> $GITHUB_ENV
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+          cache-disabled: true
+      - name: Fetch asset metadata
+        run: gh release download dkr-asset-metadata --pattern asset_enums.h --output include/asset_enums.h --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build release
+        working-directory: Android
+        shell: bash
+        env:
+          DKR_KEYSTORE_PATH: /tmp/dkr-release.jks
+          DKR_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          DKR_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          DKR_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -eo pipefail
+          gradle assembleRelease --no-build-cache --rerun-tasks
+      - name: Wipe keystore
+        if: always()
+        run: rm -f /tmp/dkr-release.jks
+      - name: Upload signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dkr-release-apk
+          path: Android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error

@@ -40,6 +40,26 @@ android {
         }
     }
 
+    signingConfigs {
+        if (System.getenv("DKR_KEYSTORE_PATH") != null) {
+            release {
+                storeFile file(System.getenv("DKR_KEYSTORE_PATH"))
+                storePassword System.getenv("DKR_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("DKR_KEY_ALIAS")
+                keyPassword System.getenv("DKR_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (System.getenv("DKR_KEYSTORE_PATH") != null) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
