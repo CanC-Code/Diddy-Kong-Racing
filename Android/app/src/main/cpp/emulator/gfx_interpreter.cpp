@@ -2997,23 +2997,28 @@ static void Cmd_Mtx(GfxCommand cmd) {
             if ((_i00 == 0x0001 || _i00 == 0xFFFF) && _i01 == 0x0000) _ok = 1;
         }
         if (!_ok) {
-            uint32_t _undo = (uint32_t)(cmd.w1 + 0x80000000u);
-            uint64_t _c1 = 0x7D00000000ULL | (uint64_t)_undo;
-            uint64_t _c2 = 0x7D00000000ULL | (uint64_t)cmd.w1;
-            for (int _k = 0; _k < 2; _k++) {
-                uint64_t _p = (_k == 0) ? _c1 : _c2;
-                if (!bka_is_readable((void*)_p)) continue;
+            uint64_t _p = 0x7D00000000ULL | (uint64_t)cmd.w1;
+            if (bka_is_readable((void*)_p) &&
+                bka_is_readable((void*)((const uint8_t*)_p + 63))) {
                 const uint8_t *_b = (const uint8_t*)_p;
-                if (!bka_is_readable((void*)(_b + 7))) continue;
+                /* Real N64 matrix int-part: int[0][0] ∈ {0x0001, 0x0000, 0xFFFF}, int[0][1..3] = 0
+                   Also int[1][0], int[2][0], int[3][0] = 0 (col 0, rows 1-3).
+                   Requires int[1][1],int[2][2],int[3][3] readable too. */
                 uint16_t _i00 = (uint16_t)((_b[0] << 8) | _b[1]);
                 uint16_t _i01 = (uint16_t)((_b[2] << 8) | _b[3]);
-                if ((_i00 == 0x0001 || _i00 == 0xFFFF) && _i01 == 0x0000) {
+                uint16_t _i02 = (uint16_t)((_b[4] << 8) | _b[5]);
+                uint16_t _i03 = (uint16_t)((_b[6] << 8) | _b[7]);
+                uint16_t _i10 = (uint16_t)((_b[8] << 8) | _b[9]);   /* int[1][0] */
+                uint16_t _i20 = (uint16_t)((_b[16] << 8) | _b[17]); /* int[2][0] */
+                uint16_t _i30 = (uint16_t)((_b[24] << 8) | _b[25]); /* int[3][0] */
+                int _diag_ok = (_i01 == 0 && _i02 == 0 && _i03 == 0 &&
+                                _i10 == 0 && _i20 == 0 && _i30 == 0);
+                if (_diag_ok && (_i00 == 0x0001 || _i00 == 0xFFFF || _i00 == 0x0000)) {
                     static int _lg = 0;
                     if (_lg++ < 20) diag_log("BKA-MTX-REBUILD",
-                        "w1=0x%08X cand%d=0x%llX", cmd.w1, _k+1,
-                        (unsigned long long)_p);
+                        "w1=0x%08X ptr=0x%llX i00=0x%04X",
+                        cmd.w1, (unsigned long long)_p, (uint32_t)_i00);
                     mtx_src = (void*)_p;
-                    break;
                 }
             }
         }
