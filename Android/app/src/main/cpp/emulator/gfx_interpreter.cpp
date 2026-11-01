@@ -2166,6 +2166,35 @@ static void Cmd_Polygon(GfxCommand cmd) {
             numTris, texEn, cmd.w0, cmd.w1, (void*)tri, s_rdp.dmemVertexCount);
     if (!tri) return;
 
+    {
+        static int _pdiag = 0;
+        if (_pdiag++ < 8) {
+            int vi0 = tri[0].vi0, vi1 = tri[0].vi1, vi2 = tri[0].vi2;
+            diag_log("BKA-POLY-DIAG",
+                "numTris=%u texEn=%u tri=%p dmemVtx=%d vi=(%d,%d,%d) "
+                "v0=(%d,%d,%d) v1=(%d,%d,%d) v2=(%d,%d,%d) "
+                "uv0=(%d,%d) uv1=(%d,%d) uv2=(%d,%d) col0=(%d,%d,%d,%d)",
+                numTris, texEn, (void*)tri, s_rdp.dmemVertexCount,
+                vi0, vi1, vi2,
+                vi0 < 256 ? s_rdp.dmem[vi0].x : 0,
+                vi0 < 256 ? s_rdp.dmem[vi0].y : 0,
+                vi0 < 256 ? s_rdp.dmem[vi0].z : 0,
+                vi1 < 256 ? s_rdp.dmem[vi1].x : 0,
+                vi1 < 256 ? s_rdp.dmem[vi1].y : 0,
+                vi1 < 256 ? s_rdp.dmem[vi1].z : 0,
+                vi2 < 256 ? s_rdp.dmem[vi2].x : 0,
+                vi2 < 256 ? s_rdp.dmem[vi2].y : 0,
+                vi2 < 256 ? s_rdp.dmem[vi2].z : 0,
+                tri[0].uv0u, tri[0].uv0v,
+                tri[0].uv1u, tri[0].uv1v,
+                tri[0].uv2u, tri[0].uv2v,
+                vi0 < 256 ? s_rdp.dmem[vi0].r : 0,
+                vi0 < 256 ? s_rdp.dmem[vi0].g : 0,
+                vi0 < 256 ? s_rdp.dmem[vi0].b : 0,
+                vi0 < 256 ? s_rdp.dmem[vi0].a : 0);
+        }
+    }
+
     int saved_enabled = s_rdp.textureEnabled;
     s_rdp.textureEnabled = (int)texEn;
 
