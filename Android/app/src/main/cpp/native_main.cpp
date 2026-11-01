@@ -384,7 +384,7 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     { static int _fa = 0; if (_fa++ < 5) __android_log_print(ANDROID_LOG_ERROR, "BKA-STREAM", "fillArgb curr=%p last=%p", (void*)gVideoCurrFramebuffer, (void*)gVideoLastFramebuffer); }
     int nb_a = 0, nb_b = 0;
     for (int i = 0; i < 292 * 216; i++) { if (src_a[i]) nb_a++; if (src_b[i]) nb_b++; }
-    uint16_t* src = (nb_a >= nb_b) ? src_a : src_b;
+    uint16_t* src = src_a; /* PORT: always show finished frame; src_b is uninit malloc 0xFFFF */
 
     for (int i = 0; i < W * H; i++) {
         uint16_t px = (i < 292*216) ? src[i] : 0;
