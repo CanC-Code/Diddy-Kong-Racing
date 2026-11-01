@@ -2177,6 +2177,19 @@ static void Cmd_Polygon(GfxCommand cmd) {
     if (!tri) return;
 
     {
+        static int _phex = 0;
+        if (_phex++ < 4) {
+            uint8_t* b = (uint8_t*)tri;
+            diag_log("BKA-POLY-HEX",
+                "poly#%d numTris=%u w0=%08X w1=%08X "
+                "b=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X",
+                _phex, numTris, cmd.w0, cmd.w1,
+                b[0],b[1],b[2],b[3],b[4],b[5],b[6],b[7],
+                b[8],b[9],b[10],b[11],b[12],b[13],b[14],b[15]);
+        }
+    }
+
+    {
         static int _pdiag = 0;
         if (_pdiag++ < 8) {
             int vi0 = tri[0].vi0, vi1 = tri[0].vi1, vi2 = tri[0].vi2;
@@ -2230,6 +2243,22 @@ static void Cmd_Polygon(GfxCommand cmd) {
         }
     }
 
+    {
+        static int _pcnt = 0;
+        if (_pcnt++ < 8) {
+            int _pass = 0, _skip = 0;
+            for (uint32_t i = 0; i < numTris; i++) {
+                if (tri[i].vi0 >= (uint32_t)s_rdp.dmemVertexCount ||
+                    tri[i].vi1 >= (uint32_t)s_rdp.dmemVertexCount ||
+                    tri[i].vi2 >= (uint32_t)s_rdp.dmemVertexCount) _skip++;
+                else _pass++;
+            }
+            diag_log("BKA-POLY-SUMMARY",
+                "poly#%d numTris=%u pass=%d skip=%d dmemVtx=%d",
+                _pcnt, numTris, _pass, _skip, s_rdp.dmemVertexCount);
+        }
+    }
+
     for (uint32_t i = 0; i < numTris; i++, tri++) {
         uint32_t vi0 = tri->vi0, vi1 = tri->vi1, vi2 = tri->vi2;
         if (vi0 >= (uint32_t)s_rdp.dmemVertexCount ||
@@ -2239,6 +2268,25 @@ static void Cmd_Polygon(GfxCommand cmd) {
         BKVertex* v0 = &s_rdp.dmem[vi0];
         BKVertex* v1 = &s_rdp.dmem[vi1];
         BKVertex* v2 = &s_rdp.dmem[vi2];
+
+        {
+            static int s_draw = 0;
+            if (s_draw++ < 4) {
+                float d_x0, d_y0, d_x1, d_y1, d_x2, d_y2;
+                TransformVertex(v0, &d_x0, &d_y0);
+                TransformVertex(v1, &d_x1, &d_y1);
+                TransformVertex(v2, &d_x2, &d_y2);
+                diag_log("BKA-DRAW",
+                    "vi=(%u,%u,%u) v0=(%d,%d,%d) v1=(%d,%d,%d) v2=(%d,%d,%d) "
+                    "xy=(%.1f,%.1f)(%.1f,%.1f)(%.1f,%.1f) "
+                    "w=(%.2f,%.2f,%.2f) col0=(%d,%d,%d,%d)",
+                    vi0, vi1, vi2,
+                    v0->x,v0->y,v0->z, v1->x,v1->y,v1->z, v2->x,v2->y,v2->z,
+                    d_x0,d_y0, d_x1,d_y1, d_x2,d_y2,
+                    ComputeClipW(v0), ComputeClipW(v1), ComputeClipW(v2),
+                    v0->r, v0->g, v0->b, v0->a);
+            }
+        }
 
         float sx0, sy0, sx1, sy1, sx2, sy2;
         TransformVertex(v0, &sx0, &sy0);
