@@ -109,3 +109,6 @@ baseroms/*.v64
 include/asset_enums.h
 !Android/app/src/main/assets/
 !Android/app/src/main/assets/*.yaml
+*.jks
+*.jks.b64
+pw.txt
