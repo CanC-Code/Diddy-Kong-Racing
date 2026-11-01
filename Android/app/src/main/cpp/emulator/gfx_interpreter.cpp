@@ -2977,6 +2977,22 @@ static void Cmd_Mtx(GfxCommand cmd) {
         return;
     }
     void *mtx_src = RDP_TranslateAddr(cmd.w1);
+    {
+        static int _rr = 0;
+        if (_rr++ < 16) {
+            extern uint8_t *gN64_RDRAM;
+            void *low = (void*)bka_lookup_addr_by_low32(cmd.w1);
+            uint8_t seg4 = (cmd.w1 >> 24) & 0x0F;
+            uint8_t seg8 = (cmd.w1 >> 24) & 0xFF;
+            diag_log("BKA-MTX-RESOLVE",
+                "w1=0x%08X seg4=0x%02X seg8=0x%02X segB[seg4]=0x%lX segB[seg8]=0x%lX "
+                "RDRAM=%p rdp_src=%p low32_src=%p",
+                cmd.w1, seg4, seg8,
+                (unsigned long)s_rdp.segmentBase[seg4],
+                (seg8 < 16 ? (unsigned long)s_rdp.segmentBase[seg8] : 0xDEADBEEFul),
+                (void*)gN64_RDRAM, mtx_src, low);
+        }
+    }
     if (mtx_src && (flag & G_MTX_PROJECTION) && (flag & G_MTX_LOAD)) {
         static int s_projsrc = 0;
         if (s_projsrc++ < 8) {
