@@ -2998,7 +2998,7 @@ static void Cmd_Mtx(GfxCommand cmd) {
        source; that identifier becomes the segment-ID fix. */
     {
         static int _cand = 0;
-        if (_cand++ < 4) {
+        if (cmd.w1 != 0xFFFFFFFFu && cmd.w1 != 0xFFFF153Fu && _cand++ < 4) {
             uint32_t off = cmd.w1 & 0xFFFFFFu;
             uintptr_t s1 = s_rdp.segmentBase[1];
             uintptr_t s2 = s_rdp.segmentBase[2];
