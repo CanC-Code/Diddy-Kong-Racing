@@ -2109,6 +2109,29 @@ static void Cmd_Vtx(GfxCommand cmd) {
     }
 
     uint8_t* src = RDP_TranslateAddr(addr);
+    /* VTX: same heap-pointer reconstruction as Cmd_Mtx. */
+    {
+        int _ok = 0;
+        if (src && bka_is_readable(src) &&
+            bka_is_readable((void*)(src + 15))) {
+            const uint8_t *_b = src;
+            /* Vtx byte 6,7 = flag u16 (should be 0 or 0x80xx per N64 spec;
+               mostly 0). Byte 12-15 = rgba. Signature: byte 6 must be 0x00 or 0x80
+               AND byte 10-11 (t coord) usually not both 0xFF. Too loose; just
+               check the readable pointer is non-NULL. */
+            _ok = 1;
+        }
+        if (!_ok) {
+            uint64_t _p = 0x7D00000000ULL | (uint64_t)addr;
+            if (bka_is_readable((void*)_p) &&
+                bka_is_readable((void*)((const uint8_t*)_p + 15))) {
+                static int _lg = 0;
+                if (_lg++ < 20) diag_log("BKA-VTX-REBUILD",
+                    "addr=0x%08X ptr=0x%llX", addr, (unsigned long long)_p);
+                src = (uint8_t*)_p;
+            }
+        }
+    }
     if (!src) {
         static int s_ft = 0;
         if (s_ft++ < 200) {
@@ -3013,7 +3036,8 @@ static void Cmd_Mtx(GfxCommand cmd) {
                 uint16_t _i30 = (uint16_t)((_b[24] << 8) | _b[25]); /* int[3][0] */
                 int _diag_ok = (_i01 == 0 && _i02 == 0 && _i03 == 0 &&
                                 _i10 == 0 && _i20 == 0 && _i30 == 0);
-                if (_diag_ok && (_i00 == 0x0001 || _i00 == 0xFFFF || _i00 == 0x0000)) {
+                /* Reject all-zero matrices; a real identity has i00=0x0001. */
+                if (_diag_ok && (_i00 == 0x0001 || _i00 == 0xFFFF)) {
                     static int _lg = 0;
                     if (_lg++ < 20) diag_log("BKA-MTX-REBUILD",
                         "w1=0x%08X ptr=0x%llX i00=0x%04X",
