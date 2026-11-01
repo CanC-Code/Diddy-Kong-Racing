@@ -2988,6 +2988,37 @@ static void Cmd_Mtx(GfxCommand cmd) {
     }
     void *mtx_src = RDP_TranslateAddr(cmd.w1);
     {
+        int _ok = 0;
+        if (mtx_src && bka_is_readable(mtx_src) &&
+            bka_is_readable((void*)((const uint8_t*)mtx_src + 7))) {
+            const uint8_t *_b = (const uint8_t*)mtx_src;
+            uint16_t _i00 = (uint16_t)((_b[0] << 8) | _b[1]);
+            uint16_t _i01 = (uint16_t)((_b[2] << 8) | _b[3]);
+            if ((_i00 == 0x0001 || _i00 == 0xFFFF) && _i01 == 0x0000) _ok = 1;
+        }
+        if (!_ok) {
+            uint32_t _undo = (uint32_t)(cmd.w1 + 0x80000000u);
+            uint64_t _c1 = 0x7D00000000ULL | (uint64_t)_undo;
+            uint64_t _c2 = 0x7D00000000ULL | (uint64_t)cmd.w1;
+            for (int _k = 0; _k < 2; _k++) {
+                uint64_t _p = (_k == 0) ? _c1 : _c2;
+                if (!bka_is_readable((void*)_p)) continue;
+                const uint8_t *_b = (const uint8_t*)_p;
+                if (!bka_is_readable((void*)(_b + 7))) continue;
+                uint16_t _i00 = (uint16_t)((_b[0] << 8) | _b[1]);
+                uint16_t _i01 = (uint16_t)((_b[2] << 8) | _b[3]);
+                if ((_i00 == 0x0001 || _i00 == 0xFFFF) && _i01 == 0x0000) {
+                    static int _lg = 0;
+                    if (_lg++ < 20) diag_log("BKA-MTX-REBUILD",
+                        "w1=0x%08X cand%d=0x%llX", cmd.w1, _k+1,
+                        (unsigned long long)_p);
+                    mtx_src = (void*)_p;
+                    break;
+                }
+            }
+        }
+    }
+    {
         static int _rr = 0;
         if (_rr++ < 16) {
             extern uint8_t *gN64_RDRAM;
