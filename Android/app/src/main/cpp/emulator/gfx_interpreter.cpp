@@ -2993,6 +2993,45 @@ static void Cmd_Mtx(GfxCommand cmd) {
                 (void*)gN64_RDRAM, mtx_src, low);
         }
     }
+    /* DIAG: test whether segment bases have full-64-bit pointers registered,
+       so lookup_addr_by_low32(segmentBase[seg]) + off yields the real matrix. */
+    {
+        static int _lk = 0;
+        if (_lk++ < 8) {
+            uint32_t off   = cmd.w1 & 0xFFFFFFu;
+            uint32_t s2b   = (uint32_t)s_rdp.segmentBase[2];
+            uint32_t s1b   = (uint32_t)s_rdp.segmentBase[1];
+            uint32_t s4b   = (uint32_t)s_rdp.segmentBase[4];
+            uint32_t s15b  = (uint32_t)s_rdp.segmentBase[15];
+            void *f2  = (void*)bka_lookup_addr_by_low32(s2b);
+            void *f1  = (void*)bka_lookup_addr_by_low32(s1b);
+            void *f4  = (void*)bka_lookup_addr_by_low32(s4b);
+            void *f15 = (void*)bka_lookup_addr_by_low32(s15b);
+            void *fw  = (void*)bka_lookup_addr_by_low32(cmd.w1);
+            void *f2c = (void*)bka_lookup_addr_by_low32(s2b + off);
+            diag_log("BKA-MTX-LK",
+                "w1=%08X off=%06X s2=%08X f2=%p s2+off=%08X f2c=%p "
+                "s1=%08X f1=%p s4=%08X f4=%p s15=%08X f15=%p fw=%p",
+                cmd.w1, off, s2b, f2, s2b + off, f2c,
+                s1b, f1, s4b, f4, s15b, f15, fw);
+            #define _DB16(lbl, ptr) do { \
+                const uint8_t* _b = (const uint8_t*)(ptr); \
+                int _r = bka_is_readable((void*)(ptr)); \
+                diag_log("BKA-MTX-LK16", lbl " ptr=%p rd=%d " \
+                    "b=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X", \
+                    (void*)(ptr), _r, \
+                    _r?_b[0]:0, _r?_b[1]:0, _r?_b[2]:0, _r?_b[3]:0, \
+                    _r?_b[4]:0, _r?_b[5]:0, _r?_b[6]:0, _r?_b[7]:0, \
+                    _r?_b[8]:0, _r?_b[9]:0, _r?_b[10]:0, _r?_b[11]:0, \
+                    _r?_b[12]:0, _r?_b[13]:0, _r?_b[14]:0, _r?_b[15]:0); } while(0)
+            if (f2)  _DB16("f2+off",  (uint8_t*)f2  + off);
+            if (f1)  _DB16("f1+off",  (uint8_t*)f1  + off);
+            if (f4)  _DB16("f4+off",  (uint8_t*)f4  + off);
+            if (f15) _DB16("f15+off", (uint8_t*)f15 + off);
+            if (f2c) _DB16("f2c",     (uint8_t*)f2c);
+            #undef _DB16
+        }
+    }
     /* MULTI-CANDIDATE probe: dump bytes at every plausible matrix address.
        Whichever starts with 00 01 00 00 / 00 00 00 00 / FF FF is the real
        source; that identifier becomes the segment-ID fix. */
