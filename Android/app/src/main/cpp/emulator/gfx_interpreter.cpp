@@ -2910,6 +2910,18 @@ static void Cmd_Mtx(GfxCommand cmd) {
      * 3-7 set is walker drift into non-command data, and its w1 is a
      * garbage address (observed: 0x017C0000, 0x06340000, 0x03300000).
      * Reject the command. */
+    {
+        static int _md = 0;
+        if (_md++ < 16) {
+            uint32_t _raw = cmd.w0;
+            diag_log("BKA-MTX-CMD",
+                "w0=0x%08X w1=0x%08X op=%02X b23_16=%02X b15_8=%02X b7_0=%02X flag=%02X",
+                _raw, cmd.w1,
+                (_raw >> 24) & 0xFF, (_raw >> 16) & 0xFF,
+                (_raw >> 8) & 0xFF, _raw & 0xFF,
+                (uint32_t)flag);
+        }
+    }
     flag &= 0x07;  /* F3DEX v1: mask off non-spec high bits the recomp emits */
     if (flag & 0xF8) {
         static int s_mtx_hi = 0;
