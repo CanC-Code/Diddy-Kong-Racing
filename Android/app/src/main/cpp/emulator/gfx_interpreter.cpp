@@ -2016,6 +2016,16 @@ static void Cmd_Vtx(GfxCommand cmd) {
         v0 = ((cmd.w0 >> 16) & 0xFF) / 2;
         n = std_n;
     }
+
+    {
+        static int _vdiag = 0;
+        if (_vdiag++ < 8) {
+            diag_log("BKA-VTX-DIAG",
+                "w0=0x%08X w1=0x%08X is_dkr=%d v0=%u n=%u std_check=%u std_n=%u",
+                cmd.w0, cmd.w1, (int)is_dkr, v0, n, std_check, std_n);
+        }
+    }
+
     uint32_t addr = cmd.w1;
 
     static int s_vtx_dump = 0;
