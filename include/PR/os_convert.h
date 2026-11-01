@@ -109,3 +109,9 @@ extern void *		 osPhysicalToVirtual(u32);
 #endif
 
 #endif /* !_OS_CONVERT_H_ */
+
+/* ARM64 port: register full pointer before truncating so the emulator
+ * can resolve w1 back to the real matrix buffer via low32 lookup. */
+#undef  OS_K0_TO_PHYSICAL
+extern uint32_t bka_k0_to_phys(void *ptr);
+#define OS_K0_TO_PHYSICAL(x)  bka_k0_to_phys((void *)(x))

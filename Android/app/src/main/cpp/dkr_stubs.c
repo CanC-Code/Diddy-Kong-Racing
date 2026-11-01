@@ -162,6 +162,20 @@ void _guMtxF2L(float mf[4][4], void *m)
      * linker_stubs.c:bka_add_addr_mapping_c. */
     bka_add_addr_mapping_c((uint32_t)(uintptr_t)m, m);
 }
+
+/* Replacement for OS_K0_TO_PHYSICAL. Registers the full 64-bit pointer
+ * under BOTH the raw low-32 and the KSEG0-bias-stripped low-32, so the
+ * emulator's RDP_TranslateAddr can find the real matrix when it sees
+ * only the truncated value from the display list. */
+uint32_t bka_k0_to_phys(void *ptr)
+{
+    uintptr_t u = (uintptr_t)ptr;
+    uint32_t low = (uint32_t)u;
+    uint32_t out = low - 0x80000000u;
+    bka_add_addr_mapping_c(low, ptr);
+    bka_add_addr_mapping_c(out, ptr);
+    return out;
+}
 void _guRotateF(void) {}
 void _guTranslateF(void) {}
 void guPerspectiveF(float mf[4][4], u16 *pn, float fovy, float aspect, float near, float far, float scale) { (void)mf; (void)pn; (void)fovy; (void)aspect; (void)near; (void)far; (void)scale; }
