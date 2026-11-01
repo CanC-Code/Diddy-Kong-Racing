@@ -167,11 +167,17 @@ void _guMtxF2L(float mf[4][4], void *m)
  * under BOTH the raw low-32 and the KSEG0-bias-stripped low-32, so the
  * emulator's RDP_TranslateAddr can find the real matrix when it sees
  * only the truncated value from the display list. */
+extern int __android_log_print(int, const char*, ...);
+
 uint32_t bka_k0_to_phys(void *ptr)
 {
     uintptr_t u = (uintptr_t)ptr;
     uint32_t low = (uint32_t)u;
     uint32_t out = low - 0x80000000u;
+    static int _k0 = 0;
+    if (_k0++ < 20)
+        __android_log_print(6 /*INFO*/, "BKA-K0TOPHYS",
+            "in=%p low=0x%08X out=0x%08X", ptr, low, out);
     bka_add_addr_mapping_c(low, ptr);
     bka_add_addr_mapping_c(out, ptr);
     return out;

@@ -114,7 +114,21 @@ void guMtxIdentF(void *mf) {
             m[i][j] = (i == j) ? 1.0f : 0.0f;
 }
 
+extern void bka_add_addr_mapping_c(uint32_t key, void *ptr);
+
 void guMtxF2L(void *mf, void *m) {
+    /* Register the FULL pointer under both truncation variants the recomp
+     * might emit: raw low-32 and KSEG0-stripped low-32. Emulator resolves
+     * w1 back to the actual matrix buffer via bka_lookup_addr_by_low32.
+     * Without this, the DL carries a truncated 32-bit value that RDP
+     * resolves via segment[0x0E] into uninitialized RDRAM. */
+    uint32_t low = (uint32_t)(uintptr_t)m;
+    bka_add_addr_mapping_c(low, m);
+    bka_add_addr_mapping_c(low - 0x80000000u, m);
+    {
+        extern int __android_log_print_stub(int, const char*, ...);
+        (void)__android_log_print_stub;
+    }
     _guMtxF2L((f32 (*)[4])mf, m);
 }
 
