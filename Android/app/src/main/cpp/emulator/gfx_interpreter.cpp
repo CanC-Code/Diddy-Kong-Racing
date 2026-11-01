@@ -2914,12 +2914,22 @@ static void Cmd_Mtx(GfxCommand cmd) {
         static int _md = 0;
         if (_md++ < 16) {
             uint32_t _raw = cmd.w0;
+            /* dump the 8 bytes the walker just consumed, plus the walker's
+               cursor, so we can tell whether w0/w1 are byte-shifted,
+               byte-swapped, or just plain mis-decoded */
+            uint8_t *_p = (uint8_t *)&cmd.w0;
             diag_log("BKA-MTX-CMD",
-                "w0=0x%08X w1=0x%08X op=%02X b23_16=%02X b15_8=%02X b7_0=%02X flag=%02X",
-                _raw, cmd.w1,
+                "w0=0x%08X w1=0x%08X src=%p bytes=%02X%02X%02X%02X%02X%02X%02X%02X "
+                "op=%02X b23_16=%02X b15_8=%02X b7_0=%02X flag=%02X",
+                _raw, cmd.w1, (void *)&cmd.w0,
+                _p[0],_p[1],_p[2],_p[3],_p[4],_p[5],_p[6],_p[7],
                 (_raw >> 24) & 0xFF, (_raw >> 16) & 0xFF,
                 (_raw >> 8) & 0xFF, _raw & 0xFF,
                 (uint32_t)flag);
+            /* also test the "byte-swapped w1" hypothesis inline */
+            uint32_t _sw = ((cmd.w1 & 0xFF) << 24) | ((cmd.w1 & 0xFF00) << 8)
+                         | ((cmd.w1 >> 8) & 0xFF00)   | ((cmd.w1 >> 24) & 0xFF);
+            diag_log("BKA-MTX-SWAP", "w1=0x%08X swapped=0x%08X", cmd.w1, _sw);
         }
     }
     flag &= 0x07;  /* F3DEX v1: mask off non-spec high bits the recomp emits */
