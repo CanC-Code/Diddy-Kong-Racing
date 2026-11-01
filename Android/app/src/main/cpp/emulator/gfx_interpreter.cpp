@@ -406,7 +406,7 @@ static inline uint8_t* RDP_TranslateAddr(uint32_t addr) {
                 }
                 // Case D (port): gSPSegment(3, osVirtualToPhysical(host_ptr)) leaves the
                 // low-32 of a host pointer (>= 0x84000000) as the segment base.
-                if (seg == 3 && base >= 0x84000000u) {
+                if (base >= 0x84000000u && base < 0xA0000000u) {
                     uintptr_t cand = 0;
                     void* mapped = bka_lookup_addr_mapping((uint32_t)base);
                     if (mapped) cand = (uintptr_t)mapped + off;
