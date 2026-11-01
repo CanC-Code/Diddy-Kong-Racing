@@ -2208,6 +2208,28 @@ static void Cmd_Polygon(GfxCommand cmd) {
     int saved_enabled = s_rdp.textureEnabled;
     s_rdp.textureEnabled = (int)texEn;
 
+    {
+        static int _pdiag2 = 0;
+        if (_pdiag2++ < 4) {
+            for (uint32_t i = 0; i < numTris && i < 8; i++) {
+                diag_log("BKA-POLY-TRI",
+                    "poly#%d tri#%u vi=(%u,%u,%u) dmemVtx=%d "
+                    "v0=(%d,%d,%d) v1=(%d,%d,%d) v2=(%d,%d,%d)",
+                    _pdiag2, i, tri[i].vi0, tri[i].vi1, tri[i].vi2,
+                    s_rdp.dmemVertexCount,
+                    tri[i].vi0 < 256 ? s_rdp.dmem[tri[i].vi0].x : 0,
+                    tri[i].vi0 < 256 ? s_rdp.dmem[tri[i].vi0].y : 0,
+                    tri[i].vi0 < 256 ? s_rdp.dmem[tri[i].vi0].z : 0,
+                    tri[i].vi1 < 256 ? s_rdp.dmem[tri[i].vi1].x : 0,
+                    tri[i].vi1 < 256 ? s_rdp.dmem[tri[i].vi1].y : 0,
+                    tri[i].vi1 < 256 ? s_rdp.dmem[tri[i].vi1].z : 0,
+                    tri[i].vi2 < 256 ? s_rdp.dmem[tri[i].vi2].x : 0,
+                    tri[i].vi2 < 256 ? s_rdp.dmem[tri[i].vi2].y : 0,
+                    tri[i].vi2 < 256 ? s_rdp.dmem[tri[i].vi2].z : 0);
+            }
+        }
+    }
+
     for (uint32_t i = 0; i < numTris; i++, tri++) {
         uint32_t vi0 = tri->vi0, vi1 = tri->vi1, vi2 = tri->vi2;
         if (vi0 >= (uint32_t)s_rdp.dmemVertexCount ||
