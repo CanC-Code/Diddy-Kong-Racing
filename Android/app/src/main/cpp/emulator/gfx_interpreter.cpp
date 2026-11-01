@@ -352,6 +352,15 @@ static inline uint8_t* RDP_TranslateAddr(uint32_t addr) {
     // Try exact-match mapping table first.
     void* p = bka_lookup_addr_mapping(addr);
     if (p) return (uint8_t*)p;
+    /* DKR: DL pointers are truncated 64-bit heap addrs. Top byte 0x20-0x3F = truncation of 0x7D... */
+    if ((((addr)>>24)&0xFF) >= 0x20 && (((addr)>>24)&0xFF) <= 0x3F) {
+        uint64_t _cdkr = 0x7D00000000ULL | (uint64_t)(addr);
+        if (bka_is_readable((void*)_cdkr)) {
+            static int _d = 0;
+            if (_d++ < 30) __android_log_print(ANDROID_LOG_ERROR, "BKA-DKR7D", "addr=0x%08X -> 0x%llX", (unsigned)(addr), (unsigned long long)_cdkr);
+            return (uint8_t*)_cdkr;
+        }
+    }
 
     // Fallback: reconstruct the 64-bit host pointer from a 32-bit truncation.
     // Every allocation in this build lands in the 0x72xxxxxxxx / 0x73xxxxxxxx
