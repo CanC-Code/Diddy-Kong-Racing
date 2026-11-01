@@ -715,6 +715,31 @@ static void Matrix_MultVec(const BKMatrix m, float x, float y, float z, float w,
 // Load N64 fixed-point matrix (int16_t[4][4] with 32-bit integer parts)
 static void Matrix_LoadFromN64(BKMatrix* out, const void* src) {
     {
+        static int _f64 = 0;
+        if (_f64++ < 8) {
+            const uint8_t* _p = (const uint8_t*)src;
+            diag_log("BKA-MTX-FULL64",
+                "src=%p "
+                "00=%02X%02X%02X%02X 04=%02X%02X%02X%02X "
+                "08=%02X%02X%02X%02X 0C=%02X%02X%02X%02X "
+                "10=%02X%02X%02X%02X 14=%02X%02X%02X%02X "
+                "18=%02X%02X%02X%02X 1C=%02X%02X%02X%02X "
+                "20=%02X%02X%02X%02X 24=%02X%02X%02X%02X "
+                "28=%02X%02X%02X%02X 2C=%02X%02X%02X%02X "
+                "30=%02X%02X%02X%02X 34=%02X%02X%02X%02X "
+                "38=%02X%02X%02X%02X 3C=%02X%02X%02X%02X",
+                (void *)src,
+                _p[0],_p[1],_p[2],_p[3], _p[4],_p[5],_p[6],_p[7],
+                _p[8],_p[9],_p[10],_p[11], _p[12],_p[13],_p[14],_p[15],
+                _p[16],_p[17],_p[18],_p[19], _p[20],_p[21],_p[22],_p[23],
+                _p[24],_p[25],_p[26],_p[27], _p[28],_p[29],_p[30],_p[31],
+                _p[32],_p[33],_p[34],_p[35], _p[36],_p[37],_p[38],_p[39],
+                _p[40],_p[41],_p[42],_p[43], _p[44],_p[45],_p[46],_p[47],
+                _p[48],_p[49],_p[50],_p[51], _p[52],_p[53],_p[54],_p[55],
+                _p[56],_p[57],_p[58],_p[59], _p[60],_p[61],_p[62],_p[63]);
+        }
+    }
+    {
         static int s_n64d1 = 0;
         if (s_n64d1++ < 8) {
             const uint8_t* _b = (const uint8_t*)src;
@@ -2933,6 +2958,16 @@ static void Cmd_Mtx(GfxCommand cmd) {
         }
     }
     flag &= 0x07;  /* F3DEX v1: mask off non-spec high bits the recomp emits */
+    {
+        static int _pp = 0;
+        if (_pp++ < 32) {
+            uint32_t _p = (cmd.w0 >> 16) & 0xFF;
+            if (_p != 0) {
+                diag_log("BKA-MTX-PARAM", "w0=0x%08X w1=0x%08X param=0x%02X",
+                         cmd.w0, cmd.w1, _p);
+            }
+        }
+    }
     if (flag & 0xF8) {
         static int s_mtx_hi = 0;
         if (s_mtx_hi++ < 10)
