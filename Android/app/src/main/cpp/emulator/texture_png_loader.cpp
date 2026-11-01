@@ -1,4 +1,5 @@
 #include <jni.h>
+#include <unistd.h>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -131,11 +132,37 @@ static void do_init() {
     std::unordered_map<std::string, std::string> norm_3d, norm_2d;
     scan_dir(root / "textures" / "3d", "/textures/3d/", norm_3d);
     scan_dir(root / "textures" / "2d", "/textures/2d/", norm_2d);
+    /* PORT: extraction may still be running on first boot.
+       Retry scan_dir until file counts stabilize. */
+    {
+        size_t p3 = 0, p2 = 0;
+        int _retries = 0;
+        while (_retries < 30 &&
+               (norm_3d.size() != p3 || norm_2d.size() != p2 || norm_2d.empty())) {
+            p3 = norm_3d.size();
+            p2 = norm_2d.size();
+            usleep(500000);
+            norm_3d.clear(); norm_2d.clear();
+            scan_dir(root / "textures" / "3d", "/textures/3d/", norm_3d);
+            scan_dir(root / "textures" / "2d", "/textures/2d/", norm_2d);
+            _retries++;
+        }
+        LOGI("scan stable after %d retries: 3D=%zu 2D=%zu",
+             _retries, norm_3d.size(), norm_2d.size());
+        diag_log("BKA-PNG-STABLE", "retries=%d 3D=%zu 2D=%zu",
+                 _retries, norm_3d.size(), norm_2d.size());
+    }
     auto order_3d = read_order_list(root / "asset_textures_3d.meta.json");
     auto order_2d = read_order_list(root / "asset_textures_2d.meta.json");
     for (size_t i = 0; i < order_3d.size(); ++i) {
         auto it = norm_3d.find(normalize_name(order_3d[i]));
         if (it != norm_3d.end()) g_png_paths_3d[(uint32_t)i] = it->second;
+    }
+    if (!order_2d.empty()) {
+        std::string _o0 = order_2d[0];
+        std::string _n0 = normalize_name(_o0);
+        bool _f0 = norm_2d.count(_n0) > 0;
+        LOGI("2D[0]='%s' -> norm='%s' -> found=%d", _o0.c_str(), _n0.c_str(), _f0 ? 1 : 0);
     }
     for (size_t i = 0; i < order_2d.size(); ++i) {
         auto it = norm_2d.find(normalize_name(order_2d[i]));

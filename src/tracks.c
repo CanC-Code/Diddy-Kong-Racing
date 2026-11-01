@@ -1772,8 +1772,7 @@ void render_level_geometry_and_objects(void) {
     if (gDrawLevelSegments) {
         { static int _s = 0; if (++_s <= 5 || (_s % 60) == 0)
           __android_log_print(ANDROID_LOG_ERROR, "DKR-RSCENE",
-            "opaque-pass nsegs=%d dl_before=%p dl_ptr=%p",
-            (int)numberOfSegments, (void*)gDisplayLists[gSPTaskNum], (void*)gCurrDisplayList); }
+            "opaque-pass nsegs=%d", (int)numberOfSegments); }
         for (i = 0; i < numberOfSegments; i++) {
             render_level_segment(segmentIds[i], FALSE); // Render opaque segments
             objectsVisible[segmentIds[i] + 1] = TRUE;
@@ -1903,7 +1902,7 @@ void render_level_geometry_and_objects(void) {
 void render_level_segment(s32 segmentId, s32 nonOpaque) {
     { static int _c = 0; if (++_c <= 20 || (_c % 500) == 0)
       __android_log_print(ANDROID_LOG_ERROR, "DKR-SEG",
-        "seg=%d nonOpq=%d dl_in=%p", (int)segmentId, (int)nonOpaque, (void*)gCurrDisplayList); }
+        "seg=%d nonOpq=%d", (int)segmentId, (int)nonOpaque); }
     LevelModelSegment *segment;
     s32 i;
     TriangleBatchInfo *batchInfo;
