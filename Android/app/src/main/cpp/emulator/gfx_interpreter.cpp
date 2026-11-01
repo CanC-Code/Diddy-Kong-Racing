@@ -2993,6 +2993,37 @@ static void Cmd_Mtx(GfxCommand cmd) {
                 (void*)gN64_RDRAM, mtx_src, low);
         }
     }
+    /* One-shot: try every plausible arm64 heap prefix on w1 and dump
+       first 16 bytes at each reconstruction. Real matrix at one of them
+       → that prefix is the fix. None of them → recomp isn't writing to
+       any mapped location w1 can reach. */
+    {
+        static int _pfx = 0;
+        if (_pfx == 0 && (cmd.w1 >> 24) == 0x2E) {
+            _pfx = 1;
+            uint64_t prefixes[] = {
+                0x7D00000000ULL, 0x7C00000000ULL, 0x7E00000000ULL,
+                0x7F00000000ULL, 0x7900000000ULL, 0x7800000000ULL,
+                0x7700000000ULL, 0x7600000000ULL, 0x7500000000ULL,
+                0x7400000000ULL, 0x7000000000ULL, 0x6000000000ULL,
+            };
+            for (int i = 0; i < 12; i++) {
+                uint64_t p = prefixes[i] | (uint64_t)cmd.w1;
+                const uint8_t *b = (const uint8_t*)p;
+                int r = bka_is_readable((void*)p);
+                diag_log("BKA-MTX-PFX",
+                    "pfx=0x%02llX ptr=0x%llX rd=%d "
+                    "b=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X",
+                    (unsigned long long)(prefixes[i] >> 32),
+                    (unsigned long long)p, r,
+                    r?b[0]:0,r?b[1]:0,r?b[2]:0,r?b[3]:0,
+                    r?b[4]:0,r?b[5]:0,r?b[6]:0,r?b[7]:0,
+                    r?b[8]:0,r?b[9]:0,r?b[10]:0,r?b[11]:0,
+                    r?b[12]:0,r?b[13]:0,r?b[14]:0,r?b[15]:0);
+            }
+            diag_log("BKA-MTX-PFX-END", "w1=0x%08X done", cmd.w1);
+        }
+    }
     /* One-shot: locate real matrices in RDRAM by scanning for the row-0
        signature int[0][0]=1.0, int[0][1]=0.0 (bytes 00 01 00 00 00 00 00 00).
        Compare each match's offset against w1 & 0xFFFFFF to reverse-engineer
