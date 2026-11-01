@@ -715,6 +715,18 @@ static void Matrix_MultVec(const BKMatrix m, float x, float y, float z, float w,
 // Load N64 fixed-point matrix (int16_t[4][4] with 32-bit integer parts)
 static void Matrix_LoadFromN64(BKMatrix* out, const void* src) {
     {
+        static int s_n64d1 = 0;
+        if (s_n64d1++ < 8) {
+            const uint8_t* _b = (const uint8_t*)src;
+            diag_log("BKA-MTX-SRC",
+                "out=%p src=%p int0_7=%02X%02X%02X%02X%02X%02X%02X%02X "
+                "frac0_7=%02X%02X%02X%02X%02X%02X%02X%02X",
+                (void*)out, src,
+                _b[0],_b[1],_b[2],_b[3],_b[4],_b[5],_b[6],_b[7],
+                _b[32],_b[33],_b[34],_b[35],_b[36],_b[37],_b[38],_b[39]);
+        }
+    }
+    {
         static int s_raw = 0;
         if (s_raw++ < 2) {
             const uint8_t* b = (const uint8_t*)src;
@@ -790,13 +802,24 @@ static void Matrix_LoadFromN64(BKMatrix* out, const void* src) {
             int16_t  e_int;
             uint16_t e_frac;
             if (side == 0) {
-                e_int  = (int16_t)(iw32 >> 16);
-                e_frac = (uint16_t)(fw32 >> 16);
-            } else {
                 e_int  = (int16_t)(iw32 & 0xFFFF);
                 e_frac = (uint16_t)(fw32 & 0xFFFF);
+            } else {
+                e_int  = (int16_t)(iw32 >> 16);
+                e_frac = (uint16_t)(fw32 >> 16);
             }
             (*out)[r][c] = (float)e_int + (float)e_frac / 65536.0f;
+        }
+    }
+    {
+        static int s_n64d2 = 0;
+        if (s_n64d2++ < 8) {
+            diag_log("BKA-MTX-PARSED",
+                "out=%p [0][0]=%.3f [0][1]=%.3f [0][2]=%.3f [0][3]=%.3f "
+                "[1][1]=%.3f [2][2]=%.3f [3][0]=%.3f [3][3]=%.3f",
+                (void*)out,
+                (*out)[0][0], (*out)[0][1], (*out)[0][2], (*out)[0][3],
+                (*out)[1][1], (*out)[2][2], (*out)[3][0], (*out)[3][3]);
         }
     }
     {
