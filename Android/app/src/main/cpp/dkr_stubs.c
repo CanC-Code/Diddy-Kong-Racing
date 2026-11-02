@@ -216,3 +216,48 @@ const char* dkr_stubs_build_id = "mempool_removed_2026_10_20";
 
 
 /* ============================================================ */
+
+/* ==========================================================================
+ * SIGSEGV recovery: catch SEGV_ACCERR (write to non-writable page), mprotect
+ * the page RW, retry the faulting instruction. Required because the recomp
+ * places several game data buffers (notably decrypt_magic_codes' destination)
+ * in read-only sections (.rodata / .data.rel.ro), which crash on first write.
+ * Without this handler, DKR dies ~9s into init_game.
+ * ========================================================================== */
+#include <signal.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <string.h>
+#include <android/log.h>
+
+static void bka_segv_handler(int sig, siginfo_t *info, void *ctx) {
+    if (sig == SIGSEGV && info->si_code == SEGV_ACCERR) {
+        uintptr_t page = (uintptr_t)info->si_addr & ~(uintptr_t)0xFFF;
+        if (mprotect((void*)page, 0x1000, PROT_READ|PROT_WRITE|PROT_EXEC) == 0) {
+            static int _c = 0;
+            if (_c++ < 40)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-SEGV",
+                    "mprotect(RW) addr=%p page=%p OK",
+                    info->si_addr, (void*)page);
+            return;  /* re-executes faulting instruction; page now writable */
+        }
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-SEGV",
+            "mprotect FAILED addr=%p errno-return", info->si_addr);
+    }
+    /* Not our case — restore default and re-raise */
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+
+__attribute__((constructor))
+static void bka_install_segv_handler(void) {
+    struct sigaction sa = {
+        .sa_sigaction = bka_segv_handler,
+        .sa_flags = SA_SIGINFO | SA_NODEFER,
+    };
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGSEGV, &sa, NULL);
+    __android_log_print(ANDROID_LOG_ERROR, "BKA-SEGV",
+        "handler installed");
+}
