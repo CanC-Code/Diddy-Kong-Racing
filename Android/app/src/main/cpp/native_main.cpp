@@ -352,6 +352,9 @@ static void bka_draw_palette_bar(jint* out, int W, int H) {
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray outArr) {
+    { static int _fa = 0; if ((_fa++ & 0xFF) == 0)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILLARGB",
+            "fillArgb #%d", _fa); }
     extern uint8_t* gN64_RDRAM;
     extern uint32_t g_active_fb_offset;
     extern uint8_t *gVideoLastFramebuffer;
