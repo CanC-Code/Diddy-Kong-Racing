@@ -2140,8 +2140,12 @@ static void Cmd_Vtx(GfxCommand cmd) {
                 if (!_nz) continue;
                 static int _lg = 0;
                 if (_lg++ < 20) diag_log("BKA-VTX-REBUILD",
-                    "addr=0x%08X cand%d=0x%08X ptr=0x%llX",
-                    addr, _k, _c, (unsigned long long)_p);
+                    "addr=0x%08X cand%d=0x%08X ptr=0x%llX "
+                    "v0=%u n=%u b=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X",
+                    addr, _k, _c, (unsigned long long)_p,
+                    (unsigned)v0, (unsigned)n,
+                    _b[0],_b[1],_b[2],_b[3],_b[4],_b[5],_b[6],_b[7],
+                    _b[8],_b[9],_b[10],_b[11],_b[12],_b[13],_b[14],_b[15]);
                 src = (uint8_t*)_p;
                 break;
             }
