@@ -258,6 +258,6 @@ static void bka_install_segv_handler(void) {
     };
     sigemptyset(&sa.sa_mask);
     sigaction(SIGSEGV, &sa, NULL);
-    __android_log_print(ANDROID_LOG_ERROR, "BKA-SEGV",
-        "handler installed");
+    { extern void diag_log(const char*, const char*, ...);
+      diag_log("BKA-SEGV", "handler installed pid=%d", (int)getpid()); }
 }

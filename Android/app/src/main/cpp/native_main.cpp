@@ -281,6 +281,8 @@ static void* bka_startup_watchdog(void* arg) {
 }
 
 void android_main(android_app* app) {
+    { extern void bka_install_segv_handler(void);
+      bka_install_segv_handler(); }
 
     // --- PORT: INIT PNG LOADER ---
     init_png_texture_loader("/data/data/com.dkrwrapper/files/extractor/assets/.vanilla/us.v80/");

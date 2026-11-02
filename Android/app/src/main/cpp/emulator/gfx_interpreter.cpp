@@ -4321,7 +4321,7 @@ void RSP_ProcessGfxTask(OSTask* tp) {
             }
         }
         {
-            if ((total % 500) == 0 || total <= 5) {
+            if (total <= 20) {
                 __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
                      "CMD t#%zu @%p raw=%02X%02X%02X%02X %02X%02X%02X%02X w0=0x%08X w1=0x%08X op=0x%02X enc=%d depth=%d",
                     total, cur, cur[0],cur[1],cur[2],cur[3],cur[4],cur[5],cur[6],cur[7],
