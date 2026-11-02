@@ -232,6 +232,14 @@ const char* dkr_stubs_build_id = "mempool_removed_2026_10_20";
 #include <android/log.h>
 
 static void bka_segv_handler(int sig, siginfo_t *info, void *ctx) {
+    if (sig != SIGSEGV) {
+        __android_log_print(ANDROID_LOG_FATAL, "BKA-SIG",
+            "signal %d (si_code=%d) addr=%p — not handled, re-raising",
+            sig, info->si_code, info->si_addr);
+        signal(sig, SIG_DFL);
+        raise(sig);
+        return;
+    }
     if (sig == SIGSEGV && info->si_code == SEGV_ACCERR) {
         uintptr_t page = (uintptr_t)info->si_addr & ~(uintptr_t)0xFFF;
         if (mprotect((void*)page, 0x1000, PROT_READ|PROT_WRITE|PROT_EXEC) == 0) {
@@ -258,6 +266,13 @@ void bka_install_segv_handler(void) {
     };
     sigemptyset(&sa.sa_mask);
     sigaction(SIGSEGV, &sa, NULL);
+    /* Also catch these so we can log which signal fires; without this,
+       Android debuggerd sometimes swallows them without a crash-buffer
+       entry, leaving us unable to tell SIGABRT from clean exit(). */
+    sigaction(SIGABRT, &sa, NULL);
+    sigaction(SIGBUS,  &sa, NULL);
+    sigaction(SIGILL,  &sa, NULL);
+    sigaction(SIGFPE,  &sa, NULL);
     __android_log_print(ANDROID_LOG_ERROR, "BKA-SEGV",
         "handler installed pid=%d", (int)getpid());
 }
