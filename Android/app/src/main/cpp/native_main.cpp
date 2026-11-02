@@ -281,7 +281,7 @@ static void* bka_startup_watchdog(void* arg) {
 }
 
 void android_main(android_app* app) {
-    { extern void bka_install_segv_handler(void);
+    { extern "C" void bka_install_segv_handler(void);
       bka_install_segv_handler(); }
 
     // --- PORT: INIT PNG LOADER ---
