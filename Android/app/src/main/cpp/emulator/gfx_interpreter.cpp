@@ -2122,13 +2122,28 @@ static void Cmd_Vtx(GfxCommand cmd) {
             _ok = 1;
         }
         if (!_ok) {
-            uint64_t _p = 0x7D00000000ULL | (uint64_t)addr;
-            if (bka_is_readable((void*)_p) &&
-                bka_is_readable((void*)((const uint8_t*)_p + 15))) {
+            uint32_t _raw = addr;
+            uint32_t _cands[2];
+            _cands[0] = _raw;
+            _cands[1] = ((_raw & 0xFFu) << 24) | ((_raw & 0xFF00u) << 8) |
+                        ((_raw >> 8) & 0xFF00u) | ((_raw >> 24) & 0xFFu);
+            for (int _k = 0; _k < 2; _k++) {
+                uint32_t _c = _cands[_k];
+                uint8_t _hb = (_c >> 24) & 0xFF;
+                if (_hb < 0x20 || _hb > 0x3F) continue;
+                uint64_t _p = 0x7D00000000ULL | (uint64_t)_c;
+                if (!bka_is_readable((void*)_p)) continue;
+                if (!bka_is_readable((void*)((const uint8_t*)_p + 15))) continue;
+                const uint8_t *_b = (const uint8_t*)_p;
+                int _nz = 0;
+                for (int _i = 0; _i < 16; _i++) if (_b[_i]) { _nz = 1; break; }
+                if (!_nz) continue;
                 static int _lg = 0;
                 if (_lg++ < 20) diag_log("BKA-VTX-REBUILD",
-                    "addr=0x%08X ptr=0x%llX", addr, (unsigned long long)_p);
+                    "addr=0x%08X cand%d=0x%08X ptr=0x%llX",
+                    addr, _k, _c, (unsigned long long)_p);
                 src = (uint8_t*)_p;
+                break;
             }
         }
     }
