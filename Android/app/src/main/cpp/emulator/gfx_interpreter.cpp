@@ -2976,6 +2976,9 @@ static void Matrix_Multiply(BKMatrix result, const BKMatrix a, const BKMatrix b)
 #endif
 
 static void Cmd_Mtx(GfxCommand cmd) {
+    { static int _beacon = 0; if (_beacon++ == 0)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-BUILD",
+            "Cmd_Mtx beacon: code loaded, first MTX seen"); }
     uint32_t flag = (cmd.w0 >> 16) & 0xFF;
     /* F3DEX v1 G_MTX uses only bits 0-2 (PROJECTION=0x01, LOAD=0x02,
      * PUSH=0x04).  The recomp emits high bits in the flag byte that are

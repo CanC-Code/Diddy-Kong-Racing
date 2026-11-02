@@ -250,7 +250,7 @@ static void bka_segv_handler(int sig, siginfo_t *info, void *ctx) {
     raise(sig);
 }
 
-__attribute__((constructor))
+__attribute__((constructor, used))
 static void bka_install_segv_handler(void) {
     struct sigaction sa = {
         .sa_sigaction = bka_segv_handler,
