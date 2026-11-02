@@ -282,6 +282,13 @@ static void* bka_startup_watchdog(void* arg) {
 
 extern "C" void bka_install_segv_handler(void);
 
+#include <time.h>
+static inline int64_t bka_uptime_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000LL + ts.tv_nsec / 1000000LL;
+}
+
 void android_main(android_app* app) {
     bka_install_segv_handler();
 
@@ -304,7 +311,7 @@ void android_main(android_app* app) {
             if (src) src->process(app, src);
             if (app->destroyRequested) {
                 __android_log_print(ANDROID_LOG_FATAL, "BKA-EXIT",
-                    "android_main: destroyRequested at uptime_ms=%lld", (long long)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) / 1000000));
+                    "android_main: destroyRequested at uptime_ms=%lld", bka_uptime_ms());
                 termEGL();
                 return;
             }
@@ -314,7 +321,7 @@ void android_main(android_app* app) {
             { static int _rf = 0; if ((_rf++ & 0xFF) == 0)
                 __android_log_print(ANDROID_LOG_INFO, "BKA-RENDER",
                     "renderFrame #%d uptime_ms=%lld", _rf,
-                    (long long)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) / 1000000)); }
+                    bka_uptime_ms()); }
             renderFrame();
         }
     }
