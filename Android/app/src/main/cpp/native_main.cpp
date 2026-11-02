@@ -302,10 +302,21 @@ void android_main(android_app* app) {
         int timeout = (app->window && g_rs.ready) ? 0 : -1;
         while (ALooper_pollAll(timeout, nullptr, &events, (void**)&src) >= 0) {
             if (src) src->process(app, src);
-            if (app->destroyRequested) { termEGL(); return; }
+            if (app->destroyRequested) {
+                __android_log_print(ANDROID_LOG_FATAL, "BKA-EXIT",
+                    "android_main: destroyRequested at uptime_ms=%lld", (long long)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) / 1000000));
+                termEGL();
+                return;
+            }
             timeout = 0;
         }
-        if (app->window && g_rs.ready) renderFrame();
+        if (app->window && g_rs.ready) {
+            { static int _rf = 0; if ((_rf++ & 0xFF) == 0)
+                __android_log_print(ANDROID_LOG_INFO, "BKA-RENDER",
+                    "renderFrame #%d uptime_ms=%lld", _rf,
+                    (long long)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) / 1000000)); }
+            renderFrame();
+        }
     }
 }
 
