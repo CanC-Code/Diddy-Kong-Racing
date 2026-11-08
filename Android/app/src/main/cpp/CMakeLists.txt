@@ -151,3 +151,8 @@ target_link_options(dkrwrapper PRIVATE
 # linker_stubs.c must compile without N64 headers
 set_source_files_properties(ultra/linker_stubs.c PROPERTIES
     COMPILE_FLAGS "-std=gnu11 -w -O0 -g3")
+
+# bka_exit_hook.cpp must compile as C++ (uses extern "C", <execinfo.h>, backtrace)
+set_source_files_properties(ultra/bka_exit_hook.cpp PROPERTIES
+    LANGUAGE CXX
+    COMPILE_FLAGS "-std=c++17")
