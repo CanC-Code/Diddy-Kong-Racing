@@ -30,6 +30,7 @@ static void log_caller(const char* tag, int code) {
     snprintf(buf, sizeof(buf),
         "BKA-EXITTRACE %s code=%d caller=%p sym=%s+0x%lx dso=%s",
         tag, code, caller, sym, off, dso);
+    __android_log_print(ANDROID_LOG_FATAL, "BKA-EXITLC", "%s", buf);
     bka_diag_logfile(buf);
 }
 
@@ -42,8 +43,15 @@ static void install_atexit(void) {
     atexit(atexit_handler);
 }
 
-extern "C" void __wrap_exit(int status)      { log_caller("exit", status);       __real_exit(status); }
-extern "C" void __wrap__exit(int status)     { log_caller("_exit", status);      __real__exit(status); }
-extern "C" void __wrap_abort(void)           { log_caller("abort", 0);           __real_abort(); }
-extern "C" void __wrap__Exit(int status)     { log_caller("_Exit", status);      __real__Exit(status); }
-extern "C" void __wrap_quick_exit(int status){ log_caller("quick_exit", status); __real_quick_exit(status); }
+extern "C" void __wrap_exit(int status)      { log_caller("exit", status);       fflush(NULL); __real_exit(status); }
+extern "C" void __wrap__exit(int status)     { log_caller("_exit", status);      fflush(NULL); __real__exit(status); }
+extern "C" void __wrap_abort(void)           { log_caller("abort", 0);           fflush(NULL); __real_abort(); }
+extern "C" void __wrap__Exit(int status)     { log_caller("_Exit", status);      fflush(NULL); __real__Exit(status); }
+extern "C" void __wrap_quick_exit(int status){ log_caller("quick_exit", status); fflush(NULL); __real_quick_exit(status); }
+
+extern "C" void __real_pthread_exit(void*);
+extern "C" void __wrap_pthread_exit(void* retval) {
+    log_caller("pthread_exit", 0);
+    fflush(NULL);
+    __real_pthread_exit(retval);
+}
