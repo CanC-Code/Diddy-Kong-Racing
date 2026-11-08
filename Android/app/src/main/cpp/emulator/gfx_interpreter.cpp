@@ -86,9 +86,6 @@ static const uint8_t* s_current_cmd = nullptr;
 #include <cstdarg>
 static void diag_log(const char* tag, const char* fmt, ...) {
 
-extern "C" void bka_diag_logfile(const char* msg) {
-    diag_log("BKA-FILE", "%s", msg);
-}
 
     FILE* f = fopen("/data/user/0/com.dkrwrapper/files/diag.log", "a");
     if (!f) return;
@@ -100,6 +97,11 @@ extern "C" void bka_diag_logfile(const char* msg) {
     fputc('\n', f);
     fclose(f);
 }
+
+extern "C" void bka_diag_logfile(const char* msg) {
+    diag_log("BKA-FILE", "%s", msg);
+}
+
 
 #define BKA_RING_SZ 32
 static struct {

@@ -143,7 +143,10 @@ target_link_libraries(dkrwrapper ${log-lib} ${android-lib} ${egl-lib} ${gles3-li
 # framework at dlopen time — nothing in our code references it, so the
 # linker would drop it from the static lib.  Force the reference.
 target_link_options(dkrwrapper PRIVATE "-Wl,-u,ANativeActivity_onCreate")
-  "-Wl,--wrap=exit" "-Wl,--wrap=_exit" "-Wl,--wrap=abort"
+target_link_options(dkrwrapper PRIVATE
+    "-Wl,--wrap=exit"
+    "-Wl,--wrap=_exit"
+    "-Wl,--wrap=abort")
 
 # linker_stubs.c must compile without N64 headers
 set_source_files_properties(ultra/linker_stubs.c PROPERTIES
