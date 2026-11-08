@@ -1,3 +1,4 @@
+#include <android/log.h>
 #include "camera.h"
 #include "audio.h"
 #include "game.h"
@@ -930,6 +931,7 @@ void set_ortho_matrix_height(f32 value) {
  * Official Name: camStandardOrtho
  */
 void mtx_ortho(Gfx **dList, Mtx **mtx) {
+    { static int s=0; if (s++<10) __android_log_print(6, "BKA-CAM", "mtx_ortho ENTRY *mtx=%p", (void*)*mtx); }
     u32 widthAndHeight;
     s32 width, height;
     s32 i, j;
@@ -938,6 +940,7 @@ void mtx_ortho(Gfx **dList, Mtx **mtx) {
     height = GET_VIDEO_HEIGHT(widthAndHeight);
     width = GET_VIDEO_WIDTH(widthAndHeight);
     mtxf_to_mtx(&gOrthoMatrixF, *mtx);
+    { static int s=0; if (s++<10) { const uint8_t*_b=(const uint8_t*)*mtx; __android_log_print(6,"BKA-CAM","mtx_ortho AFTER-WRITE *mtx=%p bytes=%02X%02X%02X%02X%02X%02X%02X%02X",(void*)*mtx,_b[0],_b[1],_b[2],_b[3],_b[4],_b[5],_b[6],_b[7]); } }
     gModelMatrix[0] = *mtx;
     gViewportStack[gActiveCameraID + 5].vp.vscale[0] = width * 2;
     gViewportStack[gActiveCameraID + 5].vp.vscale[1] = width * 2;
@@ -964,11 +967,13 @@ void mtx_ortho(Gfx **dList, Mtx **mtx) {
  * Official Name: camStandardPersp?
  */
 void mtx_perspective(Gfx **dList, Mtx **mtx) {
+    { static int s=0; if (s++<10) __android_log_print(6, "BKA-CAM", "mtx_perspective ENTRY *mtx=%p", (void*)*mtx); }
     mtxf_from_inverse_transform(&gCurrentModelMatrixF, &D_800DD288);
     mtxf_mul(&gCurrentModelMatrixF, &gPerspectiveMatrixF, &gViewProjMatrixF);
     mtxf_from_inverse_transform(gModelMatrixF[0], &D_800DD2A0);
     mtxf_mul(gModelMatrixF[0], &gViewProjMatrixF, &gCurrentModelMatrixF);
     mtxf_to_mtx(&gCurrentModelMatrixF, *mtx);
+    { static int s=0; if (s++<10) { const uint8_t*_b=(const uint8_t*)*mtx; __android_log_print(6,"BKA-CAM","mtx_persp AFTER-WRITE *mtx=%p bytes=%02X%02X%02X%02X%02X%02X%02X%02X",(void*)*mtx,_b[0],_b[1],_b[2],_b[3],_b[4],_b[5],_b[6],_b[7]); } }
     gSPMatrixDKR((*dList)++, OS_K0_TO_PHYSICAL((*mtx)++), G_MTX_DKR_INDEX_0);
     gModelMatrixStackPos = 0;
     gMtxOriginID = G_MTX_DKR_INDEX_0;

@@ -3122,13 +3122,13 @@ static void Cmd_Mtx(GfxCommand cmd) {
        the correct address resolution. */
     {
         static int _scan = 0;
-        if (_scan == 0 && (cmd.w1 >> 28) == 0x2 && cmd.w1 != 0xFFFFFFFFu) {
-            _scan = 1;
+        if (_scan < 5 && cmd.w1 != 0xFFFFFFFFu && cmd.w1 != 0) {
+            _scan++;
             extern uint8_t *gN64_RDRAM;
             if (gN64_RDRAM) {
                 uint32_t want = cmd.w1 & 0xFFFFFFu;
                 int found = 0;
-                for (uint32_t i = 0; i < 0x7FFFF0; i += 4) {
+                for (uint32_t i = 0; i < 0x1000000; i += 4) {
                     const uint8_t *p = gN64_RDRAM + i;
                     if (p[0]==0x00 && p[1]==0x01 && p[2]==0x00 && p[3]==0x00 &&
                         p[4]==0x00 && p[5]==0x00 && p[6]==0x00 && p[7]==0x00) {
@@ -3289,7 +3289,29 @@ static void Cmd_Mtx(GfxCommand cmd) {
         }
     }
 
-    // DIAGNOSTIC: always dump full 64 bytes for PROJECTION matrices
+        /* DIAG: track write changes per matrix address */
+    {
+        uint32_t off = cmd.w1 & 0xFFFFFFu;
+        uint32_t fp = 0;
+        const uint8_t *_b = (const uint8_t*)mtx_src;
+        for (int i = 0; i < 64; i++) fp = (fp * 31) + _b[i];
+        static struct { uint32_t off; uint32_t fp; } s_cache[16];
+        static int s_cache_sz = 0;
+        static int s_log_n = 0;
+        int idx = -1;
+        for (int i = 0; i < s_cache_sz; i++) if (s_cache[i].off == off) { idx = i; break; }
+        if (idx < 0 && s_cache_sz < 16) { idx = s_cache_sz++; s_cache[idx].off = off; s_cache[idx].fp = 0; }
+        if (idx >= 0 && s_cache[idx].fp != fp && s_log_n < 40) {
+            diag_log("BKA-MTX-FP",
+                "off=0x%06X fp=0x%08X prev=0x%08X b=%02X%02X%02X%02X%02X%02X%02X%02X",
+                off, fp, s_cache[idx].fp,
+                _b[0],_b[1],_b[2],_b[3],_b[4],_b[5],_b[6],_b[7]);
+            s_cache[idx].fp = fp;
+            s_log_n++;
+        }
+    }
+
+// DIAGNOSTIC: always dump full 64 bytes for PROJECTION matrices
     if ((flag & 0x04) != 0) {
         static int s_proj_dump = 0;
         if (s_proj_dump++ < 3) {
