@@ -19,6 +19,8 @@ extern "C" void init_png_texture_loader(const char* base_path);
 #include <malloc.h>
 
 
+
+extern "C" void bka_install_segv_handler(void);
 // bka_diag_logfile is defined in gfx_interpreter.cpp (extern "C").
 // NativeBridge.cpp is not built with -include n64_types.h so this must
 // be declared here at file scope (block-scope extern would be C++ linkage).
@@ -151,6 +153,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
 }
 
 void* game_thread_fn(void* arg) {
+    bka_install_segv_handler();  /* install signal handlers here, not android_main */
     struct rlimit rl = {16 * 1024 * 1024, 16 * 1024 * 1024};
     setrlimit(RLIMIT_STACK, &rl);
     LOGI("NativeBridge: Game thread execution loop initialized.");

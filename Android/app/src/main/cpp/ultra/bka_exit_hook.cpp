@@ -86,3 +86,17 @@ extern "C" long __wrap_syscall(long num, ...) {
     }
     return __real_syscall(num, a1, a2, a3, a4, a5, a6);
 }
+
+/* Runs during libc exit cleanup, after atexit, just before exit_group. */
+__attribute__((destructor))
+static void bka_destructor(void) {
+    log_caller("destructor", 0);
+    fflush(NULL);
+}
+
+extern "C" void __real___cxa_finalize(void*);
+extern "C" void __wrap___cxa_finalize(void* d) {
+    log_caller("cxa_finalize", 0);
+    fflush(NULL);
+    __real___cxa_finalize(d);
+}
