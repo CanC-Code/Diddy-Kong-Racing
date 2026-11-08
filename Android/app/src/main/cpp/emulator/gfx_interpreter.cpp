@@ -3225,12 +3225,37 @@ static void Cmd_Mtx(GfxCommand cmd) {
         }
     }
     if (!mtx_src) {
+        /* Fallback: many MTX w1 words land as LE reads of BE-encoded addresses.
+           Try byte-swapped and re-resolve. */
+        uint32_t swapped = __builtin_bswap32(cmd.w1);
+        mtx_src = RDP_TranslateAddr(swapped);
+        if (mtx_src) {
+            diag_log("BKA-MTX-BSWAP-OK",
+                "orig=0x%08X swap=0x%08X ptr=%p flag=%02X",
+                cmd.w1, swapped, mtx_src, flag);
+        }
+    }
+    if (!mtx_src) {
         static int null_log = 0;
-        if (null_log++ < 6) {
-            __android_log_print(ANDROID_LOG_WARN, "BKA_GFX",
-                "Cmd_Mtx NULL raw=0x%08X flag=0x%02X", cmd.w1, flag);
+        if (null_log++ < 32) {
+            diag_log("BKA-MTX-NULL",
+                "w0=0x%08X w1=0x%08X flag=%02X", cmd.w0, cmd.w1, flag);
         }
         return;
+    }
+    {
+        static int _mxb = 0;
+        if (_mxb++ < 8) {
+            const uint8_t* _b = (const uint8_t*)mtx_src;
+            diag_log("BKA-MTX-BYTES",
+                "ptr=%p flag=%02X int0_15=%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X "
+                "frac0_15=%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
+                mtx_src, flag,
+                _b[0],_b[1],_b[2],_b[3],_b[4],_b[5],_b[6],_b[7],
+                _b[8],_b[9],_b[10],_b[11],_b[12],_b[13],_b[14],_b[15],
+                _b[32],_b[33],_b[34],_b[35],_b[36],_b[37],_b[38],_b[39],
+                _b[40],_b[41],_b[42],_b[43],_b[44],_b[45],_b[46],_b[47]);
+        }
     }
     /* RDP_TranslateAddr can return a pointer whose byte 0 is mapped but whose
      * surrounding allocation ends before byte 63 (e.g. seg-1 base + a large
