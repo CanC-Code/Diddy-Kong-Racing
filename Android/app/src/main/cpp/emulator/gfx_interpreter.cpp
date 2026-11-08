@@ -4437,6 +4437,17 @@ if (!g_walker_recover_installed) {
         }
         g_bka_dl_cur = cur;
         uint8_t opcode = GFX_OPCODE(c);
+        /* OP5-SEEN: log every opcode 0x05 before dispatch so we can
+         * distinguish "walker never parses 0x05" (encoding bug) from
+         * "case 0x05 unreachable" (dispatch bug). */
+        if (opcode == 0x05) {
+            static int _op5 = 0;
+            if (_op5++ < 100)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-OP5-SEEN",
+                    "w0=%08X w1=%08X depth=%d stride=%zu enc=%d cur=%p",
+                    c.w0, c.w1, depth, current_stride,
+                    (int)cur_dl_enc, (void*)cur);
+        }
         {
             static uint8_t *s_prev_cur = NULL;
             static int s_stuck_count = 0;
