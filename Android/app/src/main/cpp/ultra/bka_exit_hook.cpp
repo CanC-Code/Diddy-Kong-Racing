@@ -3,6 +3,8 @@
  * _Exit / quick_exit bypass exit handlers — must be wrapped separately.
  * exit_group syscall is a last resort (would need seccomp/ptrace, skip). */
 #include <unistd.h>
+#include <sys/syscall.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -62,4 +64,25 @@ extern "C" void __wrap___stack_chk_fail(void) {
     log_caller("stack_chk_fail", 0);
     fflush(NULL);
     __real___stack_chk_fail();
+}
+
+
+/* Wrap syscall() to catch exit_group bypassing libc exit/_exit. */
+extern "C" long __real_syscall(long num, ...);
+extern "C" long __wrap_syscall(long num, ...) {
+    va_list ap;
+    va_start(ap, num);
+    long a1 = va_arg(ap, long);
+    long a2 = va_arg(ap, long);
+    long a3 = va_arg(ap, long);
+    long a4 = va_arg(ap, long);
+    long a5 = va_arg(ap, long);
+    long a6 = va_arg(ap, long);
+    va_end(ap);
+
+    if (num == __NR_exit_group || num == __NR_exit) {
+        log_caller(num == __NR_exit_group ? "syscall_exit_group"
+                                          : "syscall_exit", (int)a1);
+    }
+    return __real_syscall(num, a1, a2, a3, a4, a5, a6);
 }
