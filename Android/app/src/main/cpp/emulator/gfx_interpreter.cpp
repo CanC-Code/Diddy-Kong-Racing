@@ -3612,7 +3612,11 @@ static void Cmd_FillRect(GfxCommand cmd) {
         }
     }
     
-    { static int s_fr = 0; if (s_fr++ < 100) __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX", "FILLPRE fillRGB=(%d,%d,%d) ulx=%d uly=%d lrx=%d lry=%d w0=%08X w1=%08X", s_rdp.fillR, s_rdp.fillG, s_rdp.fillB, (int)ulx, (int)uly, (int)lrx, (int)lry, cmd.w0, cmd.w1); }
+    { static int s_fr = 0; if (s_fr++ < 100) __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX", "FILLPRE fillRGB=(%d,%d,%d) ulx=%d uly=%d lrx=%d lry=%d w0=%08X w1=%08X", s_rdp.fillR, s_rdp.fillG, s_rdp.fillB, (int)ulx, (int)uly, (int)lrx, (int)lry, cmd.w0, cmd.w1);
+    { static int _frc = 0; if (_frc++ < 12) __android_log_print(ANDROID_LOG_ERROR, "BKA-FILLRGB",
+        "rgb=(%d,%d,%d) fillcolor_reg=%d",
+        s_rdp.fillR, s_rdp.fillG, s_rdp.fillB,
+        (int)s_rdp.fillR * 65536 + (int)s_rdp.fillG * 256 + (int)s_rdp.fillB); } }
     uint16_t color = RGBA8_TO_RGB565(s_rdp.fillR, s_rdp.fillG, s_rdp.fillB);
     int activeFb = getActiveFramebuffer();
     /* PORT: force walker to write to gVideoCurrFramebuffer (what fb_swap
@@ -4368,14 +4372,18 @@ if (!g_walker_recover_installed) {
          * If cur (or the 16-byte command span) is unreadable, stop —
          * otherwise the walker runs off the end into an unmapped page
          * and SIGSEGVs on the next 8-byte read. */
-        if ((const uint8_t*)cur >= bka_dl_end) {
+        /* Both-sided bounds: drift can jump cur ABOVE end (past-DL drift)
+         * OR BELOW start (G_DL to fake target). One-sided check missed 90%
+         * of drift. */
+        if ((const uint8_t*)cur < bka_dl_start ||
+            (const uint8_t*)cur >= bka_dl_end) {
             static int s_end = 0;
             if (s_end++ < 20)
                 __android_log_print(ANDROID_LOG_ERROR, "BKA-DLEND",
-                    "walker: cur=%p >= dl_end=%p (start=%p size=%zu depth=%d stride=%zu)",
-                    (void*)cur, (void*)bka_dl_end,
-                    (void*)bka_dl_start, (size_t)(bka_dl_end - bka_dl_start),
-                    depth, current_stride);
+                    "walker: cur=%p outside [start=%p end=%p] (off=0x%llx size=%zu depth=%d stride=%zu)",
+                    (void*)cur, (void*)bka_dl_start, (void*)bka_dl_end,
+                    (unsigned long long)((const uint8_t*)cur - bka_dl_start),
+                    (size_t)(bka_dl_end - bka_dl_start), depth, current_stride);
             return;
         }
         if (!bka_is_readable((void*)cur) ||
