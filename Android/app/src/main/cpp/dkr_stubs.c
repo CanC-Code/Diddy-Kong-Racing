@@ -172,11 +172,14 @@ uint32_t bka_k0_to_phys(void *ptr)
 {
     {
         static int _k0p_n = 0;
-        if (_k0p_n++ < 400)
+        uint32_t _low = (uint32_t)(uintptr_t)ptr;
+        uint32_t _out = _low - 0x80000000u;
+        /* Log only high-byte EA/EB/DA/DB range (polygons + matrices).
+         * These are the w1 values that Cmd_Polygon/Cmd_Vtx receive. */
+        uint8_t _hi = (_out >> 24) & 0xFF;
+        if ((_hi == 0xEA || _hi == 0xEB || _hi == 0xDA || _hi == 0xDB) && _k0p_n++ < 1000)
             __android_log_print(ANDROID_LOG_ERROR, "BKA-K0P-REG",
-                "in=%p low=0x%08X out=0x%08X", ptr,
-                (uint32_t)(uintptr_t)ptr,
-                (uint32_t)((uintptr_t)ptr - 0x80000000u));
+                "in=%p low=0x%08X out=0x%08X", ptr, _low, _out);
     }
 
     { extern void bka_diag_logfile(const char*); char _b[80];
@@ -185,10 +188,17 @@ uint32_t bka_k0_to_phys(void *ptr)
                (uint32_t)((uintptr_t)ptr) - 0x80000000u);
       bka_diag_logfile(_b); }
     uintptr_t u = (uintptr_t)ptr;
+    if (u == 0) return 0;
     uint32_t low = (uint32_t)u;
     uint32_t out = low - 0x80000000u;
-    bka_add_addr_mapping_c(low, ptr);
-    bka_add_addr_mapping_c(out, ptr);
+    /* Only register if ptr is a REAL host pointer (>= 4GB). Values < 4GB
+     * are truncated/garbage — registering them makes bka_lookup_addr_by_low32
+     * return a bad pointer (e.g. 0x6aexxxxx) that fails bka_is_readable,
+     * causing POLYFAIL/VTXFAIL everywhere. */
+    if (u >= 0x100000000ULL) {
+        bka_add_addr_mapping_c(low, ptr);
+        bka_add_addr_mapping_c(out, ptr);
+    }
     return out;
 }
 void _guRotateF(void) {}

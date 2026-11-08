@@ -2329,6 +2329,10 @@ static void Cmd_Polygon(GfxCommand cmd) {
      * and reads from gN64_RDRAM+off (wrong page, silent garbage triangles). */
     uint8_t* _poly_resolved = (uint8_t*)bka_lookup_addr_by_low32(cmd.w1);
     if (!_poly_resolved) {
+        static int _nr = 0;
+        if (_nr++ < 40)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-POLY-NOREG",
+                "w1=0x%08X not in registry (would need registration)", cmd.w1);
         uint32_t _sw = __builtin_bswap32(cmd.w1);
         _poly_resolved = (uint8_t*)bka_lookup_addr_by_low32(_sw);
     }
