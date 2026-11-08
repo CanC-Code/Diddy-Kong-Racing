@@ -2969,9 +2969,6 @@ static void Cmd_MoveWord(GfxCommand cmd) {
     }
     if (index == 0x06) { // G_MW_SEGMENT
         uint32_t segment = (offset / 4) & 0x0F;
-        // Segment base must be a real N64 address.  Host-pointer low-32
-        // values (0x70..0x7F) crash the game when used as segment bases;
-        // the only safe values are physical RDRAM and KSEG0.
         uint32_t a = data;
         if (a == 0xFFFFFFFFu) {
             static int s_badseg = 0;
@@ -2980,6 +2977,40 @@ static void Cmd_MoveWord(GfxCommand cmd) {
                     "Cmd_MoveWord SEGMENT seg=%u base=0x%08X INVALID — skipping",
                     segment, a);
             return;
+        }
+        /* Segment base is meant to be a physical RDRAM offset (0..64MB).
+         * The port's gSPSegment macro stores (uint32_t)host_ptr, which is
+         * a truncated host pointer (0xD0..0x7B range). Adding a small
+         * offset to that overflows uint32 and produces garbage. Recover
+         * the real host pointer from the registry (populated by
+         * bka_k0_to_phys at OS_K0_TO_PHYSICAL call sites) and convert to
+         * a physical offset relative to gN64_RDRAM. */
+        {
+            extern int bka_is_readable(void*);
+            extern uint8_t *gN64_RDRAM;
+            void *recovered = bka_lookup_addr_by_low32(a);
+            if (!recovered) {
+                /* Also try KSEG0-stripped form */
+                uint32_t a_sw = __builtin_bswap32(a);
+                recovered = bka_lookup_addr_by_low32(a_sw);
+            }
+            if (recovered && gN64_RDRAM) {
+                uint8_t *rp = (uint8_t*)recovered;
+                if (rp >= gN64_RDRAM && rp < gN64_RDRAM + 0x4000000) {
+                    s_rdp.segmentBase[segment] = (uint32_t)(rp - gN64_RDRAM);
+                    { static int _srec = 0; if (_srec++ < 20)
+                        __android_log_print(ANDROID_LOG_ERROR, "BKA-SEGREC",
+                            "seg=%u raw=0x%08X host=%p offset=0x%X",
+                            segment, a, recovered,
+                            (uint32_t)(rp - gN64_RDRAM)); }
+                    return;
+                }
+            }
+            if (a < 0x4000000) {
+                /* Already a physical offset */
+                s_rdp.segmentBase[segment] = a;
+                return;
+            }
         }
         s_rdp.segmentBase[segment] = (uintptr_t)a;
         if (segment == 2) {
