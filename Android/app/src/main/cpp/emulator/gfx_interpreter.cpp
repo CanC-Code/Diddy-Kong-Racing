@@ -2334,6 +2334,15 @@ static void Cmd_Polygon(GfxCommand cmd) {
     }
     if (!_poly_resolved) _poly_resolved = RDP_TranslateAddr(cmd.w1);
     DkrTriangle* tri = (DkrTriangle*)_poly_resolved;
+    {
+        static int _pp = 0;
+        _pp++;
+        if (_pp <= 5 || (_pp % 5000) == 0)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-POLYPASS",
+                "pass#%d w1=%08X tri=%p numTris=%u first_vi=(%d,%d,%d)",
+                _pp, cmd.w1, (void*)tri, (unsigned)((((cmd.w0 >> 20) & 0xF)) + 1),
+                tri[0].vi0, tri[0].vi1, tri[0].vi2);
+    }
     static int _plog = 0;
     if (_plog++ < 20)
         __android_log_print(ANDROID_LOG_ERROR, "BKA-POLY",
@@ -3575,6 +3584,9 @@ static void Cmd_FillRect(GfxCommand cmd) {
     int32_t uly = (int32_t)((cmd.w1 >> 2) & 0x3FF);
     int32_t lrx = (int32_t)((cmd.w0 >> 14) & 0x3FF);
     int32_t lry = (int32_t)((cmd.w0 >> 2) & 0x3FF);
+    { static int _fr = 0; if (_fr++ < 8) __android_log_print(ANDROID_LOG_ERROR, "BKA-FILLREAL",
+        "w0=%08X w1=%08X ulx=%d uly=%d lrx=%d lry=%d",
+        cmd.w0, cmd.w1, (int)ulx, (int)uly, (int)lrx, (int)lry); }
     
     // Recompiled BK emits coordinates in pixels, not N64 .2 fixed point.
     ulx = std::max(0, ulx); uly = std::max(0, uly);
@@ -3879,7 +3891,16 @@ static void walker_recover_install(void) {
 }
 
 void RSP_ProcessGfxTask(OSTask* tp) {
-    if (!g_walker_recover_installed) {
+    
+    /* Bounds: walker MUST NOT step past task DL. Adjacent bytes in the
+     * same mmap are readable, so bka_is_readable() cannot catch the
+     * overrun — the data_ptr+size range is the only hard boundary. */
+    const uint8_t *bka_dl_start = tp ? (const uint8_t*)tp->t.data_ptr : NULL;
+    const uint8_t *bka_dl_end   = bka_dl_start
+                                ? bka_dl_start + (size_t)tp->t.data_size
+                                : NULL;
+
+if (!g_walker_recover_installed) {
         g_walker_recover_installed = 1;
         g_walker_tid = gettid();
         walker_recover_install();
@@ -4347,6 +4368,16 @@ void RSP_ProcessGfxTask(OSTask* tp) {
          * If cur (or the 16-byte command span) is unreadable, stop —
          * otherwise the walker runs off the end into an unmapped page
          * and SIGSEGVs on the next 8-byte read. */
+        if ((const uint8_t*)cur >= bka_dl_end) {
+            static int s_end = 0;
+            if (s_end++ < 20)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-DLEND",
+                    "walker: cur=%p >= dl_end=%p (start=%p size=%zu depth=%d stride=%zu)",
+                    (void*)cur, (void*)bka_dl_end,
+                    (void*)bka_dl_start, (size_t)(bka_dl_end - bka_dl_start),
+                    depth, current_stride);
+            return;
+        }
         if (!bka_is_readable((void*)cur) ||
             !bka_is_readable((void*)((const uint8_t*)cur + 15))) {
             static int s_oob = 0;
@@ -4369,8 +4400,12 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                 unknown_opcode_run += 3;
                 if (unknown_opcode_run >= 8) {
                     __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
-                        "walker: fill-pattern at cur=%p depth=%d w0=%08X w1=%08X -- drifting",
-                        (void*)cur, depth, c.w0, c.w1);
+                        "walker: fill-pattern at cur=%p depth=%d w0=%08X w1=%08X "
+                        "dl_range=%p..%p (cur_off=0x%llx/0x%llx) -- drifting",
+                        (void*)cur, depth, c.w0, c.w1,
+                        (void*)bka_dl_start, (void*)bka_dl_end,
+                        (unsigned long long)((const uint8_t*)cur - bka_dl_start),
+                        (unsigned long long)(bka_dl_end - bka_dl_start));
                     return;
                 }
                 cur += current_stride;
