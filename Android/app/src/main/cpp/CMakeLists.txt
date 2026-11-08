@@ -46,7 +46,7 @@ set(C_BRIDGE_SOURCES
     ultra/zlib/adler32.c ultra/zlib/compress.c ultra/zlib/crc32.c
     ultra/zlib/deflate.c ultra/zlib/infback.c ultra/zlib/inffast.c
     ultra/zlib/inflate.c ultra/zlib/inftrees.c ultra/zlib/trees.c
-    ultra/zlib/uncompr.c ultra/zlib/zutil.c ultra/missing_stubs.c dkr_stubs.c
+    ultra/zlib/uncompr.c ultra/zlib/zutil.c ultra/missing_stubs.c dkr_stubs.c ultra/bka_exit_hook.cpp
 )
 
 option(EXCLUDE_GAME_SRC "Skip" OFF)
@@ -143,6 +143,7 @@ target_link_libraries(dkrwrapper ${log-lib} ${android-lib} ${egl-lib} ${gles3-li
 # framework at dlopen time — nothing in our code references it, so the
 # linker would drop it from the static lib.  Force the reference.
 target_link_options(dkrwrapper PRIVATE "-Wl,-u,ANativeActivity_onCreate")
+  "-Wl,--wrap=exit" "-Wl,--wrap=_exit" "-Wl,--wrap=abort"
 
 # linker_stubs.c must compile without N64 headers
 set_source_files_properties(ultra/linker_stubs.c PROPERTIES
