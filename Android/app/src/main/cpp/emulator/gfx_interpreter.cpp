@@ -2323,7 +2323,17 @@ static void Cmd_Polygon(GfxCommand cmd) {
     /* G_TRIN (DKR): w0[23:16] = ((numTris-1)<<4) | texEn; w1 = Triangle array ptr. */
     uint32_t numTris = (((cmd.w0 >> 20) & 0xF)) + 1;
     uint32_t texEn = (cmd.w0 >> 16) & 0x1;
-    DkrTriangle* tri = (DkrTriangle*)RDP_TranslateAddr(cmd.w1);
+    /* Use the guard's already-resolved pointer, not RDP_TranslateAddr(w1) —
+     * the registry lookup is what makes legit w1=0x806xxxxx land on the
+     * correct host address. Calling RDP_TranslateAddr here defeats the guard
+     * and reads from gN64_RDRAM+off (wrong page, silent garbage triangles). */
+    uint8_t* _poly_resolved = (uint8_t*)bka_lookup_addr_by_low32(cmd.w1);
+    if (!_poly_resolved) {
+        uint32_t _sw = __builtin_bswap32(cmd.w1);
+        _poly_resolved = (uint8_t*)bka_lookup_addr_by_low32(_sw);
+    }
+    if (!_poly_resolved) _poly_resolved = RDP_TranslateAddr(cmd.w1);
+    DkrTriangle* tri = (DkrTriangle*)_poly_resolved;
     static int _plog = 0;
     if (_plog++ < 20)
         __android_log_print(ANDROID_LOG_ERROR, "BKA-POLY",
