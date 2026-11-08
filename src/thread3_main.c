@@ -175,13 +175,13 @@ void thread3_main(UNUSED void *unused) {
             snprintf(_b, sizeof(_b), "BKA-T3LOOP iter=%d mode=%d boot=%d flags=%d",
                      _it, (int)gGameMode, (int)sBootDelayTimer, (int)gSaveDataFlags);
             bka_diag_logfile(_b); } }
-        { s32 _rv = is_reset_pressed();
-          static int _rc=0; if (_rc++ < 20) {
+        s32 _rv = is_reset_pressed();
+        { static int _rc=0; if (_rc++ < 20) {
               extern void bka_diag_logfile(const char*);
               char _b[48]; extern int snprintf(char*, unsigned long, const char*, ...);
               snprintf(_b, sizeof(_b), "BKA-RESET val=%d frame=%d", (int)_rv, _rc);
               bka_diag_logfile(_b);
-          }
+          } }
         if (_rv) {
           bka_diag_logfile("BKA-RESET TRUE, entering reset path");
             __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "is_reset_pressed RETURNED TRUE");
