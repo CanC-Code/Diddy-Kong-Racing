@@ -169,7 +169,12 @@ void thread3_main(UNUSED void *unused) {
     gGameMode = GAMEMODE_INTRO;
     while (1) {
         __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "before is_reset_pressed");
-        { static int _it=0; if ((_it++ & 0x3F) == 0) bka_diag_logfile("BKA-T3LOOP iter"); }
+        { static int _it=0; if ((_it++ & 0x1FF) == 0) {
+            extern s32 gGameMode; extern s32 sBootDelayTimer; extern s32 gSaveDataFlags;
+            char _b[128]; extern int snprintf(char*, unsigned long, const char*, ...);
+            snprintf(_b, sizeof(_b), "BKA-T3LOOP iter=%d mode=%d boot=%d flags=%d",
+                     _it, (int)gGameMode, (int)sBootDelayTimer, (int)gSaveDataFlags);
+            bka_diag_logfile(_b); } }
         if (is_reset_pressed()) {
             __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "is_reset_pressed RETURNED TRUE");
             rumble_kill();

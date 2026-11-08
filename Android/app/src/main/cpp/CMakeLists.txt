@@ -146,7 +146,9 @@ target_link_options(dkrwrapper PRIVATE "-Wl,-u,ANativeActivity_onCreate")
 target_link_options(dkrwrapper PRIVATE
     "-Wl,--wrap=exit"
     "-Wl,--wrap=_exit"
-    "-Wl,--wrap=abort")
+    "-Wl,--wrap=abort"
+    "-Wl,--wrap=_Exit"
+    "-Wl,--wrap=quick_exit")
 
 # linker_stubs.c must compile without N64 headers
 set_source_files_properties(ultra/linker_stubs.c PROPERTIES

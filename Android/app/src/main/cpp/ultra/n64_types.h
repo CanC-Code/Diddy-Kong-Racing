@@ -99,7 +99,17 @@ typedef struct {
 #endif
 
 #define OS_PHYSICAL_TO_K0(x)    ((void *)(uintptr_t)(x))
-#define OS_K0_TO_PHYSICAL(x)    ((void *)(uintptr_t)(x))
+/* The whole translation pipeline (bka_k0_to_phys → bka_lookup_addr_by_low32 →
+ * Cmd_Mtx) only works if this macro actually calls the shim. Previously it was
+ * identity, so the DL word was just a truncated host pointer and the lookup
+ * never fired. */
+#include <stdint.h>
+#ifdef __cplusplus
+extern "C" uint32_t bka_k0_to_phys(void *ptr);
+#else
+extern uint32_t bka_k0_to_phys(void *ptr);
+#endif
+#define OS_K0_TO_PHYSICAL(x)    ((void *)(uintptr_t)bka_k0_to_phys((void *)(x)))
 #define OS_PHYSICAL_TO_K1(x)    ((void *)(uintptr_t)(x))
 #define OS_K1_TO_PHYSICAL(x)    ((void *)(uintptr_t)(x))
 #define OS_K0_TO_PHYSICAL_PTR(x) ((void *)(uintptr_t)(x))
