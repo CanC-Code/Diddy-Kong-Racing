@@ -4300,6 +4300,20 @@ void RSP_ProcessGfxTask(OSTask* tp) {
          * metadata), NOT 8 bytes command + 8 bytes zero padding.  The
          * check was bailing on every valid command, dropping the walker
          * down to 1-3 commands per task. */
+        /* Bounds guard: display list can be in host heap, not RDRAM.
+         * If cur (or the 16-byte command span) is unreadable, stop —
+         * otherwise the walker runs off the end into an unmapped page
+         * and SIGSEGVs on the next 8-byte read. */
+        if (!bka_is_readable((void*)cur) ||
+            !bka_is_readable((void*)((const uint8_t*)cur + 15))) {
+            static int s_oob = 0;
+            if (s_oob++ < 20)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-OOB",
+                    "walker: cur=%p unreadable (stride=%zu depth=%d) — stopping task",
+                    (void*)cur, current_stride, depth);
+            return;
+        }
+
         /* Fix O: RGBA fill-pattern detector.  Bytes 4-7 of a real command
          * are a w1 pointer/param.  If they are a repeating byte pattern
          * (0x787878xx, 0x464646xx, 0x3C3C3Cxx), we are reading texture
