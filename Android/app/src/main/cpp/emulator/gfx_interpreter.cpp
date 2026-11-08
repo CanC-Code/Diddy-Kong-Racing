@@ -3920,6 +3920,27 @@ if (!g_walker_recover_installed) {
     { static int s_once = 0; if (s_once++ == 0) bka_install_watch(); }
     { static int s_ent = 0; if (s_ent++ < 30) {
         uint8_t* dp = tp ? (uint8_t*)tp->t.data_ptr : nullptr;
+    {
+        static int _dl0 = 0;
+        if (_dl0++ < 3 && dp && tp->t.data_size >= 64) {
+            const uint8_t *_p = (const uint8_t*)dp;
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-DLBYTES0",
+                "task#%d size=%u first32=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X",
+                _dl0, tp->t.data_size,
+                _p[0],_p[1],_p[2],_p[3],_p[4],_p[5],_p[6],_p[7],
+                _p[8],_p[9],_p[10],_p[11],_p[12],_p[13],_p[14],_p[15],
+                _p[16],_p[17],_p[18],_p[19],_p[20],_p[21],_p[22],_p[23],
+                _p[24],_p[25],_p[26],_p[27],_p[28],_p[29],_p[30],_p[31]);
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-DLBYTES0",
+                "task#%d first64=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X",
+                _dl0,
+                _p[32],_p[33],_p[34],_p[35],_p[36],_p[37],_p[38],_p[39],
+                _p[40],_p[41],_p[42],_p[43],_p[44],_p[45],_p[46],_p[47],
+                _p[48],_p[49],_p[50],_p[51],_p[52],_p[53],_p[54],_p[55],
+                _p[56],_p[57],_p[58],_p[59],_p[60],_p[61],_p[62],_p[63]);
+        }
+    }
+
         __android_log_print(ANDROID_LOG_ERROR, "BKA-DL",
             "ENTER #%d task=%p data_ptr=%p first8=%02X%02X%02X%02X %02X%02X%02X%02X",
             s_ent, (void*)tp, (void*)dp,
