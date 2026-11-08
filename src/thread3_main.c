@@ -175,10 +175,20 @@ void thread3_main(UNUSED void *unused) {
             snprintf(_b, sizeof(_b), "BKA-T3LOOP iter=%d mode=%d boot=%d flags=%d",
                      _it, (int)gGameMode, (int)sBootDelayTimer, (int)gSaveDataFlags);
             bka_diag_logfile(_b); } }
-        if (is_reset_pressed()) {
+        { s32 _rv = is_reset_pressed();
+          static int _rc=0; if (_rc++ < 20) {
+              extern void bka_diag_logfile(const char*);
+              char _b[48]; extern int snprintf(char*, unsigned long, const char*, ...);
+              snprintf(_b, sizeof(_b), "BKA-RESET val=%d frame=%d", (int)_rv, _rc);
+              bka_diag_logfile(_b);
+          }
+        if (_rv) {
+          bka_diag_logfile("BKA-RESET TRUE, entering reset path");
             __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "is_reset_pressed RETURNED TRUE");
             rumble_kill();
+            bka_diag_logfile("BKA-RST audioStopThread ENTER");
             audioStopThread();
+            bka_diag_logfile("BKA-RST audioStopThread RETURN");
             bgload_kill();
             __osSpSetStatus(SP_SET_HALT | SP_CLR_INTR_BREAK | SP_CLR_YIELD | SP_CLR_YIELDED | SP_CLR_TASKDONE |
                             SP_CLR_RSPSIGNAL | SP_CLR_CPUSIGNAL | SP_CLR_SIG5 | SP_CLR_SIG6 | SP_CLR_SIG7);

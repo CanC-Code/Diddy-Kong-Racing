@@ -182,8 +182,16 @@ void* game_thread_fn(void* arg) {
 
     LOGI("NativeBridge: Bootloader finalized execution. Engine runtime loop active.");
 
+    int _gtf_iter = 0;
     while (true) {
-        sleep(1000);
+        sleep(1);
+        if (_gtf_iter < 20) {
+            extern void bka_diag_logfile(const char*);
+            char _b[64]; extern int snprintf(char*, unsigned long, const char*, ...);
+            snprintf(_b, sizeof(_b), "BKA-GTF tick=%d", _gtf_iter);
+            bka_diag_logfile(_b);
+        }
+        _gtf_iter++;
     }
 
     HardwareRegs_Shutdown();
