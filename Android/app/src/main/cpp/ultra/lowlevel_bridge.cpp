@@ -44,7 +44,7 @@ uint8_t* gN64_ROM_Base = nullptr;
 #define FB_SIZE    (FB_WIDTH * FB_HEIGHT * sizeof(u16))
 
 uint16_t gFramebuffers[2][FB_WIDTH * FB_HEIGHT];
-uint32_t g_active_fb_offset = 0x400000;
+uint32_t g_active_fb_offset = 0x420000;
 
 // Virtual-to-physical mapping registry.
 // The recompiled code should call bka_add_addr_mapping() through osVirtualToPhysical.
@@ -660,7 +660,7 @@ void VideoPlugin_OutputFrameTexture(uint32_t hostTextureId) {
 
 } // extern "C"
 extern "C" int getActiveFramebuffer(void) {
-    return (g_active_fb_offset == 0x400000) ? 0 : 1;
+    return (g_active_fb_offset == 0x420000) ? 0 : 1;
 }
 
 // Added for segment-1 fallback in RDP_TranslateAddr. Searches the fixed

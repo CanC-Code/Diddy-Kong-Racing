@@ -5037,6 +5037,53 @@ case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG
             case 0xBC: Cmd_MoveWord(c); break;
 
             case 0x06: {
+                /* G_DL target validation:
+                 * drift can send G_DL to any RDRAM offset; verify
+                 * target starts with a valid DKR opcode before jumping */
+                {
+                    extern int bka_is_readable(void*);
+                    void *_gdl_t = bka_lookup_addr_by_low32(c.w1);
+                    if (!_gdl_t) _gdl_t = RDP_TranslateAddr(c.w1);
+                    if (!_gdl_t || !bka_is_readable(_gdl_t) ||
+                        !bka_is_readable((void*)((const uint8_t*)_gdl_t + 7))) {
+                        static int _gd1 = 0;
+                        if (_gd1++ < 20)
+                            __android_log_print(ANDROID_LOG_ERROR, "BKA-GDL-OOB",
+                                "w1=%08X target=%p unreadable — drift, skipping",
+                                c.w1, _gdl_t);
+                        break;
+                    }
+                    uint8_t _op = ((const uint8_t*)_gdl_t)[3]; /* LE: opcode low byte */
+                    /* Valid DKR opcodes in case dispatch */
+                    int _ok = (_op==0x00 || _op==0x01 || _op==0x02 || _op==0x03 ||
+                               _op==0x04 || _op==0x05 || _op==0x06 || _op==0x07 ||
+                               _op==0x0C || _op==0x0D || _op==0x12 || _op==0x14 ||
+                               _op==0x15 || _op==0x27 || _op==0x28 || _op==0x3A ||
+                               _op==0x3C || _op==0x41 || _op==0x44 || _op==0x4C ||
+                               _op==0x50 || _op==0x5E || _op==0x60 || _op==0x70 ||
+                               _op==0x80 || _op==0x82 || _op==0x86 || _op==0x8C ||
+                               _op==0x8E || _op==0x90 || _op==0x94 || _op==0xA0 ||
+                               _op==0xA6 || _op==0xA8 || _op==0xAA || _op==0xAF ||
+                               _op==0xB4 || _op==0xB5 || _op==0xB6 || _op==0xB7 ||
+                               _op==0xB8 || _op==0xB9 || _op==0xBA || _op==0xBC ||
+                               _op==0xC0 || _op==0xD6 || _op==0xD7 || _op==0xDA ||
+                               _op==0xE0 || _op==0xE1 || _op==0xE2 || _op==0xE3 ||
+                               _op==0xE6 || _op==0xE7 || _op==0xE8 || _op==0xE9 ||
+                               _op==0xED || _op==0xF0 || _op==0xF1 || _op==0xF2 ||
+                               _op==0xF3 || _op==0xF4 || _op==0xF5 || _op==0xF6 ||
+                               _op==0xF7 || _op==0xF8 || _op==0xF9 || _op==0xFA ||
+                               _op==0xFB || _op==0xFC || _op==0xFD || _op==0xFE ||
+                               _op==0xFF);
+                    if (!_ok) {
+                        static int _gd2 = 0;
+                        if (_gd2++ < 20)
+                            __android_log_print(ANDROID_LOG_ERROR, "BKA-GDL-BAD",
+                                "w1=%08X target=%p opcode=0x%02X not valid — drift, skipping",
+                                c.w1, _gdl_t, _op);
+                        break;
+                    }
+                }
+
                 uint32_t raw_addr = c.w1;
                 /* Port recomp relocates pointer-carrying commands. The 8-byte
                  * tag following the command holds the physical target; the
