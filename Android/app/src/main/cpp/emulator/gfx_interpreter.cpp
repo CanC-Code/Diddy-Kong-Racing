@@ -5042,17 +5042,75 @@ case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG
                  * target starts with a valid DKR opcode before jumping */
                 {
                     extern int bka_is_readable(void*);
-                    void *_gdl_t = bka_lookup_addr_by_low32(c.w1);
+                    extern uint8_t *gN64_RDRAM;
+                    /* Prefer physical (RDP) translation for G_DL — registry
+                     * has stale entries (no TTL) and returns freed-heap
+                     * pointers for w1 values that happened to collide with
+                     * some matrix ptr from an earlier frame. */
                     void *_gdl_via_rdp = RDP_TranslateAddr(c.w1);
-                    if (!_gdl_t) _gdl_t = _gdl_via_rdp;
+                    void *_gdl_t = _gdl_via_rdp;
+                    /* Only fall back to registry if RDP failed, AND the
+                     * registry target is inside RDRAM (registered matrices
+                     * live in RDRAM; arbitrary heap is not a valid G_DL). */
+                    if (!_gdl_t || !bka_is_readable(_gdl_t) ||
+                        !bka_is_readable((void*)((const uint8_t*)_gdl_t + 15))) {
+                        void *_reg = bka_lookup_addr_by_low32(c.w1);
+                        if (_reg && gN64_RDRAM &&
+                            (const uint8_t*)_reg >= gN64_RDRAM &&
+                            (const uint8_t*)_reg <  gN64_RDRAM + 0x1000000 &&
+                            bka_is_readable(_reg) &&
+                            bka_is_readable((void*)((const uint8_t*)_reg + 15))) {
+                            _gdl_t = _reg;
+                        }
+                    }
                     if (!_gdl_t || !bka_is_readable(_gdl_t) ||
                         !bka_is_readable((void*)((const uint8_t*)_gdl_t + 15))) {
                         static int _gd1 = 0;
                         if (_gd1++ < 40)
                             __android_log_print(ANDROID_LOG_ERROR, "BKA-GDL-OOB",
-                                "w0=%08X w1=%08X reg=%p rdp=%p unreadable — skipping",
-                                c.w0, c.w1, _gdl_t, _gdl_via_rdp);
+                                "w0=%08X w1=%08X rdp=%p unreadable after fallback — skipping",
+                                c.w0, c.w1, _gdl_via_rdp);
                         break;
+                    }
+                    /* Structural check: first opcode must be a known DKR one.
+                     * Rejects stale-heap targets that pass readability but
+                     * contain garbage. */
+                    {
+                        const uint8_t *_b = (const uint8_t*)_gdl_t;
+                        uint8_t _op_le = _b[3];  /* LE opcode */
+                        uint8_t _op_be = _b[0];  /* BE opcode */
+                        /* Valid DKR opcodes (union of LE + BE cases) */
+                        #define BKA_IS_OPCODE(x) ( \
+                            (x)==0x00||(x)==0x01||(x)==0x02||(x)==0x03|| \
+                            (x)==0x04||(x)==0x05||(x)==0x06||(x)==0x07|| \
+                            (x)==0x0C||(x)==0x0D||(x)==0x12||(x)==0x14|| \
+                            (x)==0x15||(x)==0x27||(x)==0x28||(x)==0x34|| \
+                            (x)==0x3A||(x)==0x3C||(x)==0x41||(x)==0x44|| \
+                            (x)==0x4C||(x)==0x50||(x)==0x51||(x)==0x58|| \
+                            (x)==0x5E||(x)==0x60||(x)==0x70||(x)==0x80|| \
+                            (x)==0x82||(x)==0x86||(x)==0x88||(x)==0x8C|| \
+                            (x)==0x8E||(x)==0x90||(x)==0x94||(x)==0xA0|| \
+                            (x)==0xA6||(x)==0xA8||(x)==0xAA||(x)==0xAF|| \
+                            (x)==0xB1||(x)==0xB4||(x)==0xB5||(x)==0xB6|| \
+                            (x)==0xB7||(x)==0xB8||(x)==0xB9||(x)==0xBA|| \
+                            (x)==0xBB||(x)==0xBC||(x)==0xBD||(x)==0xBE|| \
+                            (x)==0xBF||(x)==0xC0||(x)==0xC4||(x)==0xD6|| \
+                            (x)==0xD7||(x)==0xDA||(x)==0xDF||(x)==0xE0|| \
+                            (x)==0xE1||(x)==0xE2||(x)==0xE3||(x)==0xE6|| \
+                            (x)==0xE7||(x)==0xE8||(x)==0xE9||(x)==0xED|| \
+                            (x)==0xF0||(x)==0xF1||(x)==0xF2||(x)==0xF3|| \
+                            (x)==0xF4||(x)==0xF5||(x)==0xF6||(x)==0xF7|| \
+                            (x)==0xF8||(x)==0xF9||(x)==0xFA||(x)==0xFB|| \
+                            (x)==0xFC||(x)==0xFD||(x)==0xFE||(x)==0xFF)
+                        if (!BKA_IS_OPCODE(_op_le) && !BKA_IS_OPCODE(_op_be)) {
+                            static int _gd3 = 0;
+                            if (_gd3++ < 40)
+                                __android_log_print(ANDROID_LOG_ERROR, "BKA-GDL-BAD",
+                                    "w1=%08X target=%p op_le=0x%02X op_be=0x%02X not valid — skipping",
+                                    c.w1, _gdl_t, _op_le, _op_be);
+                            break;
+                        }
+                        #undef BKA_IS_OPCODE
                     }
                     /* Trust readable targets. Log what we're entering so we can
                      * see why POLYPASS is 0 — either these sub-DLs have no
