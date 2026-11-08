@@ -188,6 +188,7 @@ void* game_thread_fn(void* arg) {
         sleep(1);
         if (_gtf_iter < 20) {
            
+            char _b[64];
             snprintf(_b, sizeof(_b), "BKA-GTF tick=%d", _gtf_iter);
             bka_diag_logfile(_b);
         }
