@@ -4449,32 +4449,37 @@ if (!g_walker_recover_installed) {
          * If cur (or the 16-byte command span) is unreadable, stop —
          * otherwise the walker runs off the end into an unmapped page
          * and SIGSEGVs on the next 8-byte read. */
-        /* Depth-aware bounds:
-         *   depth == 0:  main task DL lives in host heap (tp->t.data_ptr)
-         *                tight bounds — anything outside is drift
-         *   depth > 0:   sub-DL entered via G_DL lives in RDRAM (the game
-         *                generates DLs directly into RDRAM). Enforce only
-         *                the RDRAM extent, not the task's tight bounds.
-         * Both-sided check on each region: drift can jump cur HIGH or LOW. */
-        {
-            const uint8_t *valid_lo, *valid_hi;
-            if (depth == 0) {
-                valid_lo = bka_dl_start;
-                valid_hi = bka_dl_end;
-            } else {
-                extern uint8_t *gN64_RDRAM;
-                valid_lo = gN64_RDRAM;
-                valid_hi = gN64_RDRAM + 0x1000000; /* BKA_RDRAM_ALLOC_SIZE */
-            }
-            if ((const uint8_t*)cur < valid_lo ||
-                (const uint8_t*)cur >= valid_hi) {
+        /* Bounds check:
+         *   depth==0:  tight bounds on top-level task DL (host heap, from
+         *              tp->t.data_ptr; anything outside = drift).
+         *   depth>0:   sub-DL entered via G_DL — may live in RDRAM OR host
+         *              heap depending on how the game allocated it. The
+         *              port's mempool_alloc_safe returns heap, so sub-DLs
+         *              are usually heap. Accept ANY readable page at depth>0;
+         *              drift detector (unknown_opcode_run>=8) catches real
+         *              overruns into garbage. */
+        if (depth == 0) {
+            if ((const uint8_t*)cur < bka_dl_start ||
+                (const uint8_t*)cur >= bka_dl_end) {
                 static int s_end = 0;
                 if (s_end++ < 40)
                     __android_log_print(ANDROID_LOG_ERROR, "BKA-DLEND",
-                        "walker: cur=%p outside [%p,%p) depth=%d size=%zu stride=%zu",
-                        (void*)cur, (void*)valid_lo, (void*)valid_hi,
-                        depth, (size_t)(bka_dl_end - bka_dl_start),
+                        "depth0 cur=%p outside [%p,%p) off=0x%llx size=%zu stride=%zu",
+                        (void*)cur, (void*)bka_dl_start, (void*)bka_dl_end,
+                        (unsigned long long)((const uint8_t*)cur - bka_dl_start),
+                        (size_t)(bka_dl_end - bka_dl_start),
                         current_stride);
+                return;
+            }
+        } else {
+            extern int bka_is_readable(void*);
+            if (!bka_is_readable((void*)cur) ||
+                !bka_is_readable((void*)((const uint8_t*)cur + 15))) {
+                static int s_end = 0;
+                if (s_end++ < 40)
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-DLEND",
+                        "depth%d cur=%p unreadable (sub-DL end)",
+                        depth, (void*)cur);
                 return;
             }
         }
