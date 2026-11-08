@@ -2108,8 +2108,17 @@ static void Cmd_Vtx(GfxCommand cmd) {
         return;
     }
 
-    uint8_t* src = RDP_TranslateAddr(addr);
-    /* VTX: same heap-pointer reconstruction as Cmd_Mtx. */
+    /* Fix: same registry-first resolution as Cmd_Mtx. RDP_TranslateAddr
+     * silently returns gN64_RDRAM+off for KSEG0 words, which is readable
+     * but wrong when the game wrote via a host pointer registered by
+     * bka_k0_to_phys. */
+    uint8_t* src = (uint8_t*)bka_lookup_addr_by_low32(addr);
+    if (!src) {
+        uint32_t _sw_vtx = __builtin_bswap32(addr);
+        src = (uint8_t*)bka_lookup_addr_by_low32(_sw_vtx);
+    }
+    if (!src) src = RDP_TranslateAddr(addr);
+    /* VTX: fallback heap-pointer reconstruction if the above all miss. */
     {
         int _ok = 0;
         if (src && bka_is_readable(src) &&
@@ -3031,7 +3040,15 @@ static void Cmd_Mtx(GfxCommand cmd) {
                 flag, cmd.w1);
         return;
     }
-    void *mtx_src = RDP_TranslateAddr(cmd.w1);
+    /* Fix: consult host-pointer registry FIRST. bka_k0_to_phys registers
+     * both low-32 and KSEG0-stripped low-32 to the host pointer. RDP_TranslateAddr
+     * does segment arithmetic and resolves KSEG0 to gN64_RDRAM+off — wrong address. */
+    void *mtx_src = (void*)bka_lookup_addr_by_low32(cmd.w1);
+    if (!mtx_src) {
+        uint32_t _sw = __builtin_bswap32(cmd.w1);
+        mtx_src = (void*)bka_lookup_addr_by_low32(_sw);
+    }
+    if (!mtx_src) mtx_src = RDP_TranslateAddr(cmd.w1);
     {
         int _ok = 0;
         if (mtx_src && bka_is_readable(mtx_src) &&
