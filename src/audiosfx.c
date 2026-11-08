@@ -6,6 +6,8 @@
 #include "PR/libaudio.h"
 #include "video.h"
 
+
+extern int bka_is_readable(void*);
 #define SOUND_PARAM_DURATION(m) (m->velocityMax * 33333)
 #define SOUND_PARAM_NEXT_SOUND(m) (m->velocityMin + (m->keyMin & 0xC0) * 4)
 #define SOUND_PARAM_GROUP(m) (m->keyMin & 0x3F)
@@ -677,6 +679,20 @@ ALSoundState *sndp_play(ALBank *bnk, s16 sndIndx, ALSoundState **handlePtr) {
  * Also, for retriggered sounds, schedules an event to restart them.
  */
 ALSoundState *sndp_play_with_priority(ALBank *bank, s16 sndIndx, u8 priority, ALSoundState **handlePtr) {
+    /* PORT GUARD: bank can be garbage — alBnkfNew produces bad pointers
+     * because port struct layout (64-bit ptrs) differs from ROM file
+     * layout (32-bit offsets). Refuse to deref until alBnkfNew is
+     * rewritten for 32→64 conversion. */
+    if (!bank || !bka_is_readable(bank) ||
+        !bka_is_readable((void*)((uint8_t*)bank + 0x10))) {
+        static int _np = 0;
+        if (_np++ < 20)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-SNDPFAIL",
+                "bank=%p indx=%d prio=%d — bank invalid, returning NULL",
+                (void*)bank, (int)sndIndx, (int)priority);
+        if (handlePtr) *handlePtr = NULL;
+        return NULL;
+    }
     ALSound *sound;
     ALSoundState *lastSoundState;
     ALSoundState *soundState;

@@ -11,6 +11,8 @@
 #include "sched.h"
 #include "types.h"
 
+
+extern int bka_is_readable(void*);
 /* ARM64 port: byteswap an array of u32 in place (N64 BE -> host LE).
  * Used at every asset_load boundary where a table of u32 offsets/sizes is
  * loaded from ROM. Matches the OTR pattern: swap per-structure at use site. */
@@ -143,6 +145,26 @@ void audio_init(OSSched *sc) {
     __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSoundBank load");
 
     alBnkfNew(gSoundBank, asset_rom_offset(ASSET_AUDIO, addrPtr[ASSET_AUDIO_2]));
+    {
+        /* Diagnostic: alBnkfNew is likely producing garbage because
+         * port struct (64-bit ptr) != ROM struct (32-bit offset).
+         * Log what we actually got. */
+        ALBankFile *bf = gSoundBank;
+        void *ba0 = NULL;
+        if (bf && bka_is_readable(bf) && bka_is_readable(&bf->bankArray[0]))
+            ba0 = bf->bankArray[0];
+        int ba0_ok = ba0 ? bka_is_readable(ba0) : 0;
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
+            "bankArray[0] post-conversion: bf=%p rev=0x%04x cnt=%d ba0=%p readable=%d",
+            (void*)bf, bf ? (unsigned)bf->revision : 0,
+            bf ? (int)bf->bankCount : 0, ba0, ba0_ok);
+        if (ba0_ok) {
+            uint8_t *pp = (uint8_t*)ba0;
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO",
+                "  ba0[0..7]=%02X%02X%02X%02X%02X%02X%02X%02X",
+                pp[0],pp[1],pp[2],pp[3],pp[4],pp[5],pp[6],pp[7]);
+        }
+    }
     __android_log_print(ANDROID_LOG_ERROR, "DKR-AUDIO", "after gSoundBank alBnkfNew");
 
 
