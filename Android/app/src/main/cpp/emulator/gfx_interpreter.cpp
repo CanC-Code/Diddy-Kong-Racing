@@ -2296,6 +2296,30 @@ typedef struct DkrTriangle {
 } DkrTriangle;
 
 static void Cmd_Polygon(GfxCommand cmd) {
+    /* Guard: op 0x05 = DKR G_TRIN. w1 points to a 16-byte vertex-triangle
+     * descriptor. Drift-fed walker can hand us garbage (0xEBxxxxxx etc).
+     * Resolve via registry, fall back to bswap, then readability-check
+     * the full 16-byte payload before any deref. */
+    {
+        uint8_t* _poly_src = (uint8_t*)bka_lookup_addr_by_low32(cmd.w1);
+        if (!_poly_src) {
+            uint32_t _sw = __builtin_bswap32(cmd.w1);
+            _poly_src = (uint8_t*)bka_lookup_addr_by_low32(_sw);
+        }
+        if (!_poly_src) _poly_src = RDP_TranslateAddr(cmd.w1);
+        if (!_poly_src || !bka_is_readable(_poly_src) ||
+            !bka_is_readable((void*)(_poly_src + 15))) {
+            static int _pf = 0;
+            if (_pf++ < 30)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-POLYFAIL",
+                    "w1=0x%08X src=%p rd1=%d rd16=%d — skipping",
+                    cmd.w1, (void*)_poly_src,
+                    _poly_src ? (int)bka_is_readable(_poly_src) : 0,
+                    _poly_src ? (int)bka_is_readable((void*)(_poly_src + 15)) : 0);
+            return;
+        }
+    }
+
     /* G_TRIN (DKR): w0[23:16] = ((numTris-1)<<4) | texEn; w1 = Triangle array ptr. */
     uint32_t numTris = (((cmd.w0 >> 20) & 0xF)) + 1;
     uint32_t texEn = (cmd.w0 >> 16) & 0x1;
