@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <dlfcn.h>
 
+#include <android/log.h>
 extern "C" void bka_diag_logfile(const char*);
 extern "C" void __real_exit(int);
 extern "C" void __real__exit(int);
