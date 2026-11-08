@@ -2332,6 +2332,19 @@ static void Cmd_Polygon(GfxCommand cmd) {
         uint32_t _sw = __builtin_bswap32(cmd.w1);
         _poly_resolved = (uint8_t*)bka_lookup_addr_by_low32(_sw);
     }
+    if (!_poly_resolved) {
+        /* Some OS_K0_TO_PHYSICAL paths use arithmetic (no registration).
+         * Try reverse: w1 may be (low32 - 0x80000000) of a heap ptr.
+         * Compute low32 candidate, see if any registered host ptr has
+         * that low32. Also try reverse-bswap + segment fallback. */
+        uint32_t _cand_low = cmd.w1 + 0x80000000u;
+        _poly_resolved = (uint8_t*)bka_lookup_addr_by_low32(_cand_low);
+        if (!_poly_resolved) {
+            uint32_t _cand_sw = __builtin_bswap32(cmd.w1);
+            uint32_t _cand_sw_low = _cand_sw + 0x80000000u;
+            _poly_resolved = (uint8_t*)bka_lookup_addr_by_low32(_cand_sw_low);
+        }
+    }
     if (!_poly_resolved) _poly_resolved = RDP_TranslateAddr(cmd.w1);
     DkrTriangle* tri = (DkrTriangle*)_poly_resolved;
     {

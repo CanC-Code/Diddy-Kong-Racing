@@ -114,4 +114,16 @@ extern void *		 osPhysicalToVirtual(u32);
  * can resolve w1 back to the real matrix buffer via low32 lookup. */
 #undef  OS_K0_TO_PHYSICAL
 extern uint32_t bka_k0_to_phys(void *ptr);
+#ifndef BKA_FORCE_K0_REG
+#define BKA_FORCE_K0_REG
+#ifdef __cplusplus
+extern "C" uint32_t bka_k0_to_phys(void *ptr);
+#else
+extern uint32_t bka_k0_to_phys(void *ptr);
+#endif
+#endif
+#ifdef OS_K0_TO_PHYSICAL
+#undef OS_K0_TO_PHYSICAL
+#endif
+#define OS_K0_TO_PHYSICAL(x) ((void *)(uintptr_t)bka_k0_to_phys((void *)(x)))
 #define OS_K0_TO_PHYSICAL(x)  bka_k0_to_phys((void *)(x))
