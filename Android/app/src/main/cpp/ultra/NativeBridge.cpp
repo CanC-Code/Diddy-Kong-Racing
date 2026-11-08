@@ -18,6 +18,11 @@ extern "C" void init_png_texture_loader(const char* base_path);
 #include <EGL/egl.h>
 #include <malloc.h>
 
+
+// bka_diag_logfile is defined in gfx_interpreter.cpp (extern "C").
+// NativeBridge.cpp is not built with -include n64_types.h so this must
+// be declared here at file scope (block-scope extern would be C++ linkage).
+extern "C" void bka_diag_logfile(const char*);
 #define LOG_TAG "NativeBridge"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
