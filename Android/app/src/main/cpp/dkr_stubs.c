@@ -170,6 +170,11 @@ void _guMtxF2L(float mf[4][4], void *m)
 
 uint32_t bka_k0_to_phys(void *ptr)
 {
+    { extern void bka_diag_logfile(const char*); char _b[80];
+      extern int snprintf(char*, unsigned long, const char*, ...);
+      snprintf(_b, sizeof(_b), "BKA-K0P in=%p out=0x%08X", ptr,
+               (uint32_t)((uintptr_t)ptr) - 0x80000000u);
+      bka_diag_logfile(_b); }
     uintptr_t u = (uintptr_t)ptr;
     uint32_t low = (uint32_t)u;
     uint32_t out = low - 0x80000000u;

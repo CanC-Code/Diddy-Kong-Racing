@@ -26,6 +26,14 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        try {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                Log.e("BKA-SHUTDOWN", "shutdown hook fired pid=" + android.os.Process.myPid());
+                for (StackTraceElement e : Thread.getAllStackTraces().getOrDefault(Thread.currentThread(), new StackTraceElement[0])) {
+                    Log.e("BKA-SHUTDOWN", "  " + e);
+                }
+            }, "BKA-ShutdownHook"));
+        } catch (Throwable t) { Log.e("BKA-SHUTDOWN", "hook install failed", t); }
         Log.i(TAG, "bootstrap");
 
         File romFile = new File(getFilesDir(), "auto_rom.z64");

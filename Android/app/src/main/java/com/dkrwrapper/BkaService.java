@@ -267,6 +267,7 @@ public class BkaService extends Service {
 
     @Override
     public void onDestroy() {
+        Log.e(TAG, "BKA-SVC-DESTROY onDestroy fired");
         try { LocalBroadcastManager.getInstance(this).unregisterReceiver(extractReceiver); }
         catch (Exception ignored) {}
         if (server != null) server.stop();

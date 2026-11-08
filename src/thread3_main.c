@@ -169,6 +169,7 @@ void thread3_main(UNUSED void *unused) {
     gGameMode = GAMEMODE_INTRO;
     while (1) {
         __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "before is_reset_pressed");
+        { static int _it=0; if ((_it++ & 0x3F) == 0) bka_diag_logfile("BKA-T3LOOP iter"); }
         if (is_reset_pressed()) {
             __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "is_reset_pressed RETURNED TRUE");
             rumble_kill();
