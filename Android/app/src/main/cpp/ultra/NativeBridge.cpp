@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <sys/resource.h>
 #include <sys/prctl.h>
 #include <jni.h>
@@ -186,8 +187,7 @@ void* game_thread_fn(void* arg) {
     while (true) {
         sleep(1);
         if (_gtf_iter < 20) {
-            extern void bka_diag_logfile(const char*);
-            char _b[64]; extern int snprintf(char*, unsigned long, const char*, ...);
+           
             snprintf(_b, sizeof(_b), "BKA-GTF tick=%d", _gtf_iter);
             bka_diag_logfile(_b);
         }
