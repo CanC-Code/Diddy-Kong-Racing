@@ -2167,11 +2167,20 @@ static void Cmd_Vtx(GfxCommand cmd) {
             }
         }
     }
-    if (!src) {
+    /* Guard: validate the FULL n*16 byte source before any swap/read.
+     * Previous check only tested 16 bytes; for n>1 the swap loop faults
+     * on src+16.. at RSP_ProcessGfxTask+19384 (read_u16_be). Also covers
+     * the case where fallback failed but left a non-NULL unreadable src. */
+    if (!src ||
+        !bka_is_readable(src) ||
+        !bka_is_readable((const uint8_t*)src + (n * 16) - 1)) {
         static int s_ft = 0;
         if (s_ft++ < 200) {
             __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
-                "VtxFAIL addr=0x%08X v0=%u n=%u w0=0x%08X", addr, v0, n, cmd.w0);
+                "VtxFAIL addr=0x%08X v0=%u n=%u w0=0x%08X src=%p rd1=%d rdN=%d",
+                addr, v0, n, cmd.w0, (void*)src,
+                src ? (int)bka_is_readable(src) : 0,
+                src ? (int)bka_is_readable((const uint8_t*)src + (n * 16) - 1) : 0);
         }
         return;
     }
