@@ -258,7 +258,10 @@ static void bka_segv_handler(int sig, siginfo_t *info, void *ctx) {
         __android_log_print(ANDROID_LOG_ERROR, "BKA-SEGV",
             "mprotect FAILED addr=%p errno-return", info->si_addr);
     }
-    /* Not our case — restore default and re-raise */
+    /* Not our case — log everything then restore default and re-raise */
+    __android_log_print(ANDROID_LOG_FATAL, "BKA-SIG",
+        "signal %d si_code=%d addr=%p — falling through, re-raising to SIG_DFL",
+        sig, (int)info->si_code, info->si_addr);
     signal(sig, SIG_DFL);
     raise(sig);
 }
