@@ -3051,6 +3051,26 @@ static void Cmd_Mtx(GfxCommand cmd) {
      * both low-32 and KSEG0-stripped low-32 to the host pointer. RDP_TranslateAddr
      * does segment arithmetic and resolves KSEG0 to gN64_RDRAM+off — wrong address. */
     void *mtx_src = (void*)bka_lookup_addr_by_low32(cmd.w1);
+    /* Reject JSON/string false positives from registry: a real N64 matrix
+     * starts with int[0][0] in {0x0001, 0x0000, 0xFFFF, 0x0000xxxx} and
+     * bytes 4-7 are near-zero (int[0][1..3]). JSON starts with ASCII. */
+    if (mtx_src) {
+        const uint8_t* _mb = (const uint8_t*)mtx_src;
+        uint8_t _b0 = _mb[0], _b1 = _mb[1], _b2 = _mb[2], _b3 = _mb[3];
+        uint8_t _b4 = _mb[4], _b5 = _mb[5], _b6 = _mb[6], _b7 = _mb[7];
+        /* ASCII heuristic: if bytes[0..7] are all in [0x20..0x7E], it's text */
+        int _text = 1;
+        for (int _i = 0; _i < 8; _i++) {
+            if (_mb[_i] < 0x20 || _mb[_i] > 0x7E) { _text = 0; break; }
+        }
+        if (_text) {
+            static int _jr = 0;
+            if (_jr++ < 20) diag_log("BKA-MTX-REJECT",
+                "w1=0x%08X ptr=%p is-text b=%02X%02X%02X%02X%02X%02X%02X%02X",
+                cmd.w1, mtx_src, _b0,_b1,_b2,_b3,_b4,_b5,_b6,_b7);
+            mtx_src = NULL;
+        }
+    }
     if (!mtx_src) {
         uint32_t _sw = __builtin_bswap32(cmd.w1);
         mtx_src = (void*)bka_lookup_addr_by_low32(_sw);

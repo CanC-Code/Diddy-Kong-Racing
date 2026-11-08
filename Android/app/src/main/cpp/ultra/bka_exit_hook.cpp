@@ -56,3 +56,10 @@ extern "C" void __wrap_pthread_exit(void* retval) {
     fflush(NULL);
     __real_pthread_exit(retval);
 }
+
+extern "C" void __real___stack_chk_fail(void);
+extern "C" void __wrap___stack_chk_fail(void) {
+    log_caller("stack_chk_fail", 0);
+    fflush(NULL);
+    __real___stack_chk_fail();
+}
