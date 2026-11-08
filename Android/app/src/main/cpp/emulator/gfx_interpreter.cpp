@@ -85,6 +85,11 @@ static const uint8_t* s_current_cmd = nullptr;
 
 #include <cstdarg>
 static void diag_log(const char* tag, const char* fmt, ...) {
+
+extern "C" void bka_diag_logfile(const char* msg) {
+    diag_log("BKA-FILE", "%s", msg);
+}
+
     FILE* f = fopen("/data/user/0/com.dkrwrapper/files/diag.log", "a");
     if (!f) return;
     fprintf(f, "%s: ", tag);
@@ -3143,7 +3148,8 @@ static void Cmd_Mtx(GfxCommand cmd) {
             _scan++;
             extern uint8_t *gN64_RDRAM;
             if (gN64_RDRAM) {
-                uint32_t want = cmd.w1 & 0xFFFFFFu;
+                uint32_t _sw_want = __builtin_bswap32(cmd.w1);
+                uint32_t want = _sw_want & 0xFFFFFFu;
                 int found = 0;
                 for (uint32_t i = 0; i < 0x1000000; i += 4) {
                     const uint8_t *p = gN64_RDRAM + i;
@@ -3308,7 +3314,8 @@ static void Cmd_Mtx(GfxCommand cmd) {
 
         /* DIAG: track write changes per matrix address */
     {
-        uint32_t off = cmd.w1 & 0xFFFFFFu;
+        uint32_t _sw_off = __builtin_bswap32(cmd.w1);
+        uint32_t off = _sw_off & 0xFFFFFFu;
         uint32_t fp = 0;
         const uint8_t *_b = (const uint8_t*)mtx_src;
         for (int i = 0; i < 64; i++) fp = (fp * 31) + _b[i];

@@ -5,6 +5,7 @@
 #include "stacks.h"
 #include "thread0_epc.h"
 #include "thread3_main.h"
+extern void bka_diag_logfile(const char*);
 
 /************ .bss ************/
 
@@ -22,6 +23,8 @@ OSThread gThread3; // OSThread for thread 3
  * Official name: boot
  */
 void mainproc(void) {
+    bka_diag_logfile("BKA-MAINFILE mainproc ENTER");
+
     osInitialize();
 #ifdef AVOID_UB
     bzero(&gMainMemoryPool, RAM_END - (s32) (&main_BSS_START));
@@ -37,11 +40,14 @@ void mainproc(void) {
  */
 extern void BKA_DropEngineLock(void);
 void thread1_main(UNUSED void *unused) {
+    bka_diag_logfile("BKA-MAINFILE thread1_main ENTER");
+
     thread0_create();
     osCreateThread(&gThread3, 3, &thread3_main, 0, &gThread3Stack[STACKSIZE(STACK_GAME)], 10);
     gThread3Stack[STACKSIZE(STACK_GAME)] = 0;
     gThread3Stack[0] = 0;
     osStartThread(&gThread3);
+    bka_diag_logfile("BKA-MAINFILE osStartThread(gThread3) RETURN");
     osSetThreadPri(NULL, OS_PRIORITY_IDLE);
     BKA_DropEngineLock();
     while (1) {}

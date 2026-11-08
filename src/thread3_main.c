@@ -1,6 +1,7 @@
 #include <android/log.h>
 #include <unistd.h>
 #include "thread3_main.h"
+extern void bka_diag_logfile(const char*);
 
 #include "asset_enums.h"
 #include "asset_loading.h"
@@ -154,11 +155,14 @@ UNUSED s32 D_80123568[3]; // BSS Padding
  * Official Name: mainThread
  */
 void thread3_main(UNUSED void *unused) {
+    bka_diag_logfile("BKA-T3FILE thread3_main ENTER");
+
     __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "thread3_main ENTERED");
     __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "before init_game");
 
     init_game();
     __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "init_game RETURNED");
+    bka_diag_logfile("BKA-T3FILE init_game RETURN");
 
     gSaveDataFlags = input_update(gSaveDataFlags, 0);
     sBootDelayTimer = 0;
