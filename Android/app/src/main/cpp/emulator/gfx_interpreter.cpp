@@ -4202,7 +4202,15 @@ if (!g_walker_recover_installed) {
 
     DListFrame stack[64];
     int depth = 0;
-    size_t current_stride = 8;
+    /* Port-emitted top-level DLs are 16-byte (8-byte Gfx cmd + 8-byte tag).
+     * Sub-DLs entered via G_DL are 8-byte compact (overridden at case 0x06,
+     * restored from stack on G_ENDDL pop). Initializer was 8, causing every
+     * task to walk half-real / half-padding until detection fired — and for
+     * tasks whose first commands decode as valid opcodes in BOTH endian
+     * interpretations (e.g. w0=0x060000BC -> LE_op=BC, BE_op=06), the
+     * detector cannot disambiguate and stride stays wrong for the whole
+     * task, producing fake G_DL / G_VTX / Cmd_Polygon with garbage w1. */
+    size_t current_stride = 16;
     size_t stack_stride[64];
     uintptr_t stack_dl_base[64];
     int stack_enc[64];          /* per-frame: 0=unknown, 1=LE, 2=BE */
