@@ -4092,6 +4092,18 @@ if (!g_walker_recover_installed) {
      * skipped every frame except its 500ms stale fallback. */
     g_bka_frame_gen++;
     g_bka_task_tri_count = 0;
+    /* NU6-06-0030-001G p.144 "Matrix State": F3DEX microcode starts every
+     * task with identity modelview/projection. DKR emits 5000 MODELVIEW|MUL
+     * per frame with no LOAD, relying on task-start reset. Without this,
+     * s_rdp.modelview compounds garbage across frames. BKA-DRAW w=(1211.45,
+     * 0.04, 1211.45) was the signature of accumulated garbage, not real
+     * perspective. */
+    for (int _i = 0; _i < 4; _i++) for (int _j = 0; _j < 4; _j++) {
+        s_rdp.modelview[_i][_j]  = (_i == _j) ? 1.0f : 0.0f;
+        s_rdp.projection[_i][_j] = (_i == _j) ? 1.0f : 0.0f;
+        s_rdp.viewProj[_i][_j]   = (_i == _j) ? 1.0f : 0.0f;
+    }
+    s_rdp.modelviewStackDepth = 0;
     g_bka_task_pops = 0;
     g_bka_task_max_depth = 0;
     /* PORT: reset modelview stack depth each frame. If a previous frame
