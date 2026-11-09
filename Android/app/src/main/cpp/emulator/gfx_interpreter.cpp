@@ -3208,30 +3208,54 @@ static void Cmd_Mtx(GfxCommand cmd) {
             if ((_i00 == 0x0001 || _i00 == 0xFFFF) && _i01 == 0x0000) _ok = 1;
         }
         if (!_ok) {
-            uint64_t _p = 0x7D00000000ULL | (uint64_t)cmd.w1;
-            if (bka_is_readable((void*)_p) &&
-                bka_is_readable((void*)((const uint8_t*)_p + 63))) {
+            /* PORT: same reconstruction as Cmd_Vtx. Vertices proved the
+             * winning prefix is 0x7B; the registry-resolved fallback lands
+             * on a scratch buffer (all-zero bytes). Try 5 prefixes, pick
+             * the one that yields a plausible affine matrix with the most
+             * non-zero bytes (real matrix vs. mostly-zero scratch). */
+            static const uint64_t _pfxs[] = {
+                0x7B00000000ULL, 0x7D00000000ULL, 0x7E00000000ULL,
+                0x7F00000000ULL, 0x0000000000ULL,
+            };
+            static const char *_pflabels[] = {"7B","7D","7E","7F","00"};
+            int _best_nz = -1;
+            uint64_t _best_p = 0;
+            uint16_t _best_i00 = 0;
+            int _best_pk = -1;
+            for (int _pk = 0; _pk < 5; _pk++) {
+                uint64_t _p = _pfxs[_pk] | (uint64_t)cmd.w1;
+                if (!bka_is_readable((void*)_p)) continue;
+                if (!bka_is_readable((void*)((const uint8_t*)_p + 63))) continue;
                 const uint8_t *_b = (const uint8_t*)_p;
-                /* Real N64 matrix int-part: int[0][0] ∈ {0x0001, 0x0000, 0xFFFF}, int[0][1..3] = 0
-                   Also int[1][0], int[2][0], int[3][0] = 0 (col 0, rows 1-3).
-                   Requires int[1][1],int[2][2],int[3][3] readable too. */
                 uint16_t _i00 = (uint16_t)((_b[0] << 8) | _b[1]);
                 uint16_t _i01 = (uint16_t)((_b[2] << 8) | _b[3]);
                 uint16_t _i02 = (uint16_t)((_b[4] << 8) | _b[5]);
                 uint16_t _i03 = (uint16_t)((_b[6] << 8) | _b[7]);
-                uint16_t _i10 = (uint16_t)((_b[8] << 8) | _b[9]);   /* int[1][0] */
-                uint16_t _i20 = (uint16_t)((_b[16] << 8) | _b[17]); /* int[2][0] */
-                uint16_t _i30 = (uint16_t)((_b[24] << 8) | _b[25]); /* int[3][0] */
+                uint16_t _i10 = (uint16_t)((_b[8] << 8) | _b[9]);
+                uint16_t _i20 = (uint16_t)((_b[16] << 8) | _b[17]);
+                uint16_t _i30 = (uint16_t)((_b[24] << 8) | _b[25]);
                 int _diag_ok = (_i01 == 0 && _i02 == 0 && _i03 == 0 &&
                                 _i10 == 0 && _i20 == 0 && _i30 == 0);
-                /* Reject all-zero matrices; a real identity has i00=0x0001. */
-                if (_diag_ok && (_i00 == 0x0001 || _i00 == 0xFFFF)) {
-                    static int _lg = 0;
-                    if (_lg++ < 20) diag_log("BKA-MTX-REBUILD",
-                        "w1=0x%08X ptr=0x%llX i00=0x%04X",
-                        cmd.w1, (unsigned long long)_p, (uint32_t)_i00);
-                    mtx_src = (void*)_p;
+                int _i00_ok = (_i00 == 0x0000 || _i00 == 0x0001 ||
+                               _i00 == 0xFFFE || _i00 == 0xFFFF);
+                int _nz = 0;
+                for (int _i = 0; _i < 64; _i++) if (_b[_i]) _nz++;
+                { static int _pd = 0; if (_pd++ < 30) diag_log("BKA-MTX-PFX-CHK",
+                    "w1=0x%08X pf=%s ptr=0x%llX i00=0x%04X diag_ok=%d i00_ok=%d nz=%d",
+                    cmd.w1, _pflabels[_pk], (unsigned long long)_p,
+                    (uint32_t)_i00, _diag_ok, _i00_ok, _nz); }
+                if (!_diag_ok || !_i00_ok) continue;
+                if (_nz > _best_nz) {
+                    _best_nz = _nz; _best_p = _p; _best_i00 = _i00; _best_pk = _pk;
                 }
+            }
+            if (_best_pk >= 0) {
+                static int _lg = 0;
+                if (_lg++ < 20) diag_log("BKA-MTX-REBUILD",
+                    "w1=0x%08X pf=%s ptr=0x%llX i00=0x%04X nz=%d",
+                    cmd.w1, _pflabels[_best_pk], (unsigned long long)_best_p,
+                    (uint32_t)_best_i00, _best_nz);
+                mtx_src = (void*)_best_p;
             }
         }
     }
