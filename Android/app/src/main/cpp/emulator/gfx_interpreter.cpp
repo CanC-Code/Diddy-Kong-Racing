@@ -2138,32 +2138,53 @@ static void Cmd_Vtx(GfxCommand cmd) {
             _ok = 1;
         }
         if (!_ok) {
+            /* PORT: gSPVertex writes (u32)v into w1 with no OS_K0_TO_PHYSICAL
+             * wrap (NU6-06-0030-001G p.121; p.138). Real HW maps bits[27:0]
+             * via the SP segment-0 table; on Android we must reconstruct the
+             * 64-bit host pointer. The original filter `_hb < 0x20 || _hb > 0x3F`
+             * rejects every real Android heap (0x7D-0x7F mmap, 0xEA-0xEB
+             * compat heap), so it was dead code. Widen and try several
+             * prefix arenas. */
             uint32_t _raw = addr;
             uint32_t _cands[2];
             _cands[0] = _raw;
             _cands[1] = ((_raw & 0xFFu) << 24) | ((_raw & 0xFF00u) << 8) |
                         ((_raw >> 8) & 0xFF00u) | ((_raw >> 24) & 0xFFu);
-            for (int _k = 0; _k < 2; _k++) {
+            static const uint64_t _prefixes[] = {
+                0x0000000000ULL,   /* zero-extend (32-bit compat / low heap) */
+                0x7D00000000ULL,   /* mmap-anon arena */
+                0x7E00000000ULL,   /* mmap-anon arena */
+                0x7F00000000ULL,   /* stack / mmap tail */
+                0x7B00000000ULL,   /* linker / data arena */
+            };
+            for (int _k = 0; _k < 2 && !src; _k++) {
                 uint32_t _c = _cands[_k];
                 uint8_t _hb = (_c >> 24) & 0xFF;
-                if (_hb < 0x20 || _hb > 0x3F) continue;
-                uint64_t _p = 0x7D00000000ULL | (uint64_t)_c;
-                if (!bka_is_readable((void*)_p)) continue;
-                if (!bka_is_readable((void*)((const uint8_t*)_p + 15))) continue;
-                const uint8_t *_b = (const uint8_t*)_p;
-                int _nz = 0;
-                for (int _i = 0; _i < 16; _i++) if (_b[_i]) { _nz = 1; break; }
-                if (!_nz) continue;
-                static int _lg = 0;
-                if (_lg++ < 20) diag_log("BKA-VTX-REBUILD",
-                    "addr=0x%08X cand%d=0x%08X ptr=0x%llX "
-                    "v0=%u n=%u b=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X",
-                    addr, _k, _c, (unsigned long long)_p,
-                    (unsigned)v0, (unsigned)n,
-                    _b[0],_b[1],_b[2],_b[3],_b[4],_b[5],_b[6],_b[7],
-                    _b[8],_b[9],_b[10],_b[11],_b[12],_b[13],_b[14],_b[15]);
-                src = (uint8_t*)_p;
-                break;
+                if (_hb == 0x00 || _hb == 0xFF) continue;
+                for (int _pk = 0;
+                     _pk < (int)(sizeof(_prefixes)/sizeof(_prefixes[0]));
+                     _pk++) {
+                    uint64_t _p = _prefixes[_pk] | (uint64_t)_c;
+                    if (!bka_is_readable((void*)_p)) continue;
+                    if (!bka_is_readable((void*)((const uint8_t*)_p +
+                                                 (n * 16) - 1))) continue;
+                    const uint8_t *_b = (const uint8_t*)_p;
+                    int _nz = 0;
+                    for (int _i = 0; _i < 16; _i++) if (_b[_i]) { _nz = 1; break; }
+                    if (!_nz) continue;
+                    static int _lg = 0;
+                    if (_lg++ < 20) diag_log("BKA-VTX-REBUILD",
+                        "addr=0x%08X cand%d pre0x%02llX ptr=0x%llX "
+                        "v0=%u n=%u b=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X",
+                        addr, _k,
+                        (unsigned long long)(_prefixes[_pk] >> 32),
+                        (unsigned long long)_p,
+                        (unsigned)v0, (unsigned)n,
+                        _b[0],_b[1],_b[2],_b[3],_b[4],_b[5],_b[6],_b[7],
+                        _b[8],_b[9],_b[10],_b[11],_b[12],_b[13],_b[14],_b[15]);
+                    src = (uint8_t*)_p;
+                    break;
+                }
             }
         }
     }
