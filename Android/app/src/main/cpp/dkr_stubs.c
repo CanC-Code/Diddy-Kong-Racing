@@ -141,26 +141,47 @@ void __osSpSetStatus(u32 status) { (void)status; }
 #include <stdint.h>
 extern void bka_add_addr_mapping_c(uint32_t key, void *ptr);
 
-void _guMtxF2L(float mf[4][4], void *m)
+/* Write a packed N64 Mtx into dst[0..63] using the layout described in
+ * NU6-06-0030-001G p.144: all 16 int16 int-parts (big-endian) at bytes
+ * 0x00-0x1F, then all 16 int16 frac-parts (big-endian) at bytes 0x20-0x3F,
+ * both row-major. Matrix_LoadFromN64 in gfx_interpreter.cpp reads exactly
+ * this layout. */
+/* Emit the same LE-packed layout as src/hasm/math_util.c:mtxf_to_mtx on ARM64.
+ * Matrix_LoadFromN64 in gfx_interpreter.cpp reads this layout. */
+static void bka_pack_mtx(float mf[4][4], uint8_t *dst)
 {
-    int32_t *ip = (int32_t *)m;
-    int i, j;
-    for (i = 0; i < 4; i++) {
-        for (j = 0; j < 4; j++) {
-            float f = mf[i][j];
-            int32_t v;
-            if (f > 32767.999f) v = 0x7FFFFFFF;
-            else if (f < -32768.0f) v = (int32_t)0x80000000;
-            else v = (int32_t)(f * 65536.0f);
-            uint16_t ipart = (uint16_t)((v >> 16) & 0xFFFF);
-            uint16_t fpart = (uint16_t)(v & 0xFFFF);
-            ip[i * 4 + j] = ((uint32_t)ipart << 16) | fpart;
+    for (int k = 0; k < 64; k++) dst[k] = 0;
+    int32_t *ai = (int32_t *)dst;
+    int32_t *af = (int32_t *)(dst + 32);
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j += 2) {
+            float f1 = mf[i][j];
+            float f2 = mf[i][j+1];
+            int32_t e1, e2;
+            if (f1 > 32767.999f) e1 = 0x7FFFFFFF;
+            else if (f1 < -32768.0f) e1 = (int32_t)0x80000000;
+            else e1 = (int32_t)(f1 * 65536.0f);
+            if (f2 > 32767.999f) e2 = 0x7FFFFFFF;
+            else if (f2 < -32768.0f) e2 = (int32_t)0x80000000;
+            else e2 = (int32_t)(f2 * 65536.0f);
+            *ai++ = (e1 & 0xFFFF0000) | ((e2 >> 16) & 0xFFFF);
+            *af++ = ((e1 << 16) & 0xFFFF0000) | (e2 & 0xFFFF);
         }
     }
-    /* Register so RDP_TranslateAddr(w1) with truncated low-32 resolves back
-     * to this full 64-bit pointer. Matches how gbi.h macros register via
-     * linker_stubs.c:bka_add_addr_mapping_c. */
+}
+
+void _guMtxF2L(float mf[4][4], void *m)
+{
+    bka_pack_mtx(mf, (uint8_t *)m);
     bka_add_addr_mapping_c((uint32_t)(uintptr_t)m, m);
+    { extern int __android_log_print(int, const char*, const char*, ...);
+      static int _f2l = 0;
+      if (_f2l++ < 20)
+        __android_log_print(6, "BKA-F2L",
+            "mf=%p m=%p [0][0]=%.4f [2][2]=%.4f b[0..3]=%02X%02X%02X%02X b[32..35]=%02X%02X%02X%02X",
+            mf, m, mf[0][0], mf[2][2],
+            ((uint8_t*)m)[0], ((uint8_t*)m)[1], ((uint8_t*)m)[2], ((uint8_t*)m)[3],
+            ((uint8_t*)m)[32], ((uint8_t*)m)[33], ((uint8_t*)m)[34], ((uint8_t*)m)[35]); }
 }
 
 /* Replacement for OS_K0_TO_PHYSICAL. Registers the full 64-bit pointer
@@ -201,9 +222,92 @@ uint32_t bka_k0_to_phys(void *ptr)
     }
     return out;
 }
-void _guRotateF(void) {}
-void _guTranslateF(void) {}
-void guPerspectiveF(float mf[4][4], u16 *pn, float fovy, float aspect, float near, float far, float scale) { (void)mf; (void)pn; (void)fovy; (void)aspect; (void)near; (void)far; (void)scale; }
+#include <math.h>
+/* stdint types come via existing includes */
+/* Real libultra matrix builders. Without these, game calls to
+ * guPerspective / guRotate / guTranslate leave the Mtx buffer at
+ * whatever was on the stack — BKA-MTX-FULL64 showed leftover JSON
+ * text ("ECTS_BUM...") at offset 0x20 of the projection Mtx, proving
+ * the pointer was correct but the data was never written.
+ * Format (NU6-06-0030-001G p.144): Mtx packs int16 parts at 0x00-0x1F
+ * and int16 frac parts at 0x20-0x3F. Same layout libultra guMtxF2L
+ * produces; here we emit it directly. */
+
+static void bka_f2l(float mf[4][4], Mtx *out) {
+    bka_pack_mtx(mf, (uint8_t *)out);
+}
+
+void _guRotateF(float m[4][4], float a, float x, float y, float z) {
+    float mag = sqrtf(x*x + y*y + z*z);
+    if (mag < 1e-6f) {
+        for (int i=0;i<4;i++) for (int j=0;j<4;j++) m[i][j]=(i==j)?1.0f:0.0f;
+        return;
+    }
+    x /= mag; y /= mag; z /= mag;
+    float rad = a * 3.14159265358979f / 180.0f;
+    float c = cosf(rad), s = sinf(rad), t = 1.0f - c;
+    m[0][0]=t*x*x+c;    m[0][1]=t*x*y-s*z;  m[0][2]=t*x*z+s*y;  m[0][3]=0.0f;
+    m[1][0]=t*x*y+s*z;  m[1][1]=t*y*y+c;    m[1][2]=t*y*z-s*x;  m[1][3]=0.0f;
+    m[2][0]=t*x*z-s*y;  m[2][1]=t*y*z+s*x;  m[2][2]=t*z*z+c;    m[2][3]=0.0f;
+    m[3][0]=0.0f;       m[3][1]=0.0f;       m[3][2]=0.0f;       m[3][3]=1.0f;
+}
+/* guRotate: defined in linker_stubs.c — do not redefine here. */
+
+
+void _guTranslateF(float m[4][4], float x, float y, float z) {
+    for (int i=0;i<4;i++) for (int j=0;j<4;j++) m[i][j]=(i==j)?1.0f:0.0f;
+    m[0][3]=x; m[1][3]=y; m[2][3]=z;
+}
+/* guTranslate: defined in linker_stubs.c — do not redefine here. */
+
+
+void guPerspectiveF(float mf[4][4], u16 *perspNorm, float fovy,
+                    float aspect, float near_, float far_, float scale) {
+    (void)scale;
+    float cot = 1.0f / tanf(fovy * 0.5f * 3.14159265358979f / 180.0f);
+    for (int i=0;i<4;i++) for (int j=0;j<4;j++) mf[i][j]=(i==j)?1.0f:0.0f;
+    mf[0][0] = cot / aspect;
+    mf[1][1] = cot;
+    mf[2][2] = (near_ + far_) / (near_ - far_);
+    mf[2][3] = 2.0f * near_ * far_ / (near_ - far_);
+    mf[3][2] = -1.0f;
+    mf[3][3] = 0.0f;
+    if (perspNorm) {
+        float c = (near_ * far_) / (near_ + far_) * scale;
+        if (c > 0.0f) {
+            union { float f; u32 u; } u; u.f = c;
+            int exp = (int)((u.u >> 23) & 0xFF) - 127 + 31;
+            if (exp < 0) exp = 0; if (exp > 255) exp = 255;
+            *perspNorm = (u16)((exp << 1) & 0x1FE);
+        } else {
+            *perspNorm = 0;
+        }
+    }
+    { extern int __android_log_print(int, const char*, const char*, ...);
+      static int _gpf = 0;
+      if (_gpf++ < 20)
+        __android_log_print(6, "BKA-GUPF",
+            "mf=%p fovy=%.1f aspect=%.3f near=%.2f far=%.2f "
+            "mf00=%.4f mf11=%.4f mf22=%.4f mf23=%.2f mf32=%.2f",
+            mf, fovy, aspect, near_, far_,
+            mf[0][0], mf[1][1], mf[2][2], mf[2][3], mf[3][2]); }
+}
+void guPerspective(Mtx *m, u16 *pn, float fovy, float aspect,
+                   float near_, float far_, float scale) {
+    float mf[4][4];
+    guPerspectiveF(mf, pn, fovy, aspect, near_, far_, scale);
+    bka_f2l(mf, m);
+    { extern int __android_log_print(int, const char*, const char*, ...);
+      static int _gp = 0;
+      if (_gp++ < 20)
+        __android_log_print(6, "BKA-GUP",
+            "m=%p first4=%08X %08X %08X %08X last4=%08X %08X %08X %08X",
+            m,
+            ((uint32_t*)m)[0], ((uint32_t*)m)[1],
+            ((uint32_t*)m)[2], ((uint32_t*)m)[3],
+            ((uint32_t*)m)[12], ((uint32_t*)m)[13],
+            ((uint32_t*)m)[14], ((uint32_t*)m)[15]); }
+}
 
 /* Game functions from asm — no C fallback */
 void obj_shade_fast(void) {}

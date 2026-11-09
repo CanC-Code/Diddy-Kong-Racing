@@ -90,8 +90,21 @@ UNUSED void mtx_to_mtxs(Mtx *m, MtxS *mi) {
     s32 ei, ef;
     s32 *ai, *af;
 
+#if defined(__aarch64__) || defined(_LP64) || defined(__LP64__)
+    /* ARM64 fix: sizeof(long)=8 but the N64 Mtx byte layout is 4-byte
+     * int16 pairs — intparts at 0x00-0x1F, fracparts at 0x20-0x3F
+     * (NU6-06-0030-001G p.144). Using &m->m[2][0] would put af at
+     * offset 64 on ARM64 (should be 32), so fracparts land at bytes
+     * 64-95 and bytes 32-63 (where Matrix_LoadFromN64 reads them)
+     * remain stale. Consequence: every MVP reads as garbage (mvp00=0,
+     * mvp11=3478), identity guard fires, modelview resets to identity.
+     * Write explicit byte offsets so the on-disc Mtx matches spec. */
+    ai = (s32*)((char*)m + 0);
+    af = (s32*)((char*)m + 32);
+#else
     ai = &m->m[0][0];
     af = &m->m[2][0];
+#endif
 
     for (i = 0; i < 4; i++) {
         for (j = 0; j < 4; j += 2) {
@@ -201,7 +214,18 @@ void mtxf_to_mtx(MtxF *mf, Mtx *m) {
             e2 = FTOFIX32((*mf)[i][j + 1]);
             *ai++ = (e1 & 0xFFFF0000) | ((e2 >> 16) & 0xFFFF);
             *af++ = ((e1 << 16) & 0xFFFF0000) | (e2 & 0xFFFF);
-        }
+        
+    { extern int __android_log_print(int, const char*, const char*, ...);
+      static int _pk = 0;
+      if (_pk++ < 20) {
+        unsigned char* _b = (unsigned char*)m;
+        __android_log_print(6, "BKA-PACK",
+            "dst=%p f00=%.4f f11=%.4f f22=%.4f f32=%.4f | b0=%02X%02X%02X%02X b32=%02X%02X%02X%02X",
+            (void*)m, (*mf)[0][0], (*mf)[1][1], (*mf)[2][2], (*mf)[3][2],
+            _b[0],_b[1],_b[2],_b[3], _b[32],_b[33],_b[34],_b[35]);
+      }
+    }
+}
     }
 }
 #else

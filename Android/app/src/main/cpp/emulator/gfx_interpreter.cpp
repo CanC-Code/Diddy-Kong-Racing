@@ -1,5 +1,6 @@
 /* BKA_FORCE_REBUILD_v4_2026_10_15 */
 #include <setjmp.h>
+#include <errno.h>
 #include <signal.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -53,6 +54,13 @@ extern uint32_t g_png_rdram_start;
 extern uint32_t g_png_rdram_end;
 static bool g_bka_force_rgba = false;
 static int g_bka_task_tri_count = 0;
+
+/* DKR MVP slots — declared here so RSP_ProcessGfxTask's task-start reset
+ * (around line 629) sees them. Populated by Cmd_Mtx (DKR p3 bits 6-7 =
+ * slot index) and read by TransformVertex via s_rdp.projection, which
+ * Cmd_MoveWord/Cmd_Mtx keep synced to s_dkrMvpSlots[s_dkrActiveSlot]. */
+static BKMatrix s_dkrMvpSlots[3];
+static int s_dkrActiveSlot = 0;
 int g_bka_last_tri2_count = 0;   /* Fix DD: total TRI2 calls, monotonic */
 static int g_mtx_flag_hist[256] = {0};
 volatile uint32_t g_bka_frame_gen = 0;
@@ -624,6 +632,10 @@ static void RDP_InitState() {
             s_rdp.projection[i][j] = s_rdp.modelview[i][j] =
                 s_rdp.viewProj[i][j] = (i == j) ? 1.0f : 0.0f;
     s_rdp.modelviewStackDepth = 0;
+    for (int _si = 0; _si < 3; _si++)
+        for (int _i = 0; _i < 4; _i++) for (int _j = 0; _j < 4; _j++)
+            s_dkrMvpSlots[_si][_i][_j] = (_i == _j) ? 1.0f : 0.0f;
+    s_dkrActiveSlot = 0;
 
     // Preserve vertex buffer and count across display list tasks.
     static BKVertex saved_dmem[DMEM_VERTEX_COUNT];
@@ -729,152 +741,38 @@ static void Matrix_MultVec(const BKMatrix m, float x, float y, float z, float w,
 }
 
 // Load N64 fixed-point matrix (int16_t[4][4] with 32-bit integer parts)
+static void Matrix_Multiply(BKMatrix result, const BKMatrix a, const BKMatrix b);
 static void Matrix_LoadFromN64(BKMatrix* out, const void* src) {
-    {
-        static int _f64 = 0;
-        if (_f64++ < 8) {
-            const uint8_t* _p = (const uint8_t*)src;
-            diag_log("BKA-MTX-FULL64",
-                "src=%p "
-                "00=%02X%02X%02X%02X 04=%02X%02X%02X%02X "
-                "08=%02X%02X%02X%02X 0C=%02X%02X%02X%02X "
-                "10=%02X%02X%02X%02X 14=%02X%02X%02X%02X "
-                "18=%02X%02X%02X%02X 1C=%02X%02X%02X%02X "
-                "20=%02X%02X%02X%02X 24=%02X%02X%02X%02X "
-                "28=%02X%02X%02X%02X 2C=%02X%02X%02X%02X "
-                "30=%02X%02X%02X%02X 34=%02X%02X%02X%02X "
-                "38=%02X%02X%02X%02X 3C=%02X%02X%02X%02X",
-                (void *)src,
-                _p[0],_p[1],_p[2],_p[3], _p[4],_p[5],_p[6],_p[7],
-                _p[8],_p[9],_p[10],_p[11], _p[12],_p[13],_p[14],_p[15],
-                _p[16],_p[17],_p[18],_p[19], _p[20],_p[21],_p[22],_p[23],
-                _p[24],_p[25],_p[26],_p[27], _p[28],_p[29],_p[30],_p[31],
-                _p[32],_p[33],_p[34],_p[35], _p[36],_p[37],_p[38],_p[39],
-                _p[40],_p[41],_p[42],_p[43], _p[44],_p[45],_p[46],_p[47],
-                _p[48],_p[49],_p[50],_p[51], _p[52],_p[53],_p[54],_p[55],
-                _p[56],_p[57],_p[58],_p[59], _p[60],_p[61],_p[62],_p[63]);
-        }
-    }
-    {
-        static int s_n64d1 = 0;
-        if (s_n64d1++ < 8) {
-            const uint8_t* _b = (const uint8_t*)src;
-            diag_log("BKA-MTX-SRC",
-                "out=%p src=%p int0_7=%02X%02X%02X%02X%02X%02X%02X%02X "
-                "frac0_7=%02X%02X%02X%02X%02X%02X%02X%02X",
-                (void*)out, src,
-                _b[0],_b[1],_b[2],_b[3],_b[4],_b[5],_b[6],_b[7],
-                _b[32],_b[33],_b[34],_b[35],_b[36],_b[37],_b[38],_b[39]);
-        }
-    }
-    {
-        static int s_raw = 0;
-        if (s_raw++ < 2) {
-            const uint8_t* b = (const uint8_t*)src;
-            __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
-                "MTXRAW 00-15: %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X",
-                b[0],b[1],b[2],b[3],b[4],b[5],b[6],b[7],
-                b[8],b[9],b[10],b[11],b[12],b[13],b[14],b[15]);
-            __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
-                "MTXRAW 16-31: %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X",
-                b[16],b[17],b[18],b[19],b[20],b[21],b[22],b[23],
-                b[24],b[25],b[26],b[27],b[28],b[29],b[30],b[31]);
-            __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
-                "MTXRAW 32-47: %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X",
-                b[32],b[33],b[34],b[35],b[36],b[37],b[38],b[39],
-                b[40],b[41],b[42],b[43],b[44],b[45],b[46],b[47]);
-            __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
-                "MTXRAW 48-63: %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X %02X%02X",
-                b[48],b[49],b[50],b[51],b[52],b[53],b[54],b[55],
-                b[56],b[57],b[58],b[59],b[60],b[61],b[62],b[63]);
-        }
-    }
-    // N64 Mtx layout (64 bytes):
-    //   bytes  0-31: integer parts, packed 2 per int32 word
-    //   bytes 32-63: fraction parts, packed 2 per int32 word
-    //
-    // The recompiled ARM code writes these as NATIVE little-endian int32
-    // values (they're just int32s in memory to the ARM CPU). We read each
-    // 32-bit word in LE, then split into high and low 16-bit halves.
-    // Integer half is signed; fraction half is unsigned (two's complement of
-    // the whole fixed-point value carries the sign into the integer half).
-    //
-    //   word 0 -> m00 (high), m01 (low)
-    //   word 1 -> m02 (high), m03 (low)
-    //   word 2 -> m10 (high), m11 (low)
-    //   etc.
-    const uint8_t* p = (const uint8_t*)src;
-    { static int n = 0; if (n++ < 12) {
-        auto be = [&](int k, float* o) {
-            int16_t a = (int16_t)((p[k*2] << 8) | p[k*2+1]);
-            uint16_t f = (uint16_t)((p[32+k*2] << 8) | p[32+k*2+1]);
-            *o = (float)a + (float)f / 65536.0f; };
-        auto ws = [&](int k, float* o) {
-            const uint8_t* iw = p + (k >> 1) * 4; const uint8_t* fw = p + 32 + (k >> 1) * 4;
-            int h = (k & 1) ? 0 : 2;
-            int16_t a = (int16_t)(iw[h] | (iw[h+1] << 8));
-            uint16_t f = (uint16_t)(fw[h] | (fw[h+1] << 8));
-            *o = (float)a + (float)f / 65536.0f; };
-        float b[16], w[16];
-        for (int k = 0; k < 16; k++) { be(k, &b[k]); ws(k, &w[k]); }
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-MTX",
-            "raw p0..7=%02X%02X%02X%02X %02X%02X%02X%02X p32..39=%02X%02X%02X%02X %02X%02X%02X%02X",
-            p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7],p[32],p[33],p[34],p[35],p[36],p[37],p[38],p[39]);
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-MTX",
-            "BE  row0=%.3f %.3f %.3f %.3f col3=%.3f %.3f %.3f %.3f",
-            b[0],b[1],b[2],b[3], b[3],b[7],b[11],b[15]);
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-MTX",
-            "WSW row0=%.3f %.3f %.3f %.3f col3=%.3f %.3f %.3f %.3f",
-            w[0],w[1],w[2],w[3], w[3],w[7],w[11],w[15]);
-    } }
-    for (int r = 0; r < 4; r++) {
-        for (int c = 0; c < 4; c++) {
-            int idx = r * 4 + c;
-            int off = idx * 2;
-            // N64 matrices are Big Endian s16 pairs (int_part, frac_part).
-            int16_t  e_int  = (int16_t)((p[off] << 8) | p[off+1]);
-            uint16_t e_frac = (uint16_t)((p[32+off] << 8) | p[32+off+1]);
-            (*out)[r][c] = (float)e_int + (float)e_frac / 65536.0f;
-        }
-    }
-    {
-        static int s_n64d2 = 0;
-        if (s_n64d2++ < 8) {
-            diag_log("BKA-MTX-PARSED",
-                "out=%p [0][0]=%.3f [0][1]=%.3f [0][2]=%.3f [0][3]=%.3f "
-                "[1][1]=%.3f [2][2]=%.3f [3][0]=%.3f [3][3]=%.3f",
-                (void*)out,
-                (*out)[0][0], (*out)[0][1], (*out)[0][2], (*out)[0][3],
-                (*out)[1][1], (*out)[2][2], (*out)[3][0], (*out)[3][3]);
-        }
-    }
-    {
-        static int s_full = 0;
-        if (s_full++ < 3) {
-            __android_log_print(ANDROID_LOG_ERROR, "BKA-MTXFULL",
-                "src=%p raw= %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X  %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X",
-                src,
-                p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7],
-                p[8],p[9],p[10],p[11],p[12],p[13],p[14],p[15],
-                p[16],p[17],p[18],p[19],p[20],p[21],p[22],p[23],
-                p[24],p[25],p[26],p[27],p[28],p[29],p[30],p[31]);
-            __android_log_print(ANDROID_LOG_ERROR, "BKA-MTXFULL",
-                "parsed r0=(%.4f %.4f %.4f %.4f) r3=(%.4f %.4f %.4f %.4f)",
-                (*out)[0][0],(*out)[0][1],(*out)[0][2],(*out)[0][3],
-                (*out)[3][0],(*out)[3][1],(*out)[3][2],(*out)[3][3]);
-        }
-    }
-    {
-        static int s_res = 0;
-        if (s_res++ < 2) {
-            __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
-                "MTXRES r0=(%.4f %.4f %.4f %.4f)", (*out)[0][0],(*out)[0][1],(*out)[0][2],(*out)[0][3]);
-            __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
-                "MTXRES r1=(%.4f %.4f %.4f %.4f)", (*out)[1][0],(*out)[1][1],(*out)[1][2],(*out)[1][3]);
-            __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
-                "MTXRES r2=(%.4f %.4f %.4f %.4f)", (*out)[2][0],(*out)[2][1],(*out)[2][2],(*out)[2][3]);
-            __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
-                "MTXRES r3=(%.4f %.4f %.4f %.4f)", (*out)[3][0],(*out)[3][1],(*out)[3][2],(*out)[3][3]);
+    /* Decode the LE-packed layout produced by src/hasm/math_util.c:mtxf_to_mtx
+     * on ARM64. The reference C code writes:
+     *   *ai++ = (int_e1 << 16) | int_e2
+     *   *af++ = (frac_e1 << 16) | frac_e2
+     * where e1 = mf[i][j], e2 = mf[i][j+1], j iterates 0,2 per row.
+     * As LE s32 stores, bytes 0-1 = int_e2 (LE), bytes 2-3 = int_e1 (LE).
+     * Same for af (offsets 32-63). Previous decode read BE int16 pairs at
+     * even offsets, getting byteswap + column-swap wrong. */
+    { static int _f64 = 0; if (_f64++ < 8) {
+        const uint8_t* _p = (const uint8_t*)src;
+        diag_log("BKA-MTX-FULL64",
+            "src=%p 00=%02X%02X%02X%02X 04=%02X%02X%02X%02X 08=%02X%02X%02X%02X "
+            "20=%02X%02X%02X%02X 24=%02X%02X%02X%02X 28=%02X%02X%02X%02X",
+            (void*)src,
+            _p[0],_p[1],_p[2],_p[3], _p[4],_p[5],_p[6],_p[7],
+            _p[8],_p[9],_p[10],_p[11],
+            _p[32],_p[33],_p[34],_p[35], _p[36],_p[37],_p[38],_p[39],
+            _p[40],_p[41],_p[42],_p[43]); } }
+    const uint8_t* b = (const uint8_t*)src;
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j += 2) {
+            int pair_idx = i * 2 + j / 2;
+            int ai_off = pair_idx * 4;
+            int af_off = 32 + pair_idx * 4;
+            int16_t int_j1  = (int16_t)(b[ai_off]   | (b[ai_off+1]   << 8));
+            int16_t int_j   = (int16_t)(b[ai_off+2] | (b[ai_off+3]   << 8));
+            int16_t frac_j1 = (int16_t)(b[af_off]   | (b[af_off+1]   << 8));
+            int16_t frac_j  = (int16_t)(b[af_off+2] | (b[af_off+3]   << 8));
+            (*out)[i][j]   = (float)int_j  + (float)frac_j  / 65536.0f;
+            (*out)[i][j+1] = (float)int_j1 + (float)frac_j1 / 65536.0f;
         }
     }
 }
@@ -1270,12 +1168,12 @@ static void TransformVertex(const BKVertex* v, float* sx, float* sy) {
         // Reject garbage matrices (e.g., the 0x7C6D... load) by checking the diagonal.
         // Valid rotation/scale diagonals are <= ~100.0. Garbage is usually > 10000.
         float mv_diag = fabsf(s_rdp.modelview[0][0]) + fabsf(s_rdp.modelview[1][1]) + fabsf(s_rdp.modelview[2][2]);
-        if (mv_diag > 500.0f) {
+        if (mv_diag > 1.0e6f) {
             for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++)
                 s_rdp.modelview[i][j] = (i == j) ? 1.0f : 0.0f;
         }
         float pj_diag = fabsf(s_rdp.projection[0][0]) + fabsf(s_rdp.projection[1][1]) + fabsf(s_rdp.projection[2][2]);
-        if (pj_diag > 500.0f) {
+        if (pj_diag > 1.0e6f) {
             for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++)
                 s_rdp.projection[i][j] = (i == j) ? 1.0f : 0.0f;
         }
@@ -2076,8 +1974,17 @@ static void Cmd_Vtx(GfxCommand cmd) {
     uint32_t v0, n;
     bool is_dkr = (std_check != std_n * 2);
     if (is_dkr) {
-        n = ((packed >> 3) & 0x1F) + 1;
-        v0 = ((cmd.w0 >> 16) & 0xFF) / 2;
+        /* DKR gSPVertexDKR: w0 = [G_VTX:8][p3:8][p2:16]
+         *   p3 = ((n-1)<<3) | (v&6) | v0
+         *   p2 = ((n*8 + n) << 1) + 8 = 18n + 8
+         * Emulator's previous decode (from p2 nibble + p3/2) is WRONG:
+         *   w0=0x0410003E → real n=3, v0=0 (was decoded as n=8, v0=8)
+         *   w0=0x04760116 → real n=15, v0=6 (was decoded as n=3, v0=59)
+         * Wrong v0 sends vertices to slots triangles never reference →
+         *   dmem[5], dmem[7] = empty → degenerate tri → 4096 px only. */
+        uint32_t p3 = (cmd.w0 >> 16) & 0xFF;
+        n  = ((p3 >> 3) & 0x1F) + 1;
+        v0 = p3 & 0x07;
         static int _dkrlog = 0;
         if (_dkrlog++ < 20)
             __android_log_print(ANDROID_LOG_ERROR, "BKA-VTXDKR",
@@ -2316,6 +2223,9 @@ typedef struct DkrTriangle {
 } DkrTriangle;
 
 static void Cmd_Polygon(GfxCommand cmd) {
+    { static int _pe = 0; if (_pe++ < 20)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-POLYENTER",
+            "w0=0x%08X w1=0x%08X dmem=%d", cmd.w0, cmd.w1, s_rdp.dmemVertexCount); }
     /* Guard: op 0x05 = DKR G_TRIN. w1 points to a 16-byte vertex-triangle
      * descriptor. Drift-fed walker can hand us garbage (0xEBxxxxxx etc).
      * Resolve via registry, fall back to bswap, then readability-check
@@ -2379,6 +2289,17 @@ static void Cmd_Polygon(GfxCommand cmd) {
                 "pass#%d w1=%08X tri=%p numTris=%u first_vi=(%d,%d,%d)",
                 _pp, cmd.w1, (void*)tri, (unsigned)((((cmd.w0 >> 20) & 0xF)) + 1),
                 tri[0].vi0, tri[0].vi1, tri[0].vi2);
+        {
+            static int _pb = 0;
+            if (_pb++ < 20) {
+                const uint8_t* b = (const uint8_t*)_poly_resolved;
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-POLYBYTES",
+                    "tri=%p w1=0x%08X b0..15=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X",
+                    (void*)_poly_resolved, cmd.w1,
+                    b[0],b[1],b[2],b[3], b[4],b[5],b[6],b[7],
+                    b[8],b[9],b[10],b[11], b[12],b[13],b[14],b[15]);
+            }
+        }
     }
     static int _plog = 0;
     if (_plog++ < 20)
@@ -2514,6 +2435,22 @@ static void Cmd_Polygon(GfxCommand cmd) {
         TransformVertex(v0, &sx0, &sy0);
         TransformVertex(v1, &sx1, &sy1);
         TransformVertex(v2, &sx2, &sy2);
+        {
+            static int _pm = 0;
+            if (_pm++ < 8) {
+                extern uint8_t *gVideoCurrFramebuffer;
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-PMAT",
+                    "proj_r3=(%.3f,%.3f,%.3f,%.3f) mv_r3=(%.3f,%.3f,%.3f,%.3f) "
+                    "sx=(%.1f,%.1f,%.1f) sy=(%.1f,%.1f,%.1f) fb=%p",
+                    s_rdp.projection[3][0], s_rdp.projection[3][1],
+                    s_rdp.projection[3][2], s_rdp.projection[3][3],
+                    s_rdp.modelview[3][0], s_rdp.modelview[3][1],
+                    s_rdp.modelview[3][2], s_rdp.modelview[3][3],
+                    sx0, sx1, sx2, sy0, sy1, sy2,
+                    (void*)gVideoCurrFramebuffer);
+            }
+        }
+
 
         RasterizeTriangle(sx0, sy0, sx1, sy1, sx2, sy2,
             v0->r, v0->g, v0->b, v0->a,
@@ -2587,6 +2524,14 @@ static void Cmd_Tri1(GfxCommand cmd) {
 
 static void Cmd_Tri2(GfxCommand cmd) {
     g_bka_task_tri_count++;
+    { static int _tr = 0; if (_tr++ < 20) {
+        extern const uint8_t* s_current_cmd;
+        const uint8_t* _c = (const uint8_t*)s_current_cmd;
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-TRI2RAW",
+            "w0=0x%08X w1=0x%08X dmem=%d cur_bytes=%02X%02X%02X%02X %02X%02X%02X%02X",
+            cmd.w0, cmd.w1, s_rdp.dmemVertexCount,
+            _c?_c[0]:0, _c?_c[1]:0, _c?_c[2]:0, _c?_c[3]:0,
+            _c?_c[4]:0, _c?_c[5]:0, _c?_c[6]:0, _c?_c[7]:0); } }
     { extern int g_bka_last_tri2_count; g_bka_last_tri2_count++; }
     static int s_tri2_calls = 0;
     if (++s_tri2_calls % 200 == 1 || s_tri2_calls < 5) {
@@ -2926,6 +2871,7 @@ static void Cmd_Tri2_F3DEX2(GfxCommand cmd) {
 // w0 = [opcode:8][length:8][offset:8][index:8]
 // w1 = address of data in RDRAM
 // =======================================================================
+static void Matrix_Multiply(BKMatrix result, const BKMatrix a, const BKMatrix b);
 static void Cmd_MoveMem(GfxCommand cmd) {
     uint32_t length = (cmd.w0 >> 16) & 0xFF;
     uint32_t offset = (cmd.w0 >> 8) & 0xFF;
@@ -2933,6 +2879,65 @@ static void Cmd_MoveMem(GfxCommand cmd) {
     uint32_t addr   = cmd.w1 & 0x0FFFFFFF;
     
     if (!gN64_RDRAM) return;
+
+    /* F3DEX1 G_MOVEMEM (op=0x03) decode. Recomp emits w0 as [op:8][param:8][len_hi:8][len_lo:8].
+     * G_MV_MMTX=0x02, G_MV_PMTX=0x06, G_MV_VIEWPORT=0x80.
+     * Legacy (length==8 && index==0x0E/0x00) gate never matches — every real load dropped. */
+    {
+        uint32_t fop    = (cmd.w0 >> 24) & 0xFF;
+        uint32_t fparam = (cmd.w0 >> 16) & 0xFF;
+        uint32_t flen   =  cmd.w0        & 0xFFFF;
+        uint32_t faddr  = cmd.w1;
+        if (fop == 0x03) {
+            auto resolve_mtx_src = [](uint32_t a) -> void* {
+                void *p = (void*)bka_lookup_addr_by_low32(a);
+                if (p) return p;
+                p = (void*)bka_lookup_addr_by_low32(__builtin_bswap32(a));
+                if (p) return p;
+                static const uint64_t _pfxs[] = {
+                    0x7B00000000ULL, 0x7D00000000ULL, 0x7E00000000ULL,
+                    0x7F00000000ULL, 0x0000000000ULL,
+                };
+                for (int _pk = 0; _pk < 5; _pk++) {
+                    uint64_t cand = _pfxs[_pk] | (uint64_t)a;
+                    if (!bka_is_readable((void*)cand)) continue;
+                    if (!bka_is_readable((void*)((const uint8_t*)cand + 15))) continue;
+                    return (void*)cand;
+                }
+                return nullptr;
+            };
+            if (fparam == 0x02 && (flen == 64 || flen == 128)) {
+                void *m_src = resolve_mtx_src(faddr);
+                if (m_src) {
+                    Matrix_LoadFromN64(&s_rdp.modelview, m_src);
+                    Matrix_Multiply(s_rdp.viewProj, s_rdp.modelview, s_rdp.projection);
+                }
+                return;
+            }
+            if (fparam == 0x06 && (flen == 64 || flen == 128)) {
+                void *m_src = resolve_mtx_src(faddr);
+                if (m_src) {
+                    Matrix_LoadFromN64(&s_rdp.projection, m_src);
+                    Matrix_Multiply(s_rdp.viewProj, s_rdp.modelview, s_rdp.projection);
+                }
+                return;
+            }
+            if (fparam == 0x80 && flen == 16) {
+                void *vp_src = resolve_mtx_src(faddr);
+                if (vp_src) {
+                    static int s_vp = 0; if (s_vp++ < 4) {
+                        const uint8_t *b = (const uint8_t*)vp_src;
+                        __android_log_print(ANDROID_LOG_ERROR, "BKA_GFX",
+                            "VP src=%p b=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X",
+                            vp_src, b[0],b[1],b[2],b[3],b[4],b[5],b[6],b[7],
+                            b[8],b[9],b[10],b[11],b[12],b[13],b[14],b[15]);
+                    }
+                }
+                return;
+            }
+        }
+    }
+
     
     // Matrix load: index 0x0E = G_MTX_MODELVIEW, 0x00 = G_MTX_PROJECTION
     // offset 0 = projection, offset 0 = modelview (upper bits differ)
@@ -2957,20 +2962,33 @@ static void Cmd_MoveMem(GfxCommand cmd) {
 // =======================================================================
 static void Matrix_Multiply(BKMatrix result, const BKMatrix a, const BKMatrix b);
 
+/* DKR MVP slots (include/f3ddkr.h + src/camera.c:950-1559). Three slots
+ * hold complete MVP matrices composed on CPU. gSPMatrixDKR(pkt, m, i) sends
+ * p3 = i<<6, i.e., bits 6-7 encode slot index (0x00/0x40/0x80).
+ * gSPSelectMatrixDKR(pkt, i) is G_MOVEWORD with index G_MW_MVPMATRIX=0x0A.
+ * Route every G_MTX as a LOAD into a slot, never as an F3DEX MUL-into-stack. */
 static void Cmd_MoveWord(GfxCommand cmd) {
     // F3DEX G_MOVEWORD: w0 = (0xBC << 24) | (index << 16) | offset
     uint32_t op     = (cmd.w0 >> 24) & 0xFF;
     uint32_t index, offset;
     if (op == 0xDB) {
-        // F3DEX_GBI_2 (gDma1p): w0 = [op][index][offset_hi][offset_lo]
+        // F3DEX_GBI_2 gDma1p: w0 = [op][index][offset_hi][offset_lo]
         index  = (cmd.w0 >> 16) & 0xFF;
         offset =  cmd.w0        & 0xFFFF;
     } else {
-        // F3DEX_GBI (gImmp21): w0 = [op][offset_hi][offset_lo][index]
-        index  =  cmd.w0        & 0xFF;
-        offset = (cmd.w0 >> 8)  & 0xFFFF;
+        // F3DEX_GBI gImmp21: w0 = [op][index][offset_hi][offset_lo]
+        // (verified: gSPPopMatrix(1) emits w0=0xBC000040 -> index=0x00 MODELVIEW, offset=0x40)
+        // Prior decode had index/offset byte-swapped, so POPMTX (index 0x0E) never matched,
+        // matrix stack grew past 16 unboundedly, modelview accumulated garbage each frame.
+        index  = (cmd.w0 >> 16) & 0xFF;
+        offset =  cmd.w0        & 0xFFFF;
     }
     uint32_t data   =  cmd.w1;
+
+    { static int _mw0 = 0; if (_mw0++ < 40)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-MOVEWORD",
+            "op=0x%02X idx=0x%02X off=0x%04X data=0x%08X",
+            op, index, offset, data); }
 
     static int mw_log = 0;
     if (1) {
@@ -2978,7 +2996,31 @@ static void Cmd_MoveWord(GfxCommand cmd) {
             "Cmd_MoveWord index=0x%02X offset=0x%04X data=0x%08X", index, offset, data);
     }
 
-    if (index == 0x0E) { // G_MW_POPMTX (F3DEX1 gSPPopMatrix)
+    /* F3DEX1 G_MW_POPMTX is 0x0C, NOT 0x0E (that's G_MW_PERSPNORM).
+     * Prior check at 0x0E never matched the game's real gSPPopMatrix(1)
+     * emissions. Consequence: 5000 PUSHes/frame, 0 POPs, matrix stack
+     * overflowed at depth 16, subsequent MODELVIEW|MULs compounded
+     * garbage (mv[3][3]=4005, mv[2][2]=-4174), w=(4005,32107,4005). */
+    if (index == 0x00 && (offset & 0x3FF) == 0x006) {
+        /* DKR framebuffer setup — not matrix. Matrices come via Cmd_Mtx. */
+        return;
+    }
+
+    if (index == 0x0A) {  // G_MW_MVPMATRIX — DKR: select active MVP slot
+        int sel = (data >> 6) & 0x03;
+        s_dkrActiveSlot = sel;
+        for (int _i = 0; _i < 4; _i++) for (int _j = 0; _j < 4; _j++) {
+            s_rdp.modelview[_i][_j]  = (_i == _j) ? 1.0f : 0.0f;
+            s_rdp.projection[_i][_j] = s_dkrMvpSlots[sel][_i][_j];
+        }
+        static int _sel = 0; if (_sel++ < 20)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-SELMAT",
+                "active=%d mvp00=%.4f mvp11=%.4f mvp22=%.4f mvp32=%.2f",
+                sel, s_dkrMvpSlots[sel][0][0], s_dkrMvpSlots[sel][1][1],
+                s_dkrMvpSlots[sel][2][2], s_dkrMvpSlots[sel][3][2]);
+        return;
+    }
+    if (index == 0x0C) { // G_MW_POPMTX (F3DEX1 gSPPopMatrix)
         /* F3DEX1 POPMTX: offset = N * 64 (bytes per matrix).
            Pop N entries from the modelview stack. */
         int n = (int)(offset / 64);
@@ -2996,16 +3038,7 @@ static void Cmd_MoveWord(GfxCommand cmd) {
                 "POPMTX popped %d, depth now %d", (int)(offset/64), s_rdp.modelviewStackDepth);
         return;
     }
-    if (index == 0x0E) { // G_MW_POPMTX (F3DEX1 gSPPopMatrix)
-        int n = (int)(offset / 64);
-        if (n <= 0) n = 1;
-        while (n-- > 0 && s_rdp.modelviewStackDepth > 0) {
-            s_rdp.modelviewStackDepth--;
-            memcpy(s_rdp.modelview, s_rdp.modelviewStack[s_rdp.modelviewStackDepth], sizeof(BKMatrix));
-        }
-        Matrix_Multiply(s_rdp.viewProj, s_rdp.modelview, s_rdp.projection);
-        return;
-    }
+    /* Dead duplicate removed — the 0x0C block above handles POPMTX. */
     if (index == 0x06) { // G_MW_SEGMENT
         uint32_t segment = (offset / 4) & 0x0F;
         uint32_t a = data;
@@ -3117,7 +3150,57 @@ static void Cmd_Mtx(GfxCommand cmd) {
     { static int _beacon = 0; if (_beacon++ == 0)
         __android_log_print(ANDROID_LOG_ERROR, "BKA-BUILD",
             "Cmd_Mtx beacon: code loaded, first MTX seen"); }
-    uint32_t flag = (cmd.w0 >> 16) & 0xFF;
+    /* F3DEX_GBI_2 gDma1p layout: w0 = [op:8][p2_hi:8][p3:8][p2_lo:8].
+ * gSPMatrix XORs p3 with G_MTX_PUSH, so the raw byte is (p_user ^ G_MTX_PUSH).
+ * Decode: p3_raw = (w0 >> 8) & 0xFF; p_user = p3_raw ^ G_MTX_PUSH.
+ * Current code reads (w0 >> 16) which is p2_hi (always 0x00 for 128-byte Mtx),
+ * causing all 5000 per-frame MODELVIEW|PUSH commands to be treated as MUL —
+ * modelview accumulates garbage to mv[2][2]=-5121. */
+    /* DKR slot load: p3 bits 6-7 = slot index. Every G_MTX in DKR is a slot
+     * load (see f3ddkr.h gSPMatrixDKR); game never emits F3DEX PUSH. Composed
+     * MVP goes into slot, modelview=identity, projection=slot[active], so
+     * existing TransformVertex (mv×proj) yields slot[active]×v. */
+    {
+        uint32_t p3_dkr = (cmd.w0 >> 16) & 0xFF;  /* G_MTX param field */
+        int dkr_slot = (p3_dkr >> 6) & 0x03;
+        void *src = (void*)bka_lookup_addr_by_low32(cmd.w1);
+        if (!src) src = (void*)bka_lookup_addr_by_low32(__builtin_bswap32(cmd.w1));
+        if (!src) {
+            static const uint64_t _pfx[] = {
+                0x7B00000000ULL, 0x7D00000000ULL, 0x7E00000000ULL,
+                0x7F00000000ULL, 0ULL,
+            };
+            for (int _i = 0; _i < 5; _i++) {
+                uint64_t _cand = _pfx[_i] | (uint64_t)cmd.w1;
+                if (bka_is_readable((void*)_cand) &&
+                    bka_is_readable((void*)((const uint8_t*)_cand + 63))) {
+                    src = (void*)_cand; break;
+                }
+            }
+        }
+        if (src) {
+            Matrix_LoadFromN64(&s_dkrMvpSlots[dkr_slot], src);
+            s_dkrActiveSlot = dkr_slot;
+            for (int _i = 0; _i < 4; _i++) for (int _j = 0; _j < 4; _j++) {
+                s_rdp.modelview[_i][_j]  = (_i == _j) ? 1.0f : 0.0f;
+                s_rdp.projection[_i][_j] = s_dkrMvpSlots[dkr_slot][_i][_j];
+            }
+            static int _sl = 0; if (_sl++ < 12)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-MTX2",
+                    "slot=%d src=%p mvp00=%.4f mvp11=%.4f mvp22=%.4f mvp32=%.2f active=%d",
+                    dkr_slot, src,
+                    s_dkrMvpSlots[dkr_slot][0][0], s_dkrMvpSlots[dkr_slot][1][1],
+                    s_dkrMvpSlots[dkr_slot][2][2], s_dkrMvpSlots[dkr_slot][3][2],
+                    s_dkrActiveSlot);
+        } else {
+            static int _sf = 0; if (_sf++ < 8)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-SLOTFAIL",
+                    "slot=%d w1=0x%08X not resolvable", dkr_slot, cmd.w1);
+        }
+        return;
+    }
+    uint32_t p3_raw = (cmd.w0 >> 8) & 0xFF;
+    uint32_t flag   = p3_raw ^ G_MTX_PUSH;
     /* F3DEX v1 G_MTX uses only bits 0-2 (PROJECTION=0x01, LOAD=0x02,
      * PUSH=0x04).  The recomp emits high bits in the flag byte that are
      * not part of the F3DEX spec but do not change the low 3 bits
@@ -3639,9 +3722,13 @@ static void Cmd_Mtx(GfxCommand cmd) {
                     s_rdp.modelview[2][0], s_rdp.modelview[2][1], s_rdp.modelview[2][2], s_rdp.modelview[2][3],
                     s_rdp.modelview[3][0], s_rdp.modelview[3][1], s_rdp.modelview[3][2], s_rdp.modelview[3][3]); }
         } else {
-            BKMatrix tmp;
-            Matrix_Multiply(tmp, newMatrix, s_rdp.modelview); // new × existing
-            memcpy(s_rdp.modelview, tmp, sizeof(BKMatrix));
+            /* DKR sends gSPMatrixDKR as flag=0x04 5000x/frame — these are
+             * not F3DEX MULs into a stack; the real matrix loads come via
+             * MoveWord 0x00. Skip MUL to prevent modelview compounding to
+             * w=2548 garbage. */
+            static int _mm = 0; if (_mm++ < 3)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-MTMULSKIP",
+                    "MODELVIEW|MUL skipped (DKR uses MoveWord 0x00)");
         }
     }
 
@@ -3986,6 +4073,95 @@ static void walker_recover_install(void) {
     sigemptyset(&sa.sa_mask);
     sigaction(SIGSEGV, &sa, NULL);
     sigaction(SIGBUS, &sa, NULL);
+}
+
+/* Count non-zero pixels in current framebuffer. This is our definitive
+ * answer for "is the screen showing anything?" — no more asking the user. */
+static void bka_scan_fb(const char* where) {
+    __android_log_print(ANDROID_LOG_ERROR, "BKA-SCANV2", "ENTER where=%s", where);
+    extern uint8_t *gN64_RDRAM;
+    if (!gN64_RDRAM) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-SCAN", "%s RDRAM_NULL", where);
+        return;
+    }
+    { extern uint8_t *gVideoCurrFramebuffer;
+      __android_log_print(ANDROID_LOG_ERROR, "BKA-SCANV2",
+        "currFb=%p RDRAM=%p", (void*)gVideoCurrFramebuffer, (void*)gN64_RDRAM); }
+    for (int i = 0; i < 2; i++) {
+        uint32_t off = 0x400000 + i * 0x40000;
+        uint16_t* fb = (uint16_t*)(gN64_RDRAM + off);
+        int nz = 0, bright = 0, firstnz = -1;
+        uint16_t maxc = 0;
+        for (int k = 0; k < 320*240; k++) {
+            uint16_t c = fb[k];
+            if (c) {
+                nz++;
+                if (firstnz < 0) firstnz = k;
+                int sm = ((c >> 11) & 0x1F) + ((c >> 5) & 0x3F) + (c & 0x1F);
+                if (sm > 10) bright++;
+                if (c > maxc) maxc = c;
+            }
+        }
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-SCAN",
+            "%s fb%d off=0x%X nz=%d bright=%d maxc=0x%04X firstnz=%d",
+            where, i, off, nz, bright, maxc, firstnz);
+    }
+}
+
+static void bka_dump_fb_ptr(const char* path, uint8_t* fbp) {
+    if (!fbp) return;
+    FILE* f = fopen(path, "wb");
+    if (!f) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FBDUAL",
+            "path=%s fopen FAILED errno=%d", path, errno);
+        return;
+    }
+    fprintf(f, "P6\n320 240\n255\n");
+    uint16_t* p = (uint16_t*)fbp;
+    for (int i = 0; i < 320*240; i++) {
+        uint16_t c = p[i];
+        fputc(((c >> 11) & 0x1F) << 3, f);
+        fputc(((c >> 5) & 0x3F) << 2, f);
+        fputc((c & 0x1F) << 3, f);
+    }
+    fclose(f);
+    __android_log_print(ANDROID_LOG_ERROR, "BKA-FBDUAL",
+        "wrote %s fb=%p", path, (void*)fbp);
+}
+
+static void bka_dump_fb(const char* path) {
+    extern uint8_t *gVideoCurrFramebuffer;
+    if (!gVideoCurrFramebuffer) return;
+    FILE* f = fopen(path, "wb");
+    if (!f) return;
+    fprintf(f, "P6\n320 240\n255\n");
+    uint16_t* fb = (uint16_t*)gVideoCurrFramebuffer;
+    for (int i = 0; i < 320*240; i++) {
+        uint16_t c = fb[i];
+        uint8_t r = ((c >> 11) & 0x1F) << 3;
+        uint8_t g = ((c >> 5) & 0x3F) << 2;
+        uint8_t b = (c & 0x1F) << 3;
+        fputc(r, f); fputc(g, f); fputc(b, f);
+    }
+    fclose(f);
+    static int _d = 0; if (_d++ < 2)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FBDUMP",
+            "wrote %s fb=%p", path, (void*)gVideoCurrFramebuffer);
+}
+
+static void bka_count_fb_pixels(const char* where) {
+    bka_scan_fb(where);  /* BKA-SCANV2: direct call, no extern */
+    extern uint8_t *gVideoCurrFramebuffer;
+    if (!gVideoCurrFramebuffer) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FB", "%s no_fb", where);
+        return;
+    }
+    uint16_t* fb = (uint16_t*)gVideoCurrFramebuffer;
+    int nz = 0;
+    const int total = 320 * 240;
+    for (int i = 0; i < total; i++) if (fb[i]) nz++;
+    __android_log_print(ANDROID_LOG_ERROR, "BKA-FB",
+        "%s nonzero=%d/%d fb=%p", where, nz, total, (void*)fb);
 }
 
 void RSP_ProcessGfxTask(OSTask* tp) {
@@ -5939,6 +6115,22 @@ default:
         __android_log_print(ANDROID_LOG_ERROR, "BKA-OPC", "task#%d %s", s_ptask, obuf);
         memset(s_opcount, 0, sizeof(s_opcount));
         s_op_total = 0;
+    } }
+    { static int _fbc = 0; if (_fbc++ % 30 == 0) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-LIVE",
+            "frame=%d tri_count=%d", _fbc, g_bka_task_tri_count);
+        bka_count_fb_pixels("PERIODIC");
+        static int _dc = 0;
+        if (_dc++ < 3) {
+            extern uint8_t *gN64_RDRAM;
+            if (gN64_RDRAM) {
+                char pA[256], pB[256];
+                snprintf(pA, sizeof(pA), "/data/data/com.dkrwrapper/files/screenA_%d.ppm", _dc);
+                snprintf(pB, sizeof(pB), "/data/data/com.dkrwrapper/files/screenB_%d.ppm", _dc);
+                bka_dump_fb_ptr(pA, gN64_RDRAM + 0x400000);
+                bka_dump_fb_ptr(pB, gN64_RDRAM + 0x440000);
+            }
+        }
     } }
 }
 
