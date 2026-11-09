@@ -2484,7 +2484,9 @@ static void Cmd_Polygon(GfxCommand cmd) {
 
     for (uint32_t i = 0; i < numTris; i++, tri++) {
         uint32_t vi0 = tri->vi0, vi1 = tri->vi1, vi2 = tri->vi2;
-        if (vi0 >= 256 || vi1 >= 256 || vi2 >= 256) continue;
+        if (vi0 >= (uint32_t)s_rdp.dmemVertexCount ||
+            vi1 >= (uint32_t)s_rdp.dmemVertexCount ||
+            vi2 >= (uint32_t)s_rdp.dmemVertexCount) continue;
 
         BKVertex* v0 = &s_rdp.dmem[vi0];
         BKVertex* v1 = &s_rdp.dmem[vi1];
