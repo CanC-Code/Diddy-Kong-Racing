@@ -2112,6 +2112,36 @@ static void Cmd_Vtx(GfxCommand cmd) {
                     }
                 }
             }
+            /* BKA-RAWPX: try prefix | raw addr (not adjusted). Vertex heap
+             * is at 0x7B..., not 0x6E... like matrix heap. Existing loop
+             * only tries prefix | adj (0x7BD50F2934 for addr=0x550F2934),
+             * which misses 0x7B550F2934. */
+            if (!src) {
+                extern uint8_t* gN64_RDRAM;
+                uint64_t _dyn = gN64_RDRAM ? ((uint64_t)(uintptr_t)gN64_RDRAM & 0xFF00000000ULL) : 0;
+                uint64_t _rawpx[6] = {
+                    _dyn,
+                    0x7B00000000ULL, 0x7D00000000ULL, 0x7E00000000ULL,
+                    0x7F00000000ULL, 0x0000000000ULL,
+                };
+                for (int _i = 0; _i < 6 && !src; _i++) {
+                    if (_rawpx[_i] == 0 && _i == 0) continue;  /* skip null dynamic */
+                    uint64_t _c = _rawpx[_i] | (uint64_t)addr;
+                    if (bka_is_readable((void*)_c) &&
+                        bka_is_readable((void*)((const uint8_t*)_c + (n * 16) - 1))) {
+                        src = (uint8_t*)_c;
+                        static int _rr = 0; if (_rr++ < 20)
+                            __android_log_print(ANDROID_LOG_ERROR, "BKA-RAWPX",
+                                "addr=0x%08X pre0x%02llX src=%p v0=%d n=%d OK",
+                                addr, (unsigned long long)(_rawpx[_i] >> 32),
+                                (void*)_c, v0, n);
+                    }
+                }
+                static int _rrf = 0; if (_rrf++ < 10 && !src)
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-RAWPX",
+                        "addr=0x%08X FAILED all %d prefix | raw candidates",
+                        addr, 6);
+            }
             for (int _k = 0; _k < 2 && !src; _k++) {
                 uint32_t _c = _cands[_k];
                 uint8_t _hb = (_c >> 24) & 0xFF;
