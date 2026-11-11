@@ -2055,6 +2055,26 @@ static void Cmd_Vtx(GfxCommand cmd) {
             _ok = 1;
         }
         if (!_ok) {
+            /* BKA-RDRAMFB: game emits w1 = low32(gN64_RDRAM + offset).
+             * All observed VTXDKR addresses start with 0x55 (low32 of RDRAM host base).
+             * Try reconstructing via gN64_RDRAM directly before prefix array. */
+            {
+                extern uint8_t* gN64_RDRAM;
+                if (gN64_RDRAM) {
+                    uint32_t rdram_low = (uint32_t)(uintptr_t)gN64_RDRAM;
+                    if (addr >= rdram_low && addr < rdram_low + 0x04000000u) {
+                        uint8_t* cand = gN64_RDRAM + (addr - rdram_low);
+                        if (bka_is_readable(cand) &&
+                            bka_is_readable(cand + (n * 16) - 1)) {
+                            src = cand;
+                            static int _rd = 0; if (_rd++ < 10)
+                                __android_log_print(ANDROID_LOG_ERROR, "BKA-RDRAMFB",
+                                    "addr=0x%08X rdram_low=0x%08X off=0x%X src=%p OK",
+                                    addr, rdram_low, addr - rdram_low, (void*)cand);
+                        }
+                    }
+                }
+            }
             /* PORT: gSPVertex writes (u32)v into w1 with no OS_K0_TO_PHYSICAL
              * wrap (NU6-06-0030-001G p.121; p.138). Real HW maps bits[27:0]
              * via the SP segment-0 table; on Android we must reconstruct the
