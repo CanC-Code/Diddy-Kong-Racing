@@ -2103,7 +2103,7 @@ static void Cmd_Vtx(GfxCommand cmd) {
                     uint64_t _c = _rdram_pfx | (uint64_t)addr;
                     if (bka_is_readable((void*)_c) &&
                         bka_is_readable((void*)((const uint8_t*)_c + (n * 16) - 1))) {
-                        src = (void*)_c;
+                        src = (uint8_t*)_c;
                         static int _rv = 0; if (_rv++ < 15)
                             __android_log_print(ANDROID_LOG_ERROR, "BKA-RDRAMPFX",
                                 "addr=0x%08X pre0x%02llX src=%p VTX v0=%d n=%d",
