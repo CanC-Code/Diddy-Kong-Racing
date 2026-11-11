@@ -482,16 +482,32 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     /* Cache last visible frame so we never show black to Chrome. */
     {
         static int s_last_nonzero[320*240];
-        static int s_have_last = 0;
+        static int s_have_last = 1; /* BKA-NOCACHE-DIAG */
         int _nz = 0;
         for (int _i = 0; _i < W*H; _i++) if (out[_i] & 0x00FFFFFF) _nz++;
+        /* Only cache frames with color variety (game content), not uniform
+         * boot-clear white. Reject frames where <500 pixels differ from
+         * pixel[0] by >60 total RGB. */
+        int _distinct = 0;
         if (_nz >= 100) {
+            int r0 = (out[0] >> 16) & 0xFF, g0 = (out[0] >> 8) & 0xFF, b0 = out[0] & 0xFF;
+            for (int _i = 1; _i < W*H; _i++) {
+                int r = (out[_i] >> 16) & 0xFF, g = (out[_i] >> 8) & 0xFF, b = out[_i] & 0xFF;
+                int d = (r>r0?r-r0:r0-r) + (g>g0?g-g0:g0-g) + (b>b0?b-b0:b0-b);
+                if (d > 60) { _distinct++; if (_distinct > 500) break; }
+            }
+        }
+        int _accept = (_nz >= 100 && _distinct > 500);
+        if (_accept) {
             memcpy(s_last_nonzero, out, sizeof(s_last_nonzero));
             s_have_last = 1;
             static int _ch = 0; if (_ch++ < 5)
                 __android_log_print(ANDROID_LOG_ERROR, "BKA-CACHE",
-                    "CACHE_UPDATE nz=%d", _nz);
+                    "CACHE_UPDATE nz=%d distinct=%d", _nz, _distinct);
         } else if (s_have_last) {
+            static int _cr2 = 0; if (_cr2++ < 3)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-CACHE",
+                    "REJECT nz=%d distinct=%d (uniform)", _nz, _distinct);
             memcpy(out, s_last_nonzero, sizeof(s_last_nonzero));
             static int _cr = 0; if (_cr++ < 5)
                 __android_log_print(ANDROID_LOG_ERROR, "BKA-CACHE",
