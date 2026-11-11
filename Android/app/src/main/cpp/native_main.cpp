@@ -403,8 +403,23 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         return;
     }
 
+    /* BKA_DIRECT_READ: gVideo* are the swap-target pointers, but the
+     * rasterizer writes to gN64_RDRAM + g_active_fb_offset. Read from
+     * g_active_fb_offset directly to eliminate the race (BKA-FB showed
+     * 4096 pixels on one buffer while fillArgb read 0). */
+    extern uint32_t g_active_fb_offset;
+    uint16_t* _direct = (gN64_RDRAM && g_active_fb_offset < 0x04000000u - 320u*240u*2u)
+                      ? (uint16_t*)(gN64_RDRAM + g_active_fb_offset) : NULL;
+    int _direct_nz = 0;
+    if (_direct) for (int _i = 0; _i < 320*240; _i++) if (_direct[_i]) _direct_nz++;
+
     uint16_t* src_a = (uint16_t*)gVideoLastFramebuffer;
     uint16_t* src_b = (uint16_t*)gVideoCurrFramebuffer;
+    if (_direct_nz > 100) { src_a = _direct; src_b = _direct; }
+    { static int _dir = 0; if (_dir++ < 3)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-DIRECT",
+            "off=0x%X direct_nz=%d using_direct=%d",
+            (unsigned)g_active_fb_offset, _direct_nz, (_direct_nz > 100) ? 1 : 0); }
     { static int _fa = 0; if (_fa++ < 5) __android_log_print(ANDROID_LOG_ERROR, "BKA-STREAM", "fillArgb curr=%p last=%p", (void*)gVideoCurrFramebuffer, (void*)gVideoLastFramebuffer); }
     int nb_a = 0, nb_b = 0;
     for (int i = 0; i < 292 * 216; i++) { if (src_a[i]) nb_a++; if (src_b[i]) nb_b++; }
