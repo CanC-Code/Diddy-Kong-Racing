@@ -3164,7 +3164,23 @@ static void Matrix_Multiply(BKMatrix result, const BKMatrix a, const BKMatrix b)
  * TransformVertex applies s_rdp.modelview then s_rdp.projection, so compose:
  *   s_rdp.projection = slots[0]
  *   s_rdp.modelview  = slots[1] * slots[2]   (view * model) */
+/* BKA_FORCE_IDENTITY: set to 1 to bypass all matrix loading and force
+ * identity on both proj and mv. Diagnostic for isolating whether the
+ * matrix pipeline is the sole blocker for rasterization. */
+static int g_bka_force_identity = 1;
+
 static void bka_recompute_matrices(void) {
+    if (g_bka_force_identity) {
+        for (int i = 0; i < 4; i++)
+            for (int j = 0; j < 4; j++) {
+                s_rdp.projection[i][j] = (i == j) ? 1.0f : 0.0f;
+                s_rdp.modelview[i][j]  = (i == j) ? 1.0f : 0.0f;
+            }
+        static int _fi = 0; if (_fi++ < 3)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-FORCEIDENT",
+                "identity forced (bypass matrix pipeline)");
+        return;
+    }
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
             s_rdp.projection[i][j] = s_dkrMvpSlots[0][i][j];
