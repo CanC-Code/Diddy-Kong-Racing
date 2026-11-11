@@ -2039,6 +2039,11 @@ static void Cmd_Vtx(GfxCommand cmd) {
     if (!src) src = RDP_TranslateAddr(addr);
     /* VTX: fallback heap-pointer reconstruction if the above all miss. */
     {
+        /* BKA-SRCNULL: RDP_TranslateAddr can return non-null sign-extended
+         * garbage for heap addresses (e.g. RDP_TranslateAddr(0x5610B4B0) ->
+         * 0xFFFFFFFFD610B4B0). This is non-null, so `&& !src` below blocks
+         * prefix reconstruction. Null it out first. */
+        if (src && !bka_is_readable(src)) src = NULL;
         int _ok = 0;
         if (src && bka_is_readable(src) &&
             bka_is_readable((void*)(src + 15))) {
