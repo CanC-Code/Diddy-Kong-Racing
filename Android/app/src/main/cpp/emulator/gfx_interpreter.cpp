@@ -960,6 +960,7 @@ static void RasterizeTriangle(
             "#%d xy=(%.0f,%.0f)(%.0f,%.0f)(%.0f,%.0f) rgb0=(%d,%d,%d) texEn=%d",
             _rf, x0, y0, x1, y1, x2, y2, r0, g0, b0, (int)s_rdp.textureEnabled); }
 
+    int _px_written = 0;
     s_triangleCount++;
     if (s_triangleCount % 5000 == 1 || s_triangleCount < 5) {
         __android_log_print(ANDROID_LOG_INFO, "BKA_GFX",
@@ -1065,7 +1066,7 @@ static void RasterizeTriangle(
             g_bka_pixels_drawn++;
             { static int s_px = 0; if (s_px++ < 500) __android_log_print(ANDROID_LOG_ERROR, "BKA-RAST", "PIXWRITE #%d y=%d x=%d rgb=(%d,%d,%d) rgb565=0x%04X fb=%p rdr=%p ofs=0x%X idx=%d", s_px, (int)y, (int)x, r, g, b, RGBA8_TO_RGB565(r,g,b), (void*)&fb[y*FB_WIDTH+x], (void*)gN64_RDRAM, g_active_fb_offset, (int)(y*FB_WIDTH+x)); }
                 bka_guard_write(&fb[y * FB_WIDTH + x], 2, "Raster.fb");
-                *(volatile uint16_t *)&fb[y * FB_WIDTH + x] = RGBA8_TO_RGB565(r, g, b);
+                { *(volatile uint16_t *)&fb[y * FB_WIDTH + x] = RGBA8_TO_RGB565(r, g, b); _px_written++; }
             }
         }
     }
@@ -1108,10 +1109,14 @@ static void RasterizeTriangle(
                     g = (uint8_t)(((int)g * tex[1]) / 255);
                     b = (uint8_t)(((int)b * tex[2]) / 255);
                 }
-                *(volatile uint16_t *)&fb[y * FB_WIDTH + x] = RGBA8_TO_RGB565(r, g, b);
+                { *(volatile uint16_t *)&fb[y * FB_WIDTH + x] = RGBA8_TO_RGB565(r, g, b); _px_written++; }
             }
         }
     }
+    { static int _rc = 0; if (_rc++ < 20 || _rc % 2000 == 0)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-RAST-COUNT",
+            "#%d px_written=%d xy=(%.0f,%.0f)(%.0f,%.0f)(%.0f,%.0f) fb=%p",
+            _rc, _px_written, x0,y0,x1,y1,x2,y2, (void*)fb); }
 }
 
 // =======================================================================

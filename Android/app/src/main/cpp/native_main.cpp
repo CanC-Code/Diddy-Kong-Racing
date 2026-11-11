@@ -413,8 +413,12 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     int _direct_nz = 0;
     if (_direct) for (int _i = 0; _i < 320*240; _i++) if (_direct[_i]) _direct_nz++;
 
-    uint16_t* src_a = (uint16_t*)gVideoLastFramebuffer;
-    uint16_t* src_b = (uint16_t*)gVideoCurrFramebuffer;
+    /* Fix 2026-11-11: RasterizeTriangle (line ~990) writes to
+     * gVideoCurrFramebuffer, not g_active_fb_offset. Read from same
+     * pointer so we always see fresh pixel data. Also cache last
+     * non-empty frame so we never send black to Chrome. */
+    uint16_t* src_a = (uint16_t*)gVideoCurrFramebuffer;
+    uint16_t* src_b = (uint16_t*)gVideoLastFramebuffer;
     if (_direct_nz > 100) { src_a = _direct; src_b = _direct; }
     { static int _dir = 0; if (_dir++ < 3)
         __android_log_print(ANDROID_LOG_ERROR, "BKA-DIRECT",
@@ -474,6 +478,26 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
             }
         }
     } }
+
+    /* Cache last visible frame so we never show black to Chrome. */
+    {
+        static int s_last_nonzero[320*240];
+        static int s_have_last = 0;
+        int _nz = 0;
+        for (int _i = 0; _i < W*H; _i++) if (out[_i] & 0x00FFFFFF) _nz++;
+        if (_nz >= 100) {
+            memcpy(s_last_nonzero, out, sizeof(s_last_nonzero));
+            s_have_last = 1;
+            static int _ch = 0; if (_ch++ < 5)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-CACHE",
+                    "CACHE_UPDATE nz=%d", _nz);
+        } else if (s_have_last) {
+            memcpy(out, s_last_nonzero, sizeof(s_last_nonzero));
+            static int _cr = 0; if (_cr++ < 5)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-CACHE",
+                    "CACHE_REPLAY (curr_nz=%d)", _nz);
+        }
+    }
 
     bka_draw_palette_bar(out, W, H);
 
