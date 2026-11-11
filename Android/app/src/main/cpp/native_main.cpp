@@ -408,10 +408,23 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     { static int _fa = 0; if (_fa++ < 5) __android_log_print(ANDROID_LOG_ERROR, "BKA-STREAM", "fillArgb curr=%p last=%p", (void*)gVideoCurrFramebuffer, (void*)gVideoLastFramebuffer); }
     int nb_a = 0, nb_b = 0;
     for (int i = 0; i < 292 * 216; i++) { if (src_a[i]) nb_a++; if (src_b[i]) nb_b++; }
-    uint16_t* src = src_a; /* PORT: always show finished frame; src_b is uninit malloc 0xFFFF */
+    /* Pick the framebuffer with more content. Either curr or last can be
+     * empty depending on double-buffer state — the one that was just filled
+     * has the visible frame. Reading from the empty one yields all-black. */
+    uint16_t* src = src_a;
+    if (src_a && src_b) {
+        int na = 0, nb2 = 0;
+        for (int _i = 0; _i < 320*240; _i++) {
+            if (src_a[_i]) na++;
+            if (src_b[_i]) nb2++;
+        }
+        if (nb2 > na) src = src_b;
+    } else if (src_b) {
+        src = src_b;
+    }
 
     for (int i = 0; i < W * H; i++) {
-        uint16_t px = (i < 292*216) ? src[i] : 0;
+        uint16_t px = (i < 320*240 && src) ? src[i] : 0;
         uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
         uint8_t g = (px >> 5)  & 0x3F; g = (g << 2) | (g >> 4);
         uint8_t b = px & 0x1F;         b = (b << 3) | (b >> 2);
