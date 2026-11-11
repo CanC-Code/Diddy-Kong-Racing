@@ -551,6 +551,55 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         __android_log_print(ANDROID_LOG_ERROR, "BKA-ART", "rows(240): %s", rowbuf);
     } }
 
+    /* BKA-ACCUM: framebuffer double-buffer race means ~95% of reads
+     * catch the empty buffer. Rasterizer writes 2189+ pixels/frame
+     * (verified BKA-RAST-COUNT) but fillArgb reads at wrong instant.
+     * Accumulate all non-zero pixels across frames so content persists
+     * regardless of which buffer we happened to read. */
+    {
+        static int s_accum[320*240];
+        static int s_accum_have = 0;
+        static int s_accum_empty_streak = 0;
+        static int s_accum_log = 0;
+
+        int accum_new = 0, accum_total = 0;
+        for (int _i = 0; _i < W*H; _i++) {
+            uint32_t _p = (uint32_t)out[_i];
+            if (_p & 0x00FFFFFF) {
+                if ((s_accum[_i] & 0x00FFFFFF) == 0) accum_new++;
+                s_accum[_i] = (int)_p;
+            }
+            if (s_accum[_i] & 0x00FFFFFF) accum_total++;
+        }
+
+        if (accum_new > 0) {
+            s_accum_have = 1;
+            s_accum_empty_streak = 0;
+        } else {
+            s_accum_empty_streak++;
+        }
+
+        /* If accumulator has >500 pixels, override out[] with accumulated view */
+        if (s_accum_have && accum_total > 500) {
+            memcpy(out, s_accum, sizeof(s_accum));
+        }
+
+        if (s_accum_log++ % 60 == 0 || accum_new > 100) {
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-ACCUM",
+                "total=%d new=%d empty_streak=%d have=%d",
+                accum_total, accum_new, s_accum_empty_streak, s_accum_have);
+        }
+
+        /* Reset accumulator only if truly stuck (10+ seconds of empty) */
+        if (s_accum_empty_streak > 600) {
+            memset(s_accum, 0, sizeof(s_accum));
+            s_accum_have = 0;
+            s_accum_empty_streak = 0;
+            if (s_accum_log < 20)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-ACCUM", "RESET (starved)");
+        }
+    }
+
     /* BKA-CLEANPASS: palette bar disabled — it was overwriting game pixels. */
     /* bka_draw_palette_bar(out, W, H); */
 
