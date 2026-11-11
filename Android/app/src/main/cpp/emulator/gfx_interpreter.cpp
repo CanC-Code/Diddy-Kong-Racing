@@ -742,6 +742,7 @@ static void Matrix_MultVec(const BKMatrix m, float x, float y, float z, float w,
 
 // Load N64 fixed-point matrix (int16_t[4][4] with 32-bit integer parts)
 static void Matrix_Multiply(BKMatrix result, const BKMatrix a, const BKMatrix b);
+static void bka_recompute_matrices(void);
 static void Matrix_LoadFromN64(BKMatrix* out, const void* src) {
     /* Decode the LE-packed layout produced by src/hasm/math_util.c:mtxf_to_mtx
      * on ARM64. The reference C code writes:
@@ -3002,7 +3003,40 @@ static void Cmd_MoveWord(GfxCommand cmd) {
      * overflowed at depth 16, subsequent MODELVIEW|MULs compounded
      * garbage (mv[3][3]=4005, mv[2][2]=-4174), w=(4005,32107,4005). */
     if (index == 0x00 && (offset & 0x3FF) == 0x006) {
-        /* DKR framebuffer setup — not matrix. Matrices come via Cmd_Mtx. */
+        int slot = (offset >> 10) & 0x07;
+        if (slot < 8) {
+            void *src = NULL;
+            if (data != 0x80000000u && data != 0) {
+                src = (void*)bka_lookup_addr_by_low32(data);
+                if (!src) src = (void*)bka_lookup_addr_by_low32(__builtin_bswap32(data));
+                if (!src) {
+                    uint32_t adj = data + 0x80000000u;
+                    src = (void*)bka_lookup_addr_by_low32(adj);
+                    if (!src) {
+                        static const uint64_t _px[] = {
+                            0x7B00000000ULL, 0x7D00000000ULL, 0x7E00000000ULL,
+                            0x7F00000000ULL, 0x0000000000ULL,
+                        };
+                        for (int _i = 0; _i < 5; _i++) {
+                            uint64_t _c = _px[_i] | (uint64_t)adj;
+                            if (bka_is_readable((void*)_c) &&
+                                bka_is_readable((void*)((const uint8_t*)_c + 63)))
+                                src = (void*)_c;
+                        }
+                    }
+                }
+            }
+            if (src) {
+                Matrix_LoadFromN64(&s_dkrMvpSlots[slot], src);
+                bka_recompute_matrices();
+                static int _mw = 0; if (_mw++ < 40)
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-MWM",
+                        "slot=%d off=0x%04X src=%p mvp00=%.4f mvp11=%.4f mvp22=%.4f mvp32=%.4f",
+                        slot, offset, src,
+                        s_dkrMvpSlots[slot][0][0], s_dkrMvpSlots[slot][1][1],
+                        s_dkrMvpSlots[slot][2][2], s_dkrMvpSlots[slot][3][2]);
+            }
+        }
         return;
     }
 
@@ -3115,6 +3149,21 @@ static void Matrix_Multiply(BKMatrix result, const BKMatrix a, const BKMatrix b)
     memcpy(result, temp, sizeof(BKMatrix));
 }
 
+/* DKR 3-slot model (camera.c): slot 0=projection, slot 1=view, slot 2=model.
+ * TransformVertex applies s_rdp.modelview then s_rdp.projection, so compose:
+ *   s_rdp.projection = slots[0]
+ *   s_rdp.modelview  = slots[1] * slots[2]   (view * model) */
+static void bka_recompute_matrices(void) {
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            s_rdp.projection[i][j] = s_dkrMvpSlots[0][i][j];
+    BKMatrix vm;
+    Matrix_Multiply(vm, s_dkrMvpSlots[1], s_dkrMvpSlots[2]);
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            s_rdp.modelview[i][j] = vm[i][j];
+}
+
 // F3DEX (non-2) matrix flag bits — Banjo-Kazooie
 #ifndef G_MTX_PROJECTION
 #define G_MTX_PROJECTION  0x01
@@ -3193,10 +3242,7 @@ static void Cmd_Mtx(GfxCommand cmd) {
             }
             Matrix_LoadFromN64(&s_dkrMvpSlots[dkr_slot], src);
             s_dkrActiveSlot = dkr_slot;
-            for (int _i = 0; _i < 4; _i++) for (int _j = 0; _j < 4; _j++) {
-                s_rdp.modelview[_i][_j]  = (_i == _j) ? 1.0f : 0.0f;
-                s_rdp.projection[_i][_j] = s_dkrMvpSlots[dkr_slot][_i][_j];
-            }
+            bka_recompute_matrices();
             static int _sl = 0; if (_sl++ < 12)
                 __android_log_print(ANDROID_LOG_ERROR, "BKA-MTX2",
                     "slot=%d src=%p mvp00=%.4f mvp11=%.4f mvp22=%.4f mvp32=%.2f active=%d",
