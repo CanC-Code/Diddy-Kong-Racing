@@ -3161,7 +3161,7 @@ static void Cmd_Mtx(GfxCommand cmd) {
      * MVP goes into slot, modelview=identity, projection=slot[active], so
      * existing TransformVertex (mv×proj) yields slot[active]×v. */
     {
-        uint32_t p3_dkr = (cmd.w0 >> 16) & 0xFF;  /* G_MTX param field */
+        uint32_t p3_dkr = (cmd.w0 >> 8) & 0xFF;   /* p3 flags at bits 15:8; >>16 reads p2_hi (always 0) */
         int dkr_slot = (p3_dkr >> 6) & 0x03;
         void *src = (void*)bka_lookup_addr_by_low32(cmd.w1);
         if (!src) src = (void*)bka_lookup_addr_by_low32(__builtin_bswap32(cmd.w1));
@@ -3179,6 +3179,18 @@ static void Cmd_Mtx(GfxCommand cmd) {
             }
         }
         if (src) {
+            { static int _raw = 0;
+              if (_raw++ < 8 && bka_is_readable((void*)src) &&
+                  bka_is_readable((void*)((const uint8_t*)src + 63))) {
+                const uint8_t* _rb = (const uint8_t*)src;
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-MTXRAW",
+                    "slot=%d w0=0x%08X src=%p | b0_3=%02X%02X%02X%02X b4_7=%02X%02X%02X%02X b8_11=%02X%02X%02X%02X b12_15=%02X%02X%02X%02X | b32_35=%02X%02X%02X%02X b36_39=%02X%02X%02X%02X",
+                    dkr_slot, (unsigned)cmd.w0, (void*)src,
+                    _rb[0],_rb[1],_rb[2],_rb[3], _rb[4],_rb[5],_rb[6],_rb[7],
+                    _rb[8],_rb[9],_rb[10],_rb[11], _rb[12],_rb[13],_rb[14],_rb[15],
+                    _rb[32],_rb[33],_rb[34],_rb[35], _rb[36],_rb[37],_rb[38],_rb[39]);
+              }
+            }
             Matrix_LoadFromN64(&s_dkrMvpSlots[dkr_slot], src);
             s_dkrActiveSlot = dkr_slot;
             for (int _i = 0; _i < 4; _i++) for (int _j = 0; _j < 4; _j++) {
