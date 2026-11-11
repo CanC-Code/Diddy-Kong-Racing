@@ -497,7 +497,17 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
                 if (d > 60) { _distinct++; if (_distinct > 500) break; }
             }
         }
-        int _accept = (_nz >= 100 && _distinct > 500);
+        /* BKA-CLEANPASS: boot-clear white has r==g==b for all pixels.
+         * Game content has colored triangles (r!=g or g!=b).
+         * Reject grayscale-only frames so cache never locks onto white clear. */
+        int _color_px = 0;
+        if (_nz >= 100) {
+            for (int _i = 1; _i < W*H && _color_px < 500; _i++) {
+                int r = (out[_i] >> 16) & 0xFF, g = (out[_i] >> 8) & 0xFF, b = out[_i] & 0xFF;
+                if (r != g || g != b) _color_px++;
+            }
+        }
+        int _accept = (_nz >= 100 && _color_px >= 500);
         if (_accept) {
             memcpy(s_last_nonzero, out, sizeof(s_last_nonzero));
             s_have_last = 1;
@@ -541,7 +551,8 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         __android_log_print(ANDROID_LOG_ERROR, "BKA-ART", "rows(240): %s", rowbuf);
     } }
 
-    bka_draw_palette_bar(out, W, H);
+    /* BKA-CLEANPASS: palette bar disabled — it was overwriting game pixels. */
+    /* bka_draw_palette_bar(out, W, H); */
 
     /* BKA-CACHE-SAMPLE: dump the actual colors we send to Chrome.
      * Also dump a raw 320x240 ASCII art preview into probe.txt so
