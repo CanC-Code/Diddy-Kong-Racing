@@ -499,6 +499,32 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         }
     }
 
+    /* BKA-ART: 80x30 ASCII preview of the final output every 120 frames.
+     * Shows WHERE in the framebuffer content is — shape of game vs palette. */
+    { static int _art = 0; if (_art++ % 120 == 60) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-ART", "=== ASCII 80x30 (frame %d) ===", _art);
+        for (int py = 0; py < 30; py++) {
+            char line[81];
+            for (int px = 0; px < 80; px++) {
+                int gy = py * 240 / 30, gx = px * 320 / 80;
+                int p = out[gy * W + gx];
+                int lum = ((p >> 16) & 0xFF) + ((p >> 8) & 0xFF) + (p & 0xFF);
+                line[px] = (lum > 400) ? '#' : (lum > 150) ? '+' : (lum > 30) ? '.' : ' ';
+            }
+            line[80] = 0;
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-ART", "%s", line);
+        }
+        /* Per-row non-zero count to know which rows have content */
+        char rowbuf[241];
+        for (int ry = 0; ry < 240; ry++) {
+            int nz = 0;
+            for (int rx = 0; rx < W; rx++) if (out[ry * W + rx] & 0x00FFFFFF) nz++;
+            rowbuf[ry] = nz > 200 ? '#' : nz > 50 ? '+' : nz > 0 ? '.' : ' ';
+        }
+        rowbuf[240] = 0;
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-ART", "rows(240): %s", rowbuf);
+    } }
+
     bka_draw_palette_bar(out, W, H);
 
     /* BKA-CACHE-SAMPLE: dump the actual colors we send to Chrome.
