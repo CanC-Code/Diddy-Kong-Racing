@@ -2137,10 +2137,41 @@ static void Cmd_Vtx(GfxCommand cmd) {
                                 (void*)_c, v0, n);
                     }
                 }
-                static int _rrf = 0; if (_rrf++ < 10 && !src)
-                    __android_log_print(ANDROID_LOG_ERROR, "BKA-RAWPX",
-                        "addr=0x%08X FAILED all %d prefix | raw candidates",
-                        addr, 6);
+                static int _rrf = 0; if (_rrf++ < 5 && !src) {
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-DEEP",
+                        "addr=0x%08X n=%u testing all 256 prefixes + partial-read",
+                        addr, n);
+                    extern uint8_t* gN64_RDRAM;
+                    uint32_t _rdlow = gN64_RDRAM ? (uint32_t)(uintptr_t)gN64_RDRAM : 0;
+                    int _found16 = -1, _found_full = -1;
+                    for (int _bt = 0; _bt <= 0xFF; _bt++) {
+                        uint64_t _c = ((uint64_t)_bt << 32) | (uint64_t)addr;
+                        if (!bka_is_readable((void*)_c)) continue;
+                        if (_found16 < 0) _found16 = _bt;
+                        if (bka_is_readable((void*)((const uint8_t*)_c + (n * 16) - 1))) {
+                            _found_full = _bt;
+                            break;
+                        }
+                    }
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-DEEP",
+                        "addr=0x%08X found16=%d found_full=%d rdlow=0x%08X",
+                        addr, _found16, _found_full, _rdlow);
+                    /* Also try: addr - rdlow as RDRAM offset (no 64MB clamp) */
+                    if (gN64_RDRAM) {
+                        uint32_t _off = (uint32_t)addr - _rdlow;
+                        uint8_t* _cand = gN64_RDRAM + _off;
+                        int _r16 = bka_is_readable(_cand) ? 1 : 0;
+                        int _rfull = bka_is_readable(_cand + (n * 16) - 1) ? 1 : 0;
+                        __android_log_print(ANDROID_LOG_ERROR, "BKA-DEEP",
+                            "addr=0x%08X offcalc=0x%X cand=%p r16=%d rfull=%d",
+                            addr, _off, (void*)_cand, _r16, _rfull);
+                        if (_rfull && !src) {
+                            src = _cand;
+                            __android_log_print(ANDROID_LOG_ERROR, "BKA-DEEP",
+                                "FIXED via addr-rdlow offset");
+                        }
+                    }
+                }
             }
             for (int _k = 0; _k < 2 && !src; _k++) {
                 uint32_t _c = _cands[_k];
