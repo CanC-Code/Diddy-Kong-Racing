@@ -3047,6 +3047,35 @@ static void Cmd_MoveWord(GfxCommand cmd) {
                             0x7B00000000ULL, 0x7D00000000ULL, 0x7E00000000ULL,
                             0x7F00000000ULL, 0x0000000000ULL,
                         };
+                        /* BKA-PREFIXPROBE: log gN64_RDRAM + brute-force 256 top-byte prefixes. */
+                        {
+                            extern uint8_t* gN64_RDRAM;
+                            static int _pp = 0;
+                            if (_pp++ < 8) {
+                                uint64_t _rd64 = (uint64_t)(uintptr_t)gN64_RDRAM;
+                                __android_log_print(ANDROID_LOG_ERROR, "BKA-PREFIXPROBE",
+                                    "addr=0x%08X gN64_RDRAM=0x%llX low32=0x%08X",
+                                    addr, (unsigned long long)_rd64, (uint32_t)_rd64);
+                                int _found = -1;
+                                for (int _bt = 0; _bt <= 0xFF && _found < 0; _bt++) {
+                                    uint64_t _c = ((uint64_t)_bt << 32) | (uint64_t)addr;
+                                    if (bka_is_readable((void*)_c) &&
+                                        bka_is_readable((void*)((const uint8_t*)_c + (n * 16) - 1))) {
+                                        _found = _bt;
+                                    }
+                                }
+                                __android_log_print(ANDROID_LOG_ERROR, "BKA-PREFIXPROBE",
+                                    "addr=0x%08X working_prefix=0x%02X%s",
+                                    addr, _found >= 0 ? _found : 0,
+                                    _found >= 0 ? "" : " (none of 256 readable)");
+                                __android_log_print(ANDROID_LOG_ERROR, "BKA-PREFIXPROBE",
+                                    "addr=0x%08X raw_readable=%d n16_end=%d adj=0x%08X",
+                                    addr,
+                                    bka_is_readable((void*)(uintptr_t)addr),
+                                    bka_is_readable((void*)((uintptr_t)addr + (n * 16) - 1)),
+                                    (unsigned)adj);
+                            }
+                        }
                         for (int _i = 0; _i < 5; _i++) {
                             uint64_t _c = _px[_i] | (uint64_t)adj;
                             if (bka_is_readable((void*)_c) &&
