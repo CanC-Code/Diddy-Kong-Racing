@@ -2137,6 +2137,54 @@ static void Cmd_Vtx(GfxCommand cmd) {
                                 (void*)_c, v0, n);
                     }
                 }
+                /* BKA-SEGTRY: addresses like 0x560FADF0 are segmented:
+                 * segment_id = bits[27:24] (6), offset = bits[23:0] (0x0FADF0).
+                 * Try 3 formulas: RDRAM+off24, segBase[segid]+off24,
+                 * RDRAM+segBase[segid]+off24. Any readable becomes src. */
+                if (!src) {
+                    extern uint8_t* gN64_RDRAM;
+                    uint32_t segid = (addr >> 24) & 0x0F;
+                    uint32_t off24 = addr & 0x00FFFFFF;
+                    uint32_t sb = s_rdp.segmentBase[segid];
+                    /* Try 1: gN64_RDRAM + offset24 */
+                    if (gN64_RDRAM && off24 < 0x04000000u) {
+                        uint8_t* _c = gN64_RDRAM + off24;
+                        if (bka_is_readable(_c) &&
+                            bka_is_readable(_c + (n * 16) - 1)) {
+                            src = _c;
+                            static int _s1 = 0; if (_s1++ < 10)
+                                __android_log_print(ANDROID_LOG_ERROR, "BKA-SEGTRY",
+                                    "addr=0x%08X FIX1 RDRAM+0x%X src=%p", addr, off24, (void*)_c);
+                        }
+                    }
+                    /* Try 2: segBase[segid] as host ptr + offset24 */
+                    if (!src && sb) {
+                        uint8_t* _c = (uint8_t*)(uintptr_t)sb + off24;
+                        if (bka_is_readable(_c) &&
+                            bka_is_readable(_c + (n * 16) - 1)) {
+                            src = _c;
+                            static int _s2 = 0; if (_s2++ < 10)
+                                __android_log_print(ANDROID_LOG_ERROR, "BKA-SEGTRY",
+                                    "addr=0x%08X FIX2 segBase[%d]+0x%X src=%p", addr, segid, off24, (void*)_c);
+                        }
+                    }
+                    /* Try 3: gN64_RDRAM + segBase[segid] as offset + off24 */
+                    if (!src && sb && gN64_RDRAM) {
+                        uint8_t* _c = gN64_RDRAM + sb + off24;
+                        if (bka_is_readable(_c) &&
+                            bka_is_readable(_c + (n * 16) - 1)) {
+                            src = _c;
+                            static int _s3 = 0; if (_s3++ < 10)
+                                __android_log_print(ANDROID_LOG_ERROR, "BKA-SEGTRY",
+                                    "addr=0x%08X FIX3 RDRAM+segBase[%d]+0x%X src=%p", addr, segid, off24, (void*)_c);
+                        }
+                    }
+                    /* Log what segBase values are for failing addresses */
+                    static int _sl = 0; if (!src && _sl++ < 8)
+                        __android_log_print(ANDROID_LOG_ERROR, "BKA-SEGTRY",
+                            "addr=0x%08X FAIL segid=%d off24=0x%X segBase[%d]=0x%08X",
+                            addr, segid, off24, segid, sb);
+                }
                 static int _rrf = 0; if (_rrf++ < 5 && !src) {
                     __android_log_print(ANDROID_LOG_ERROR, "BKA-DEEP",
                         "addr=0x%08X n=%u testing all 256 prefixes + partial-read",
