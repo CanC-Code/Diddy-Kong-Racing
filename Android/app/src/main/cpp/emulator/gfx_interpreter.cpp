@@ -2389,7 +2389,29 @@ static void Cmd_Polygon(GfxCommand cmd) {
      * Resolve via registry, fall back to bswap, then readability-check
      * the full 16-byte payload before any deref. */
     {
-        uint8_t* _poly_src = (uint8_t*)bka_lookup_addr_by_low32(cmd.w1);
+        /* BKA-POLYSEG: DKR emits w1 like 0x560F3CD0 (segmented format,
+         * segment_id=6, offset=0x0F3CD0). No prefix reconstruction works
+         * for this (same as VTXDKR). The formula that works is
+         * gN64_RDRAM + (w1 & 0x00FFFFFF) — segments 0-7 all map to RDRAM
+         * from base 0. Try this FIRST before the fallback chain. */
+        uint8_t* _poly_src = NULL;
+        {
+            extern uint8_t* gN64_RDRAM;
+            uint32_t _off24 = cmd.w1 & 0x00FFFFFFu;
+            uint32_t _segid = (cmd.w1 >> 24) & 0x0F;
+            if (gN64_RDRAM && _off24 < 0x04000000u && _segid < 8) {
+                uint8_t* _cand = gN64_RDRAM + _off24;
+                if (bka_is_readable(_cand) &&
+                    bka_is_readable(_cand + 15)) {
+                    _poly_src = _cand;
+                    static int _ps = 0; if (_ps++ < 15)
+                        __android_log_print(ANDROID_LOG_ERROR, "BKA-POLYSEG",
+                            "w1=0x%08X segid=%u off24=0x%X src=%p",
+                            (unsigned)cmd.w1, _segid, _off24, (void*)_cand);
+                }
+            }
+        }
+        if (!_poly_src) _poly_src = (uint8_t*)bka_lookup_addr_by_low32(cmd.w1);
         if (!_poly_src) {
             uint32_t _sw = __builtin_bswap32(cmd.w1);
             _poly_src = (uint8_t*)bka_lookup_addr_by_low32(_sw);
