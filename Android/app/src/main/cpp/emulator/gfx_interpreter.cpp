@@ -1169,12 +1169,12 @@ static void TransformVertex(const BKVertex* v, float* sx, float* sy) {
         // Reject garbage matrices (e.g., the 0x7C6D... load) by checking the diagonal.
         // Valid rotation/scale diagonals are <= ~100.0. Garbage is usually > 10000.
         float mv_diag = fabsf(s_rdp.modelview[0][0]) + fabsf(s_rdp.modelview[1][1]) + fabsf(s_rdp.modelview[2][2]);
-        if (mv_diag > 1.0e6f) {
+        if (mv_diag > 500.0f) {
             for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++)
                 s_rdp.modelview[i][j] = (i == j) ? 1.0f : 0.0f;
         }
         float pj_diag = fabsf(s_rdp.projection[0][0]) + fabsf(s_rdp.projection[1][1]) + fabsf(s_rdp.projection[2][2]);
-        if (pj_diag > 1.0e6f) {
+        if (pj_diag > 500.0f) {
             for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++)
                 s_rdp.projection[i][j] = (i == j) ? 1.0f : 0.0f;
         }
@@ -3027,14 +3027,25 @@ static void Cmd_MoveWord(GfxCommand cmd) {
                 }
             }
             if (src) {
-                Matrix_LoadFromN64(&s_dkrMvpSlots[slot], src);
-                bka_recompute_matrices();
-                static int _mw = 0; if (_mw++ < 40)
-                    __android_log_print(ANDROID_LOG_ERROR, "BKA-MWM",
-                        "slot=%d off=0x%04X src=%p mvp00=%.4f mvp11=%.4f mvp22=%.4f mvp32=%.4f",
-                        slot, offset, src,
-                        s_dkrMvpSlots[slot][0][0], s_dkrMvpSlots[slot][1][1],
-                        s_dkrMvpSlots[slot][2][2], s_dkrMvpSlots[slot][3][2]);
+                BKMatrix _t;
+                Matrix_LoadFromN64(&_t, src);
+                float _d0 = fabsf(_t[0][0]), _d1 = fabsf(_t[1][1]), _d2 = fabsf(_t[2][2]);
+                int _ok = (_d0 < 100.0f || _d1 < 100.0f || _d2 < 100.0f) &&
+                          (_d0 > 0.01f || _d1 > 0.01f || _d2 > 0.01f);
+                if (_ok) {
+                    for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++)
+                        s_dkrMvpSlots[slot][i][j] = _t[i][j];
+                    bka_recompute_matrices();
+                    static int _mw = 0; if (_mw++ < 40)
+                        __android_log_print(ANDROID_LOG_ERROR, "BKA-MWM",
+                            "slot=%d off=0x%04X ACCEPT d0=%.2f d1=%.2f d2=%.2f",
+                            slot, offset, _d0, _d1, _d2);
+                } else {
+                    static int _mr = 0; if (_mr++ < 40)
+                        __android_log_print(ANDROID_LOG_ERROR, "BKA-MWREJECT",
+                            "slot=%d off=0x%04X REJECT d0=%.2f d1=%.2f d2=%.2f",
+                            slot, offset, _d0, _d1, _d2);
+                }
             }
         }
         return;
