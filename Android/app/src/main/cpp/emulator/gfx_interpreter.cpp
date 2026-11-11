@@ -2094,6 +2094,24 @@ static void Cmd_Vtx(GfxCommand cmd) {
                 0x7F00000000ULL,   /* stack / mmap tail */
                 0x7B00000000ULL,   /* linker / data arena */
             };
+            /* BKA-RDRAMPFX: same fix for vertices — gN64_RDRAM >> 32 prefix
+             * with raw addr (not adjusted). */
+            {
+                extern uint8_t* gN64_RDRAM;
+                if (gN64_RDRAM && !src) {
+                    uint64_t _rdram_pfx = (uint64_t)(uintptr_t)gN64_RDRAM & 0xFF00000000ULL;
+                    uint64_t _c = _rdram_pfx | (uint64_t)addr;
+                    if (bka_is_readable((void*)_c) &&
+                        bka_is_readable((void*)((const uint8_t*)_c + (n * 16) - 1))) {
+                        src = (void*)_c;
+                        static int _rv = 0; if (_rv++ < 15)
+                            __android_log_print(ANDROID_LOG_ERROR, "BKA-RDRAMPFX",
+                                "addr=0x%08X pre0x%02llX src=%p VTX v0=%d n=%d",
+                                addr, (unsigned long long)(_rdram_pfx >> 32),
+                                (void*)_c, v0, n);
+                    }
+                }
+            }
             for (int _k = 0; _k < 2 && !src; _k++) {
                 uint32_t _c = _cands[_k];
                 uint8_t _hb = (_c >> 24) & 0xFF;
@@ -3076,6 +3094,24 @@ static void Cmd_MoveWord(GfxCommand cmd) {
                                     bka_is_readable((void*)(uintptr_t)data),
                                     bka_is_readable((void*)((uintptr_t)data + 63)),
                                     (unsigned)adj);
+                            }
+                        }
+                        /* BKA-RDRAMPFX: PREFIXPROBE proved working prefix is
+                         * (gN64_RDRAM >> 32). Try raw data, not adjusted. */
+                        {
+                            extern uint8_t* gN64_RDRAM;
+                            if (gN64_RDRAM) {
+                                uint64_t _rdram_pfx = (uint64_t)(uintptr_t)gN64_RDRAM & 0xFF00000000ULL;
+                                uint64_t _c = _rdram_pfx | (uint64_t)data;
+                                if (bka_is_readable((void*)_c) &&
+                                    bka_is_readable((void*)((const uint8_t*)_c + 63))) {
+                                    src = (void*)_c;
+                                    static int _rp = 0; if (_rp++ < 15)
+                                        __android_log_print(ANDROID_LOG_ERROR, "BKA-RDRAMPFX",
+                                            "data=0x%08X pre0x%02llX src=%p MW-slot%d",
+                                            data, (unsigned long long)(_rdram_pfx >> 32),
+                                            (void*)_c, slot);
+                                }
                             }
                         }
                         for (int _i = 0; _i < 5; _i++) {
