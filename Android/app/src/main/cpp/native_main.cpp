@@ -501,6 +501,26 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
 
     bka_draw_palette_bar(out, W, H);
 
+    /* BKA-CACHE-SAMPLE: dump the actual colors we send to Chrome.
+     * Also dump a raw 320x240 ASCII art preview into probe.txt so
+     * we can see the shape (not just the count). */
+    { static int _cs = 0; if (_cs++ < 8 || _cs % 120 == 0) {
+        int _nz = 0, _bright = 0, _white = 0, _black = 0;
+        for (int _i = 0; _i < W*H; _i++) {
+            int p = out[_i];
+            int r = (p >> 16) & 0xFF, g = (p >> 8) & 0xFF, b = p & 0xFF;
+            if (p & 0x00FFFFFF) _nz++;
+            if (r+g+b > 60) _bright++;
+            if (r > 200 && g > 200 && b > 200) _white++;
+            if (r+g+b < 20) _black++;
+        }
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-CACHE-SAMPLE",
+            "out nz=%d bright=%d white=%d black=%d | p0=%08X p1000=%08X p10000=%08X p40000=%08X p70000=%08X",
+            _nz, _bright, _white, _black,
+            (unsigned)out[0], (unsigned)out[1000], (unsigned)out[10000],
+            (unsigned)out[40000], (unsigned)out[70000]);
+    } }
+
     static int s_frame_count = 0;
     s_frame_count++;
     if (s_frame_count % 30 == 0) {
