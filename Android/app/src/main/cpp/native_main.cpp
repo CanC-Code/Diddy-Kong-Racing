@@ -423,13 +423,42 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         src = src_b;
     }
 
-    for (int i = 0; i < W * H; i++) {
+    /* CRITICAL: Java callers pass int[292*216]=63072 but this code used
+     * to write W*H=76800 -> 13728-element heap overflow. Clamp to actual
+     * array length to prevent corruption of adjacent StreamServer buffers. */
+    int alen = env->GetArrayLength(outArr);
+    int out_count = (alen < W * H) ? alen : W * H;
+    for (int i = 0; i < out_count; i++) {
         uint16_t px = (i < 320*240 && src) ? src[i] : 0;
         uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
         uint8_t g = (px >> 5)  & 0x3F; g = (g << 2) | (g >> 4);
         uint8_t b = px & 0x1F;         b = (b << 3) | (b >> 2);
         out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
     }
+
+    /* Log what we're actually streaming — colors not just count */
+    { static int _pix = 0; if (_pix++ < 5) {
+        int bright = 0, dark = 0;
+        for (int i = 0; i < out_count; i++) {
+            int rr = (out[i] >> 16) & 0xFF;
+            int gg = (out[i] >> 8)  & 0xFF;
+            int bb = out[i] & 0xFF;
+            if (rr > 0x80 || gg > 0x80 || bb > 0x80) bright++;
+            else if (rr | gg | bb) dark++;
+        }
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-PIXELS",
+            "alen=%d pick=%s bright=%d dark=%d total=%d",
+            alen, (src == src_b) ? "curr" : "last", bright, dark, out_count);
+        int shown = 0;
+        for (int i = 0; i < out_count && shown < 8; i++) {
+            if ((out[i] & 0x00FFFFFF) != 0) {
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-PIXELS",
+                    "px[%d]=(%d,%d) rgba=0x%08X",
+                    i, i%W, i/W, (unsigned)out[i]);
+                shown++;
+            }
+        }
+    } }
 
     bka_draw_palette_bar(out, W, H);
 
