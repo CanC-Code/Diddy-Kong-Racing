@@ -4151,13 +4151,17 @@ static void Cmd_FillRect(GfxCommand cmd) {
      * DL rather than the start, so we were wiping the frame we'd just
      * drawn.  Clear-before-geometry still works (frame init). */
     {
-        bool fullscreen = (ulx <= 0 && uly <= 0 && lrx >= FB_WIDTH && lry >= FB_HEIGHT);
+        /* BKA-FULLSCREEN-FIX: 10.2 fixed point pixel indices are 0..319, 0..239.
+         * A fullscreen fill has lrx=319, lry=239. Original check `lrx >= FB_WIDTH`
+         * was `319 >= 320` = FALSE, missing every fullscreen fill and letting it
+         * wipe RAST pixels. Off-by-one fix with -1 on both sides. */
+        bool fullscreen = (ulx <= 0 && uly <= 0 && lrx >= FB_WIDTH-1 && lry >= FB_HEIGHT-1);
         /* Fix BB: reference the file-scope static directly.  The previous
          * patch shadowed it with an `extern` that bound to zero at link
          * time, so the check never fired and never skipped anything. */
         if (fullscreen && (g_bka_fb_dirty || g_bka_task_tri_count > 0)) {
             static int s_bb_skip = 0;
-            if (s_bb_skip++ < 20)
+            if (s_bb_skip++ < 100)
                 __android_log_print(ANDROID_LOG_ERROR, "BKA-RAST",
                     "FILL-SKIP full-screen clear after %d tris this task",
                     g_bka_task_tri_count);
