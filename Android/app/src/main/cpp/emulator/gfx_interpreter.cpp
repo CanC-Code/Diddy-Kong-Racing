@@ -2330,8 +2330,11 @@ static void Cmd_Vtx(GfxCommand cmd) {
         src += 16;
     }
 
-    if (v0 + n > (uint32_t)s_rdp.dmemVertexCount)
-        s_rdp.dmemVertexCount = v0 + n;
+    /* BKA-DMEM256: force dmemVertexCount = 256 so triangles with vi up
+     * to 250 pass the bounds check. Renders stale/garbage dmem slots but
+     * proves whether RasterizeTriangle + delivery works at all. If Chrome
+     * shows ANYTHING with this patch, delivery works. */
+    s_rdp.dmemVertexCount = 256;
     {
         static int s_l = 0;
         if (s_l++ < 3) {
