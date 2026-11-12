@@ -64,6 +64,7 @@ extern "C" { volatile int g_bka_fb_dirty = 0; }
  * Cmd_MoveWord/Cmd_Mtx keep synced to s_dkrMvpSlots[s_dkrActiveSlot]. */
 static BKMatrix s_dkrMvpSlots[3];
 static int s_dkrActiveSlot = 0;
+static uint32_t s_dkrVtxWritePtr = 0;
 int g_bka_last_tri2_count = 0;   /* Fix DD: total TRI2 calls, monotonic */
 static int g_mtx_flag_hist[256] = {0};
 volatile uint32_t g_bka_frame_gen = 0;
@@ -2316,11 +2317,15 @@ static void Cmd_Vtx(GfxCommand cmd) {
             (unsigned long)0x04000000);
     }
 
+    uint32_t load_base = v0;
+    if (is_dkr) {
+        if (v0 == 0) s_dkrVtxWritePtr = 0;
+        load_base = s_dkrVtxWritePtr;
+    }
     for (uint32_t i = 0; i < n; i++) {
-        /* DKR Vtx stride: 8-byte header + 18-byte stride.
-         * Standard F3DEX: 16-byte stride, no header. */
-        const uint8_t* vsrc = is_dkr ? (src + 8 + i * 18) : (src + i * 16);
-        BKVertex* v = &s_rdp.dmem[v0 + i];
+        /* DKR Vtx stride is 18 bytes (no header, 8 bytes is command size). */
+        const uint8_t* vsrc = is_dkr ? (src + i * 18) : (src + i * 16);
+        BKVertex* v = &s_rdp.dmem[load_base + i];
         bka_guard_write(v, sizeof(BKVertex), "Cmd_Vtx.dmem");
         v->x = read_int16(vsrc + 0);
         v->y = read_int16(vsrc + 2);
@@ -2332,46 +2337,17 @@ static void Cmd_Vtx(GfxCommand cmd) {
         v->g = vsrc[13];
         v->b = vsrc[14];
         v->a = vsrc[15];
-        { static int _raw48 = 0; if (_raw48++ < 1) {
-            __android_log_print(ANDROID_LOG_ERROR, "BKA-RAW48",
-                "is_dkr=%d n=%u v0=%u first48=%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
-                (int)is_dkr, n, v0,
-                src[0],src[1],src[2],src[3],src[4],src[5],src[6],src[7],
-                src[8],src[9],src[10],src[11],src[12],src[13],src[14],src[15],
-                src[16],src[17],src[18],src[19],src[20],src[21],src[22],src[23],
-                src[24],src[25],src[26],src[27],src[28],src[29],src[30],src[31],
-                src[32],src[33],src[34],src[35],src[36],src[37],src[38],src[39],
-                src[40],src[41],src[42],src[43],src[44],src[45],src[46],src[47]); } }
+    }
+    if (is_dkr) {
+        s_dkrVtxWritePtr += n;
+        s_rdp.dmemVertexCount = s_dkrVtxWritePtr;
+        { static int _vtxw = 0; if (_vtxw++ < 20)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-VTXDKR-WRITE",
+                "n=%u v0=%u writePtr=%u", n, v0, s_dkrVtxWritePtr); }
+    } else {
+        s_rdp.dmemVertexCount = v0 + n;
     }
 
-    /* BKA-SYNTH: fill ALL 256 dmem slots with a synthetic gradient.
-     * Slot i = vertex at (i*128, 0, 0) in s10.2 format, so triangle
-     * vi=(0,100,200) has positions (0,0), (12800,0), (25600,0) — a real
-     * triangle. This proves whether delivery works independent of game
-     * vertex data. If Chrome shows triangles -> game data is bug. If
-     * black -> rasterizer/delivery is bug. */
-    s_rdp.dmemVertexCount = 256;
-    {
-        extern BKVertex s_synth_vertices[256];
-        static int _init = 0;
-        if (!_init) {
-            for (int _i = 0; _i < 256; _i++) {
-                s_rdp.dmem[_i].x = (int16_t)(_i * 128);  /* spread across screen */
-                s_rdp.dmem[_i].y = (int16_t)((_i % 16) * 1024);
-                s_rdp.dmem[_i].z = 0;
-                s_rdp.dmem[_i].flag = 0;
-                s_rdp.dmem[_i].s = 0;
-                s_rdp.dmem[_i].t = 0;
-                s_rdp.dmem[_i].r = (uint8_t)(_i * 1);
-                s_rdp.dmem[_i].g = (uint8_t)(255 - _i);
-                s_rdp.dmem[_i].b = 128;
-                s_rdp.dmem[_i].a = 255;
-            }
-            _init = 1;
-            __android_log_print(ANDROID_LOG_ERROR, "BKA-SYNTH",
-                "filled 256 dmem slots with gradient");
-        }
-    }
     {
         static int s_l = 0;
         if (s_l++ < 3) {
