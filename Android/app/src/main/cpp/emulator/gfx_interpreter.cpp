@@ -2157,7 +2157,7 @@ static void Cmd_Vtx(GfxCommand cmd) {
                     uint32_t off24 = addr & 0x00FFFFFF;
                     uint32_t sb = s_rdp.segmentBase[segid];
                     /* Try 1: gN64_RDRAM + offset24 */
-                    if (gN64_RDRAM && off24 < 0x04000000u) {
+                    if (!sb && gN64_RDRAM && off24 < 0x04000000u) {
                         uint8_t* _c = gN64_RDRAM + off24;
                         if (bka_is_readable(_c) &&
                             bka_is_readable(_c + (n * 16) - 1)) {
@@ -2168,7 +2168,7 @@ static void Cmd_Vtx(GfxCommand cmd) {
                         }
                     }
                     /* Try 2: segBase[segid] as host ptr + offset24 */
-                    if (!src && sb) {
+                    if (false && !src && sb) {
                         uint8_t* _c = (uint8_t*)(uintptr_t)sb + off24;
                         if (bka_is_readable(_c) &&
                             bka_is_readable(_c + (n * 16) - 1)) {
@@ -2399,7 +2399,7 @@ typedef struct DkrTriangle {
 static void Cmd_Polygon(GfxCommand cmd) {
     { static int _pe = 0; if (_pe++ < 20)
         __android_log_print(ANDROID_LOG_ERROR, "BKA-POLYENTER",
-            "w0=0x%08X w1=0x%08X dmem=%d", cmd.w0, cmd.w1, s_rdp.dmemVertexCount); }
+            "w0=0x%08X w1=0x%08X dmem=%d sb6=0x%08X", cmd.w0, cmd.w1, s_rdp.dmemVertexCount, s_rdp.segmentBase[6]); }
     /* Guard: op 0x05 = DKR G_TRIN. w1 points to a 16-byte vertex-triangle
      * descriptor. Drift-fed walker can hand us garbage (0xEBxxxxxx etc).
      * Resolve via registry, fall back to bswap, then readability-check
