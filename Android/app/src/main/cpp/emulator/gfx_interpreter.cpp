@@ -2437,7 +2437,28 @@ static void Cmd_Polygon(GfxCommand cmd) {
      * the registry lookup is what makes legit w1=0x806xxxxx land on the
      * correct host address. Calling RDP_TranslateAddr here defeats the guard
      * and reads from gN64_RDRAM+off (wrong page, silent garbage triangles). */
-    uint8_t* _poly_resolved = (uint8_t*)bka_lookup_addr_by_low32(cmd.w1);
+    /* BKA-POLYSEG2: guard resolves poly via SEGTRY but downstream uses old
+     * bka_lookup that returns NULL for 0x56... addresses. tri[0] then
+     * SEGFAULTs. Apply same RDRAM+off24 formula here, then fall through to
+     * the original chain if that misses. */
+    uint8_t* _poly_resolved = NULL;
+    {
+        extern uint8_t* gN64_RDRAM;
+        uint32_t _off24 = cmd.w1 & 0x00FFFFFFu;
+        uint32_t _segid = (cmd.w1 >> 24) & 0x0F;
+        if (gN64_RDRAM && _off24 < 0x04000000u && _segid < 8) {
+            uint8_t* _cand = gN64_RDRAM + _off24;
+            if (bka_is_readable(_cand) &&
+                bka_is_readable(_cand + 15)) {
+                _poly_resolved = _cand;
+                static int _ps2 = 0; if (_ps2++ < 15)
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-POLYSEG2",
+                        "w1=0x%08X off24=0x%X src=%p",
+                        (unsigned)cmd.w1, _off24, (void*)_cand);
+            }
+        }
+    }
+    if (!_poly_resolved) _poly_resolved = (uint8_t*)bka_lookup_addr_by_low32(cmd.w1);
     if (!_poly_resolved) {
         static int _nr = 0;
         if (_nr++ < 40)
