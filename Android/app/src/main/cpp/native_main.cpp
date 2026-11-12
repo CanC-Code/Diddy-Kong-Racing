@@ -413,12 +413,30 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     int _direct_nz = 0;
     if (_direct) for (int _i = 0; _i < 320*240; _i++) if (_direct[_i]) _direct_nz++;
 
-    /* Fix 2026-11-11: RasterizeTriangle (line ~990) writes to
-     * gVideoCurrFramebuffer, not g_active_fb_offset. Read from same
-     * pointer so we always see fresh pixel data. Also cache last
-     * non-empty frame so we never send black to Chrome. */
-    uint16_t* src_a = (uint16_t*)gVideoCurrFramebuffer;
-    uint16_t* src_b = (uint16_t*)gVideoLastFramebuffer;
+    /* BKA-SRCFIX: RasterizeTriangle writes to gN64_RDRAM + g_active_fb_offset
+     * (0x6e3c440000 in run 81 with px_written=6179/triangle). fillArgb was
+     * reading from gVideoCurrFramebuffer (0x7b... host heap) which is a
+     * DIFFERENT memory region — always empty. Read from RDRAM first, at both
+     * framebuffer offsets (0x400000 + 0x440000 double buffer), fall back
+     * to gVideo* only if RDRAM pointers are null. */
+    extern uint8_t* gN64_RDRAM;
+    extern uint32_t g_active_fb_offset;
+    uint16_t* src_a = NULL;
+    uint16_t* src_b = NULL;
+    if (gN64_RDRAM) {
+        if (g_active_fb_offset < 0x04000000u)
+            src_a = (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
+        uint32_t _other = (g_active_fb_offset == 0x440000u) ? 0x400000u : 0x440000u;
+        if (_other < 0x04000000u)
+            src_b = (uint16_t*)(gN64_RDRAM + _other);
+    }
+    if (!src_a) src_a = (uint16_t*)gVideoCurrFramebuffer;
+    if (!src_b) src_b = (uint16_t*)gVideoLastFramebuffer;
+    { static int _sf = 0; if (_sf++ < 5)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-SRCFIX",
+            "RDRAM=%p activeOff=0x%X src_a=%p src_b=%p",
+            (void*)gN64_RDRAM, (unsigned)g_active_fb_offset,
+            (void*)src_a, (void*)src_b); }
     if (_direct_nz > 100) { src_a = _direct; src_b = _direct; }
     { static int _dir = 0; if (_dir++ < 3)
         __android_log_print(ANDROID_LOG_ERROR, "BKA-DIRECT",
