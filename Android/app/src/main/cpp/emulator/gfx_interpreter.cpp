@@ -1039,13 +1039,15 @@ static void RasterizeTriangle(
                     float bw2 = 1.0f - bw0 - bw1;
                     int32_t uu = (int32_t)(bw0*(float)s0 + bw1*(float)s1 + bw2*(float)s2);
                     int32_t vv = (int32_t)(bw0*(float)t0 + bw1*(float)t1 + bw2*(float)t2);
-                    uint32_t uuc = (uu < 0) ? 0u : (uint32_t)uu;
+                    int _uv_bad = (uu < 0 || uu >= 4096 || vv < 0 || vv >= 4096);
+                    uint32_t uuc = _uv_bad ? 0u : (uint32_t)uu;
                     uint32_t vvc = (vv < 0) ? 0u : (uint32_t)vv;
                     { static int s_uv = 0; if (s_uv++ < 30)
                         __android_log_print(ANDROID_LOG_ERROR, "BKA-RAST",
                             "UVTRACE #%d s=(%d,%d,%d) t=(%d,%d,%d) bw=(%.3f,%.3f,%.3f) uu=%d vv=%d",
                             s_uv, s0, s1, s2, t0, t1, t2, bw0, bw1, bw2, uu, vv); }
-                    RDP_FetchTexel(s_rdp.activeTile, uuc, vvc, tex);
+                    { static int _uvsk = 0; if (_uv_bad && _uvsk++ < 10) __android_log_print(ANDROID_LOG_ERROR, "BKA-UVSKIP", "uu=%d vv=%d (multiply skipped)", uu, vv); }
+                    if (!_uv_bad) RDP_FetchTexel(s_rdp.activeTile, uuc, vvc, tex);
                     { static int s_txdbg = 0; if (0) { /* SILENCED */
                         auto& td = s_rdp.tiles[s_rdp.activeTile];
                         uint32_t tb = td.tmemAddr * 8;
@@ -1101,9 +1103,11 @@ static void RasterizeTriangle(
                     float bw2 = 1.0f - bw0 - bw1;
                     int32_t uu = (int32_t)(bw0*(float)s0 + bw1*(float)s1 + bw2*(float)s2);
                     int32_t vv = (int32_t)(bw0*(float)t0 + bw1*(float)t1 + bw2*(float)t2);
-                    uint32_t uuc = (uu < 0) ? 0u : (uint32_t)uu;
+                    int _uv_bad = (uu < 0 || uu >= 4096 || vv < 0 || vv >= 4096);
+                    uint32_t uuc = _uv_bad ? 0u : (uint32_t)uu;
                     uint32_t vvc = (vv < 0) ? 0u : (uint32_t)vv;
-                    RDP_FetchTexel(s_rdp.activeTile, uuc, vvc, tex);
+                    { static int _uvsk = 0; if (_uv_bad && _uvsk++ < 10) __android_log_print(ANDROID_LOG_ERROR, "BKA-UVSKIP", "uu=%d vv=%d (multiply skipped)", uu, vv); }
+                    if (!_uv_bad) RDP_FetchTexel(s_rdp.activeTile, uuc, vvc, tex);
                     { static int s_tx = 0; if (0)
                         __android_log_print(ANDROID_LOG_ERROR, "BKA-RAST",
                             "TEXFETCH #%d tile=%d texel=%02X%02X%02X%02X vtxin=(%d,%d,%d)",
