@@ -54,6 +54,9 @@ extern uint32_t g_png_rdram_start;
 extern uint32_t g_png_rdram_end;
 static bool g_bka_force_rgba = false;
 static int g_bka_task_tri_count = 0;
+/* BKA-DIRTY: set by RasterizeTriangle on pixel write, cleared by
+ * swap. Survives task boundary — fills skip if set. */
+extern "C" { volatile int g_bka_fb_dirty = 0; }
 
 /* DKR MVP slots — declared here so RSP_ProcessGfxTask's task-start reset
  * (around line 629) sees them. Populated by Cmd_Mtx (DKR p3 bits 6-7 =
@@ -1113,7 +1116,8 @@ static void RasterizeTriangle(
             }
         }
     }
-    { static int _rc = 0; if (_rc++ < 20 || _rc % 2000 == 0)
+    {
+            if (_px_written > 0) g_bka_fb_dirty = 1; static int _rc = 0; if (_rc++ < 20 || _rc % 2000 == 0)
         __android_log_print(ANDROID_LOG_ERROR, "BKA-RAST-COUNT",
             "#%d px_written=%d xy=(%.0f,%.0f)(%.0f,%.0f)(%.0f,%.0f) fb=%p",
             _rc, _px_written, x0,y0,x1,y1,x2,y2, (void*)fb); }
@@ -4143,7 +4147,7 @@ static void Cmd_FillRect(GfxCommand cmd) {
         /* Fix BB: reference the file-scope static directly.  The previous
          * patch shadowed it with an `extern` that bound to zero at link
          * time, so the check never fired and never skipped anything. */
-        if (fullscreen && g_bka_task_tri_count > 0) {
+        if (fullscreen && (g_bka_fb_dirty || g_bka_task_tri_count > 0)) {
             static int s_bb_skip = 0;
             if (s_bb_skip++ < 20)
                 __android_log_print(ANDROID_LOG_ERROR, "BKA-RAST",

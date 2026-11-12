@@ -1,4 +1,5 @@
 #include "video.h"
+extern volatile int g_bka_fb_dirty;
 #include "memory.h"
 #include "PRinternal/viint.h"
 #include "types.h"
@@ -381,6 +382,7 @@ void fb_swap(void) {
                     s_swap, gVideoCurrFbIndex, (void*)gVideoLastFramebuffer,
                     (void*)gN64_RDRAM, g_active_fb_offset,
                     (void*)gVideoFramebuffers[0], (void*)gVideoFramebuffers[1]);
+                g_bka_fb_dirty = 0;
             }
         }
     }
