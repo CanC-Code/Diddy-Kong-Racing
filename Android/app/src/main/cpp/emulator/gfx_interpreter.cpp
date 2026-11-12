@@ -2330,11 +2330,34 @@ static void Cmd_Vtx(GfxCommand cmd) {
         src += 16;
     }
 
-    /* BKA-DMEM256: force dmemVertexCount = 256 so triangles with vi up
-     * to 250 pass the bounds check. Renders stale/garbage dmem slots but
-     * proves whether RasterizeTriangle + delivery works at all. If Chrome
-     * shows ANYTHING with this patch, delivery works. */
+    /* BKA-SYNTH: fill ALL 256 dmem slots with a synthetic gradient.
+     * Slot i = vertex at (i*128, 0, 0) in s10.2 format, so triangle
+     * vi=(0,100,200) has positions (0,0), (12800,0), (25600,0) — a real
+     * triangle. This proves whether delivery works independent of game
+     * vertex data. If Chrome shows triangles -> game data is bug. If
+     * black -> rasterizer/delivery is bug. */
     s_rdp.dmemVertexCount = 256;
+    {
+        extern BKVertex s_synth_vertices[256];
+        static int _init = 0;
+        if (!_init) {
+            for (int _i = 0; _i < 256; _i++) {
+                s_rdp.dmem[_i].x = (int16_t)(_i * 128);  /* spread across screen */
+                s_rdp.dmem[_i].y = (int16_t)((_i % 16) * 1024);
+                s_rdp.dmem[_i].z = 0;
+                s_rdp.dmem[_i].flag = 0;
+                s_rdp.dmem[_i].s = 0;
+                s_rdp.dmem[_i].t = 0;
+                s_rdp.dmem[_i].r = (uint8_t)(_i * 1);
+                s_rdp.dmem[_i].g = (uint8_t)(255 - _i);
+                s_rdp.dmem[_i].b = 128;
+                s_rdp.dmem[_i].a = 255;
+            }
+            _init = 1;
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-SYNTH",
+                "filled 256 dmem slots with gradient");
+        }
+    }
     {
         static int s_l = 0;
         if (s_l++ < 3) {
