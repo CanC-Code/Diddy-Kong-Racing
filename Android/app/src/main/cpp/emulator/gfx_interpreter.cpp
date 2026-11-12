@@ -1117,7 +1117,15 @@ static void RasterizeTriangle(
         }
     }
     {
-            if (_px_written > 0) g_bka_fb_dirty = 1; static int _rc = 0; if (_rc++ < 20 || _rc % 2000 == 0)
+            if (_px_written > 0) {
+                g_bka_fb_dirty = 1;
+                extern uint8_t* gVideoCurrFramebuffer;
+                if (gVideoCurrFramebuffer) {
+                    uint16_t* _fb = (uint16_t*)gVideoCurrFramebuffer;
+                    _fb[0] = 0xDEAD;
+                    _fb[320*240-1] = 0xBEEF;
+                }
+            } static int _rc = 0; if (_rc++ < 20 || _rc % 2000 == 0)
         __android_log_print(ANDROID_LOG_ERROR, "BKA-RAST-COUNT",
             "#%d px_written=%d xy=(%.0f,%.0f)(%.0f,%.0f)(%.0f,%.0f) fb=%p",
             _rc, _px_written, x0,y0,x1,y1,x2,y2, (void*)fb); }
