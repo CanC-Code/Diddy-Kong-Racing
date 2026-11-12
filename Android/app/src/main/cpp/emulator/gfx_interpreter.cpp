@@ -1998,7 +1998,8 @@ static void Cmd_Vtx(GfxCommand cmd) {
          *   dmem[5], dmem[7] = empty → degenerate tri → 4096 px only. */
         uint32_t p3 = (cmd.w0 >> 16) & 0xFF;
         n  = ((p3 >> 3) & 0x1F) + 1;
-        v0 = p3 & 0x07;
+        /* DKR: bit 0 is append flag (0=reset, 1=append); bits 1-2 are v&6 (addr alignment) */
+        v0 = p3 & 0x01;
         static int _dkrlog = 0;
         if (_dkrlog++ < 20)
             __android_log_print(ANDROID_LOG_ERROR, "BKA-VTXDKR",
@@ -2316,26 +2317,31 @@ static void Cmd_Vtx(GfxCommand cmd) {
     }
 
     for (uint32_t i = 0; i < n; i++) {
+        /* DKR Vtx stride: 8-byte header + 18-byte stride.
+         * Standard F3DEX: 16-byte stride, no header. */
+        const uint8_t* vsrc = is_dkr ? (src + 8 + i * 18) : (src + i * 16);
         BKVertex* v = &s_rdp.dmem[v0 + i];
         bka_guard_write(v, sizeof(BKVertex), "Cmd_Vtx.dmem");
-        { static int s_vtxwr = 0; if (s_vtxwr++ < 0) LOGV("VTXWR i=%u v=%p src=%p dmem=%p idx=%u", i, (void*)v, (void*)src, (void*)s_rdp.dmem, v0+i); }
-        v->x = read_int16(src + 0);
-        v->y = read_int16(src + 2);
-        v->z = read_int16(src + 4);
-        v->flag = (src[6] << 8) | src[7];
-        v->s = read_int16(src + 8);
-        v->t = read_int16(src + 10);
-        { static int nv = 0; if (nv++ < 8)
-            __android_log_print(ANDROID_LOG_ERROR, "BKA-VTX",
-                "raw=%02X%02X %02X%02X %02X%02X | cur x=%d y=%d z=%d | BE x=%d y=%d z=%d",
-                src[0],src[1],src[2],src[3],src[4],src[5], (int)v->x,(int)v->y,(int)v->z,
-                (int)(int16_t)((src[0]<<8)|src[1]), (int)(int16_t)((src[2]<<8)|src[3]),
-                (int)(int16_t)((src[4]<<8)|src[5])); }
-        v->r = src[12];
-        v->g = src[13];
-        v->b = src[14];
-        v->a = src[15];
-        src += 16;
+        v->x = read_int16(vsrc + 0);
+        v->y = read_int16(vsrc + 2);
+        v->z = read_int16(vsrc + 4);
+        v->flag = (vsrc[6] << 8) | vsrc[7];
+        v->s = read_int16(vsrc + 8);
+        v->t = read_int16(vsrc + 10);
+        v->r = vsrc[12];
+        v->g = vsrc[13];
+        v->b = vsrc[14];
+        v->a = vsrc[15];
+        { static int _raw48 = 0; if (_raw48++ < 1) {
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-RAW48",
+                "is_dkr=%d n=%u v0=%u first48=%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X",
+                (int)is_dkr, n, v0,
+                src[0],src[1],src[2],src[3],src[4],src[5],src[6],src[7],
+                src[8],src[9],src[10],src[11],src[12],src[13],src[14],src[15],
+                src[16],src[17],src[18],src[19],src[20],src[21],src[22],src[23],
+                src[24],src[25],src[26],src[27],src[28],src[29],src[30],src[31],
+                src[32],src[33],src[34],src[35],src[36],src[37],src[38],src[39],
+                src[40],src[41],src[42],src[43],src[44],src[45],src[46],src[47]); } }
     }
 
     /* BKA-SYNTH: fill ALL 256 dmem slots with a synthetic gradient.
