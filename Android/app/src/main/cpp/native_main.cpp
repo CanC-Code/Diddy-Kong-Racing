@@ -641,6 +641,31 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
             (unsigned)out[40000], (unsigned)out[70000]);
     } }
 
+    /* BKA-RAWCHK: bypass ALL conversion/picker logic — read raw RDRAM
+     * and count pixels directly at both framebuffer offsets. Uncapped,
+     * fires every 60 frames. This tells us definitively whether the
+     * framebuffer memory has content, independent of fillArgb's
+     * picker/cache/conversion path. */
+    { static int _rawchk = 0; if (_rawchk++ % 60 == 0) {
+        extern uint8_t* gN64_RDRAM;
+        extern uint32_t g_active_fb_offset;
+        if (gN64_RDRAM) {
+            uint16_t* fbA = (uint16_t*)(gN64_RDRAM + 0x400000);
+            uint16_t* fbB = (uint16_t*)(gN64_RDRAM + 0x440000);
+            int nzA = 0, nzB = 0, brA = 0, brB = 0;
+            for (int i = 0; i < 320*240; i++) {
+                uint16_t ca = fbA[i], cb = fbB[i];
+                if (ca) nzA++;
+                if (cb) nzB++;
+                if ((ca & 0x7FFF) > 0x100) brA++;
+                if ((cb & 0x7FFF) > 0x100) brB++;
+            }
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-RAWCHK",
+                "frame=%d fbA_nz=%d fbA_br=%d fbB_nz=%d fbB_br=%d off=0x%X",
+                _rawchk, nzA, brA, nzB, brB, (unsigned)g_active_fb_offset);
+        }
+    } }
+
     static int s_frame_count = 0;
     s_frame_count++;
     if (s_frame_count % 30 == 0) {
