@@ -378,12 +378,16 @@ void fb_swap(void) {
             static int s_swap = 0;
             if (s_swap++ < 12 || (s_swap % 60) == 0) {
                 __android_log_print(ANDROID_LOG_ERROR, "BKA-SWAP",
-                    "swap=%d fbIndex=%d last=%p rdram=%p offset=0x%X fb0=%p fb1=%p",
+                    "swap=%d fbIndex=%d last=%p rdram=%p offset=0x%X fb0=%p fb1=%p dirty_was=%d",
                     s_swap, gVideoCurrFbIndex, (void*)gVideoLastFramebuffer,
                     (void*)gN64_RDRAM, g_active_fb_offset,
-                    (void*)gVideoFramebuffers[0], (void*)gVideoFramebuffers[1]);
-                g_bka_fb_dirty = 0;
+                    (void*)gVideoFramebuffers[0], (void*)gVideoFramebuffers[1],
+                    g_bka_fb_dirty);
             }
+            /* BKA-SWAPFIX: clear dirty on EVERY swap, not just the log-block ones.
+             * Original placement was inside `if (s_swap < 12 || % 60 == 0)` so
+             * dirty stayed 1 forever after swap 12. */
+            g_bka_fb_dirty = 0;
         }
     }
 #endif
