@@ -206,13 +206,16 @@ static inline uint16_t rgba8_to_n64(uint8_t r, uint8_t g, uint8_t b, uint8_t a) 
 }
 
 extern uint8_t* gN64_RDRAM;
-uint32_t g_png_rdram_start = 0x1000000;
-uint32_t g_png_rdram_end   = 0x1000000;
-static uint32_t s_rdram_offset = 0x1000000;
+uint32_t g_png_rdram_start = 0x00800000;  /* 8MB — inside 16MB RDRAM */
+uint32_t g_png_rdram_end   = 0x00800000;
+static uint32_t s_rdram_offset = 0x00800000;
+#include <mutex>
+static std::mutex s_rdram_mutex;
 static void* bka_rdram_alloc(size_t size) {
+    std::lock_guard<std::mutex> _lk(s_rdram_mutex);
     if (!gN64_RDRAM) return nullptr;
     size = (size + 15) & ~15;
-    if (s_rdram_offset + size > 0x04000000) return nullptr;
+    if (s_rdram_offset + size > 0x01000000) return nullptr;  /* 16MB RDRAM limit */
     void* p = gN64_RDRAM + s_rdram_offset;
     s_rdram_offset += size;
     g_png_rdram_end = s_rdram_offset;
