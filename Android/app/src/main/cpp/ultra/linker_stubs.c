@@ -156,8 +156,12 @@ unsigned long long gspL3DEX_fifoDataStart[1];
 s32  alSeqGetTicks(void *seq) { return 0; }
 void alSeqSetLoc(void *seq, s32 loc) {}
 void rmonPrintf(const char *fmt, ...) {}
-s32  osContGetReadData(void *pad) {
+s32 osContGetReadData(void *pad) {
     extern void *gN64_ControllerData;
+    static int _elog = 0; if (_elog++ < 30)
+        __android_log_print(ANDROID_LOG_INFO, "BKA_INPUT",
+            "GetReadData ENTER pad=%p gNCD=%p", pad, gN64_ControllerData);
+    if (pad) { ((unsigned short*)pad)[0] = 0x8000; } /* force A */
     if (pad && gN64_ControllerData) {
         memcpy(pad, gN64_ControllerData, 4);
         /* Round 104: inject A-button 15 of every 30 frames to advance DKR past
@@ -178,9 +182,38 @@ s32  osContGetReadData(void *pad) {
     }
     return 0;
 }
-s32  osContInit(void *mq, void *status, void *pad) { if (status) ((u8*)status)[0] = 0x80; if (pad) ((u8*)pad)[0] = 0x80; return 0; }
+s32 osContInit(void *mq, void *status, void *pad) {
+    __android_log_print(ANDROID_LOG_INFO, "BKA_INPUT", "osContInit mq=%p status=%p pad=%p", mq, status, pad);
+    if (status) ((u8*)status)[0] = 0x80;
+    if (pad) ((u8*)pad)[0] = 0x80;
+    return 0;
+}
 s32  osContSetCh(u8 ch) { return 0; }
-s32  osContStartReadData(void *mq) { __android_log_print(ANDROID_LOG_INFO, "BKA_INPUT", "osContStartReadData called mq=%p", mq); extern s32 osSendMesg(void *mq, void *msg, s32 flag); if (mq) osSendMesg(mq, (void*)1, 0); return 0; }
+s32 osContStartReadData(void *mq) {
+    extern s32 osSendMesg(void *mq, void *msg, s32 flag);
+    /* Round 107: bypass the SI message loop entirely. Game's own joypad.c
+     * declares `OSContPad gControllerCurrData[MAXCONTROLLERS]` as global
+     * (non-static), so this symbol should link from C. Write A press
+     * directly every call. r105 proved GetReadData is never called (0x)
+     * despite StartReadData firing 3071x — game doesn't wake properly
+     * from osRecvMesg, so gControllerCurrData stays at initial zeros. */
+    extern __attribute__((weak)) unsigned char gControllerCurrData[];
+    if (mq) osSendMesg(mq, (void*)1, 0);
+    if (gControllerCurrData) {
+        ((unsigned short*)gControllerCurrData)[0] = 0x8000; /* CONT_A */
+        static int _lg = 0;
+        if (_lg++ < 20)
+            __android_log_print(ANDROID_LOG_INFO, "BKA_INPUT",
+                "WROTE A press to gControllerCurrData #%d ptr=%p",
+                _lg, (void*)gControllerCurrData);
+    } else {
+        static int _nl = 0;
+        if (_nl++ < 5)
+            __android_log_print(ANDROID_LOG_WARN, "BKA_INPUT",
+                "gControllerCurrData NOT VISIBLE — weak symbol NULL");
+    }
+    return 0;
+}
 s32  osPiReadIo(u32 devAddr, u32 *data) { *data = 0; return 0; }
 /* ------------------------------------------------------------------
  * The game carries its own GU implementations in src/core1/code_7F60.c
