@@ -2547,6 +2547,32 @@ static void Cmd_Polygon(GfxCommand cmd) {
             "tris=%u texEn=%u w0=%08X w1=%08X tri=%p dmemVtx=%d",
             numTris, texEn, cmd.w0, cmd.w1, (void*)tri, s_rdp.dmemVertexCount);
     if (!tri) return;
+    { static int _vc = 0; if (_vc++ < 5) {
+        int v0i = tri[0].vi0, v1i = tri[0].vi1, v2i = tri[0].vi2;
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-VERTCHECK",
+            "vi=(%d,%d,%d) dmem_vi_xyz=(%d,%d,%d)(%d,%d,%d)(%d,%d,%d) dmem_vi16_xyz=(%d,%d,%d)(%d,%d,%d)(%d,%d,%d) dmemVtx=%d",
+            v0i, v1i, v2i,
+            v0i < 256 ? s_rdp.dmem[v0i].x : 0,
+            v0i < 256 ? s_rdp.dmem[v0i].y : 0,
+            v0i < 256 ? s_rdp.dmem[v0i].z : 0,
+            v1i < 256 ? s_rdp.dmem[v1i].x : 0,
+            v1i < 256 ? s_rdp.dmem[v1i].y : 0,
+            v1i < 256 ? s_rdp.dmem[v1i].z : 0,
+            v2i < 256 ? s_rdp.dmem[v2i].x : 0,
+            v2i < 256 ? s_rdp.dmem[v2i].y : 0,
+            v2i < 256 ? s_rdp.dmem[v2i].z : 0,
+            v0i/16 < 256 ? s_rdp.dmem[v0i/16].x : 0,
+            v0i/16 < 256 ? s_rdp.dmem[v0i/16].y : 0,
+            v0i/16 < 256 ? s_rdp.dmem[v0i/16].z : 0,
+            v1i/16 < 256 ? s_rdp.dmem[v1i/16].x : 0,
+            v1i/16 < 256 ? s_rdp.dmem[v1i/16].y : 0,
+            v1i/16 < 256 ? s_rdp.dmem[v1i/16].z : 0,
+            v2i/16 < 256 ? s_rdp.dmem[v2i/16].x : 0,
+            v2i/16 < 256 ? s_rdp.dmem[v2i/16].y : 0,
+            v2i/16 < 256 ? s_rdp.dmem[v2i/16].z : 0,
+            s_rdp.dmemVertexCount);
+    } }
+
 
     {
         static int _phex = 0;
@@ -2644,9 +2670,7 @@ static void Cmd_Polygon(GfxCommand cmd) {
 
     for (uint32_t i = 0; i < numTris; i++, tri++) {
         uint32_t vi0 = tri->vi0, vi1 = tri->vi1, vi2 = tri->vi2;
-        if (vi0 >= (uint32_t)s_rdp.dmemVertexCount ||
-            vi1 >= (uint32_t)s_rdp.dmemVertexCount ||
-            vi2 >= (uint32_t)s_rdp.dmemVertexCount) continue;
+        if (vi0 > 255 || vi1 > 255 || vi2 > 255) continue;
 
         BKVertex* v0 = &s_rdp.dmem[vi0];
         BKVertex* v1 = &s_rdp.dmem[vi1];
