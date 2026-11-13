@@ -55,8 +55,18 @@ static void diag_log(const char* tag, const char* fmt, ...) {
 
 namespace fs = std::filesystem;
 
-static std::unordered_map<uint32_t, TextureHeader*> g_texture_cache_3d;
-static std::unordered_map<uint32_t, TextureHeader*> g_texture_cache_2d;
+static std::unordered_map<uint32_t, TextureHeader*> g_texture_cache_3d = []() {
+    std::unordered_map<uint32_t, TextureHeader*> m;
+    m.reserve(4096);
+    m.max_load_factor(100.0f);
+    return m;
+}();
+static std::unordered_map<uint32_t, TextureHeader*> g_texture_cache_2d = []() {
+    std::unordered_map<uint32_t, TextureHeader*> m;
+    m.reserve(4096);
+    m.max_load_factor(100.0f);
+    return m;
+}();
 static std::unordered_map<uint32_t, std::string> g_png_paths_3d;
 static std::unordered_map<uint32_t, std::string> g_png_paths_2d;
 
@@ -310,6 +320,11 @@ static uint32_t resolve_png_id(uint32_t id,
 }
 
 extern "C" TextureHeader* png_load_texture_3d(uint32_t id) {
+    static int _tl3d = 0;
+    _tl3d++;
+    if (_tl3d <= 100 || (_tl3d % 100) == 0)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-TEXLOAD",
+            "3d id=%u n=%d cache_size=%zu", id, _tl3d, g_texture_cache_3d.size());
     ensure_initialized();
     static int _hits = 0;
     static int _misses = 0;
@@ -330,6 +345,11 @@ extern "C" TextureHeader* png_load_texture_3d(uint32_t id) {
     return h;
 }
 extern "C" TextureHeader* png_load_texture_2d(uint32_t id) {
+    static int _tl2d = 0;
+    _tl2d++;
+    if (_tl2d <= 100 || (_tl2d % 100) == 0)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-TEXLOAD",
+            "2d id=%u n=%d cache_size=%zu", id, _tl2d, g_texture_cache_2d.size());
     ensure_initialized();
     static int _hits = 0, _misses = 0;
     uint32_t resolved = resolve_png_id(id, g_png_paths_2d);
