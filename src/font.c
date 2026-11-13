@@ -760,6 +760,19 @@ s32 get_text_width(char *text, s32 x, s32 font) {
     if (font < 0) {
         font = gDialogueBoxBackground[0].font;
     }
+    /* r115: after reassignment, font can still be out of range (garbage
+     * from uninitialized gDialogueBoxBackground[0].font, or caller passing
+     * huge id). r114 crash was get_text_width+340 = fontData->letter[ch]
+     * read on &gFonts[font] with font out-of-range → wild FontData read.
+     * Clamp to 0 so text renders (small width) instead of SIGSEGV. */
+    if (font < 0 || font >= gNumberOfFonts) {
+        static int _fb = 0;
+        if (_fb++ < 10)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-FONT-BAD",
+                "font=%d count=%d text=%.16s -> clamping 0",
+                (int)font, (int)gNumberOfFonts, text ? text : "(null)");
+        font = 0;
+    }
     fontData = &gFonts[font];
     for (index = 0; text[index] != '\0'; index++) {
         thisDiffX = diffX;
