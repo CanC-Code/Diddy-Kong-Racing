@@ -407,11 +407,38 @@ void render_text_string(Gfx **dList, DialogueBoxBackground *box, char *text, Ali
     u8 curChar;
     xAlignmentDiff = -1;
     lastTextureIndex = -1;
+    /* r121: r120 crash was render_text_string+1444 — get_text_width caught the
+     * garbage text via UNMAP, but render_text_string continued into its own
+     * loop on the same pointer and crashed. Byte-0 readable is NOT enough:
+     * scan every byte for readability + NUL within 256. Skip if either fails. */
+    if (text != NULL) {
+        extern int bka_is_readable(void*);
+        int _safe = 0;
+        int _hit_nul = 0;
+        while (_safe < 256) {
+            if (!bka_is_readable((void*)(text + _safe))) break;
+            if (text[_safe] == '\0') { _hit_nul = 1; break; }
+            _safe++;
+        }
+        if (!_hit_nul) {
+            static int _rts_u = 0;
+            if (_rts_u++ < 10)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-RTS-UNMAP",
+                    "render_text_string text=%p not-nul-in-256 reached=%d skip",
+                    (void*)text, _safe);
+            return;
+        }
+    }
     if (text != NULL) {
         textureLry = 0;
         xpos = box->xpos;
         ypos = box->ypos;
         fontData = &gFonts[box->font];
+        { static int _rts_lg = 0; _rts_lg++;
+          if ((_rts_lg <= 5) || ((_rts_lg % 100) == 0))
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-RTS-ENTER",
+                "n=%d text=%p font=%d head=%.24s",
+                _rts_lg, (void*)text, (int)box->font, text); }
         gSPDisplayList((*dList)++, dDialogueBoxBegin);
         if (box != gDialogueBoxBackground) {
             scisOffset = (((box->y2 - box->y1) + 1) / (f32) 2) * scisScale;
