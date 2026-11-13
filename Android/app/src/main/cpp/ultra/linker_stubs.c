@@ -157,61 +157,39 @@ s32  alSeqGetTicks(void *seq) { return 0; }
 void alSeqSetLoc(void *seq, s32 loc) {}
 void rmonPrintf(const char *fmt, ...) {}
 s32 osContGetReadData(void *pad) {
-    extern void *gN64_ControllerData;
-    static int _elog = 0; if (_elog++ < 30)
-        __android_log_print(ANDROID_LOG_INFO, "BKA_INPUT",
-            "GetReadData ENTER pad=%p gNCD=%p", pad, gN64_ControllerData);
-    if (pad) { ((unsigned short*)pad)[0] = 0x8000; } /* force A */
-    if (pad && gN64_ControllerData) {
-        memcpy(pad, gN64_ControllerData, 4);
-        /* Round 104: inject A-button 15 of every 30 frames to advance DKR past
-         * title screen. gGameMode=1 (title) for 15 min in r103 proves no input
-         * was ever provided. Toggle gives clean press/release edges. */
-        static int _rf = 0;
-        _rf++;
-        int _pressed = (_rf % 30) < 15;
-        if (_pressed) {
-            ((u16*)pad)[0] = 0x8000; /* CONT_A */
-        } else {
-            ((u16*)pad)[0] = 0;
-        }
-        { static int _log = 0; if (_log++ < 30)
+    /* r108: alternate A/0 every frame. r107 constant A → no edge (prev=A,curr=A→0).
+     * Game reads gControllerCurrData.button with XOR edge detection at
+     * src/joypad.c:117 → needs press/release transitions. */
+    static int _frame = 0;
+    _frame++;
+    int _a = (_frame % 2) == 0;
+    if (pad) {
+        ((unsigned short*)pad)[0] = _a ? 0x8000 : 0;
+        static int _lg = 0;
+        if (_lg++ < 20)
             __android_log_print(ANDROID_LOG_INFO, "BKA_INPUT",
-                "frame=%d pressed=%d button=0x%04x",
-                _rf, _pressed, ((u16*)pad)[0]); }
+                "GetReadData f=%d a=%d btn=0x%04x",
+                _frame, _a, ((unsigned short*)pad)[0]);
     }
     return 0;
 }
 s32 osContInit(void *mq, void *status, void *pad) {
-    __android_log_print(ANDROID_LOG_INFO, "BKA_INPUT", "osContInit mq=%p status=%p pad=%p", mq, status, pad);
-    if (status) ((u8*)status)[0] = 0x80;
-    if (pad) ((u8*)pad)[0] = 0x80;
+    /* r108: bitpattern must have CONT_ABSOLUTE (0x01) for game's check at
+     * src/joypad.c:46 to report controller present. errno at status+3 must
+     * not have CONT_NO_RESPONSE_ERROR (0x08). r107 wrote 0x80 to bitpattern →
+     * (0x80 & 0x01)=0 → controller marked missing → sNoControllerPluggedIn
+     * → game wipes A every frame at joypad.c:113. */
+    if (status) ((u8*)status)[0] = 0x05; /* CONT_ABSOLUTE | CONT_JOYPORT */
+    if (pad) ((u8*)pad)[3] = 0x00;       /* gControllerStatus[0].errno = 0 */
+    __android_log_print(ANDROID_LOG_INFO, "BKA_INPUT",
+        "osContInit bitpattern=0x05 errno=0 (controller PRESENT)");
     return 0;
 }
 s32  osContSetCh(u8 ch) { return 0; }
 s32 osContStartReadData(void *mq) {
+    /* r108: no writes here. GetReadData owns A pattern to avoid double-writes. */
     extern s32 osSendMesg(void *mq, void *msg, s32 flag);
-    /* Round 107: bypass the SI message loop entirely. Game's own joypad.c
-     * declares `OSContPad gControllerCurrData[MAXCONTROLLERS]` as global
-     * (non-static), so this symbol should link from C. Write A press
-     * directly every call. r105 proved GetReadData is never called (0x)
-     * despite StartReadData firing 3071x — game doesn't wake properly
-     * from osRecvMesg, so gControllerCurrData stays at initial zeros. */
-    extern __attribute__((weak)) unsigned char gControllerCurrData[];
     if (mq) osSendMesg(mq, (void*)1, 0);
-    if (gControllerCurrData) {
-        ((unsigned short*)gControllerCurrData)[0] = 0x8000; /* CONT_A */
-        static int _lg = 0;
-        if (_lg++ < 20)
-            __android_log_print(ANDROID_LOG_INFO, "BKA_INPUT",
-                "WROTE A press to gControllerCurrData #%d ptr=%p",
-                _lg, (void*)gControllerCurrData);
-    } else {
-        static int _nl = 0;
-        if (_nl++ < 5)
-            __android_log_print(ANDROID_LOG_WARN, "BKA_INPUT",
-                "gControllerCurrData NOT VISIBLE — weak symbol NULL");
-    }
     return 0;
 }
 s32  osPiReadIo(u32 devAddr, u32 *data) { *data = 0; return 0; }
