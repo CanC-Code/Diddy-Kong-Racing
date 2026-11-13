@@ -231,20 +231,42 @@ static TextureHeader* get_dummy_texture() {
     static TextureHeader* s_dummy = nullptr;
     if (!s_dummy) {
         size_t hdr = sizeof(TextureHeader);
-        size_t pix = 2;  /* 1x1 RGBA16 */
+        size_t pix = 8 * 8 * 2;  /* 8x8 RGBA16 - realistic font size */
         s_dummy = (TextureHeader*)bka_rdram_alloc(hdr + pix);
         if (!s_dummy) return nullptr;
         memset(s_dummy, 0, hdr + pix);
-        s_dummy->width             = 1;
-        s_dummy->height            = 1;
-        s_dummy->format            = 1;  /* RGBA16 */
+        s_dummy->width             = 8;
+        s_dummy->height            = 8;
+        s_dummy->format            = 1;
         s_dummy->numberOfInstances = 1;
         s_dummy->numberOfCommands  = 5;
         s_dummy->numOfTextures     = 1;
         s_dummy->textureSize       = (s16)(hdr + pix);
-        ((uint16_t*)((uint8_t*)s_dummy + hdr))[0] = 0x0001;  /* opaque black */
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-DUMMYTEX",
-            "allocated 1x1 dummy at %p", (void*)s_dummy);
+        uint16_t* px = (uint16_t*)((uint8_t*)s_dummy + hdr);
+        for (int i = 0; i < 8*8; i++) px[i] = 0x0001;
+        /* r113: populate cmd. r110/r111/r112 all crashed at get_text_width+128;
+         * dummy->cmd was NULL after memset. Game walks it for char widths. */
+        Gfx* cmd = (Gfx*)bka_rdram_alloc(5 * sizeof(Gfx));
+        if (cmd) {
+            uint32_t* cw = (uint32_t*)cmd;
+            cw[0] = (0xFDu << 24) | (2u << 19);
+            cw[1] = 0;
+            cw[2] = (0xF5u << 24) | (2u << 19) | (2u << 9);
+            cw[3] = 0;
+            cw[4] = (0xF4u << 24);
+            cw[5] = (7u << 12) | 7u;
+            cw[6] = (0xB2u << 24);
+            cw[7] = (7u << 12) | 7u;
+            cw[8] = (0xB8u << 24);
+            cw[9] = 0;
+            s_dummy->cmd = (Gfx*)(0x80000000u |
+                (uint32_t)((uintptr_t)cmd - (uintptr_t)gN64_RDRAM));
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-DUMMYTEX",
+                "dummy 8x8 %p cmd=%p 5cmds", (void*)s_dummy, (void*)s_dummy->cmd);
+        } else {
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-DUMMYTEX",
+                "dummy 8x8 %p cmd=ALLOCFAIL", (void*)s_dummy);
+        }
     }
     return s_dummy;
 }
