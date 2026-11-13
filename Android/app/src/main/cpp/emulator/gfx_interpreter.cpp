@@ -2704,9 +2704,11 @@ static void Cmd_Polygon(GfxCommand cmd) {
         uint32_t vi0 = tri->vi0, vi1 = tri->vi1, vi2 = tri->vi2;
         if (vi0 > 255 || vi1 > 255 || vi2 > 255) continue;
 
-        BKVertex* v0 = &s_rdp.dmem[vi0];
-        BKVertex* v1 = &s_rdp.dmem[vi1];
-        BKVertex* v2 = &s_rdp.dmem[vi2];
+        /* Round 103: vi is a byte offset. vi>>4 gives slot 0-15.
+         * Mask with 0xF to be absolutely safe from OOB. */
+        BKVertex* v0 = &s_rdp.dmem[(vi0 >> 4) & 0xF];
+        BKVertex* v1 = &s_rdp.dmem[(vi1 >> 4) & 0xF];
+        BKVertex* v2 = &s_rdp.dmem[(vi2 >> 4) & 0xF];
 
         {
             static int s_draw = 0;
