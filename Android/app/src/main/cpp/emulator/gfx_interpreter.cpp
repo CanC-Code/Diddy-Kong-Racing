@@ -2399,7 +2399,30 @@ typedef struct DkrTriangle {
 static void Cmd_Polygon(GfxCommand cmd) {
     { static int _pe = 0; if (_pe++ < 20)
         __android_log_print(ANDROID_LOG_ERROR, "BKA-POLYENTER",
-            "w0=0x%08X w1=0x%08X dmem=%d sb6=0x%08X", cmd.w0, cmd.w1, s_rdp.dmemVertexCount, s_rdp.segmentBase[6]); }
+            "w0=0x%08X w1=0x%08X dmem=%d sb0=%08X sb1=%08X sb2=%08X sb3=%08X sb4=%08X sb5=%08X sb6=%08X sb7=%08X", cmd.w0, cmd.w1, s_rdp.dmemVertexCount, s_rdp.segmentBase[0], s_rdp.segmentBase[1], s_rdp.segmentBase[2], s_rdp.segmentBase[3], s_rdp.segmentBase[4], s_rdp.segmentBase[5], s_rdp.segmentBase[6], s_rdp.segmentBase[7]); }
+    /* BKA-SB5TRY: probe segment-base resolution. NO LOGIC CHANGE. */
+    {
+        extern uint8_t* gN64_RDRAM;
+        uint32_t _sb5off = cmd.w1 & 0x00FFFFFFu;
+        uint32_t _sb5seg = (cmd.w1 >> 24) & 0x0F;
+        if (gN64_RDRAM) {
+            uint32_t _sb5 = s_rdp.segmentBase[_sb5seg & 0x7];
+            uint32_t _tgt = _sb5 + _sb5off;
+            if (_tgt < 0x04000000u) {
+                uint8_t* _cand = gN64_RDRAM + _tgt;
+                if (bka_is_readable(_cand) && bka_is_readable(_cand + 15)) {
+                    static int _s5 = 0; if (_s5++ < 15)
+                        __android_log_print(ANDROID_LOG_ERROR, "BKA-SB5TRY",
+                            "w1=%08X seg=%u sb=%08X off24=%X tgt=%X cand=%p b=%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X",
+                            (unsigned)cmd.w1, _sb5seg, _sb5, _sb5off, _tgt, (void*)_cand,
+                            _cand[0],_cand[1],_cand[2],_cand[3],
+                            _cand[4],_cand[5],_cand[6],_cand[7],
+                            _cand[8],_cand[9],_cand[10],_cand[11],
+                            _cand[12],_cand[13],_cand[14],_cand[15]);
+                }
+            }
+        }
+    }
     /* Guard: op 0x05 = DKR G_TRIN. w1 points to a 16-byte vertex-triangle
      * descriptor. Drift-fed walker can hand us garbage (0xEBxxxxxx etc).
      * Resolve via registry, fall back to bswap, then readability-check
