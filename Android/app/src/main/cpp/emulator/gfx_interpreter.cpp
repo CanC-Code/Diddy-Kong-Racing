@@ -2319,8 +2319,17 @@ static void Cmd_Vtx(GfxCommand cmd) {
 
     uint32_t load_base = v0;
     if (is_dkr) {
-        if (v0 == 0) s_dkrVtxWritePtr = 0;
+        /* Round 99: DKR emits many gSPVertexDKR calls per frame, each with
+         * v0=0, but triangle indices reference slots beyond any single batch.
+         * Empirical VERTCHECK: dmem[0] has real vertex, dmem[190]/[153]/[143]
+         * are zero. Real hardware must accumulate across all Vtx calls. */
         load_base = s_dkrVtxWritePtr;
+        if (load_base + n > 256) {
+            static int _wrap = 0; if (_wrap++ < 20)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-WRAPPED",
+                    "writePtr=%u n=%u -> wrap to 0", load_base, n);
+            load_base = 0;
+        }
     }
     for (uint32_t i = 0; i < n; i++) {
         /* DKR Vtx stride is 18 bytes (no header, 8 bytes is command size). */
@@ -2339,11 +2348,13 @@ static void Cmd_Vtx(GfxCommand cmd) {
         v->a = vsrc[15];
     }
     if (is_dkr) {
-        s_dkrVtxWritePtr += n;
+        s_dkrVtxWritePtr = load_base + n;
+        if (s_dkrVtxWritePtr > 256) s_dkrVtxWritePtr = 256;
         s_rdp.dmemVertexCount = s_dkrVtxWritePtr;
-        { static int _vtxw = 0; if (_vtxw++ < 20)
+        { static int _vtxw = 0; if (_vtxw++ < 40)
             __android_log_print(ANDROID_LOG_ERROR, "BKA-VTXDKR-WRITE",
-                "n=%u v0=%u writePtr=%u", n, v0, s_dkrVtxWritePtr); }
+                "n=%u v0=%u base=%u writePtr=%u dmemVtx=%d",
+                n, v0, load_base, s_dkrVtxWritePtr, s_rdp.dmemVertexCount); }
     } else {
         s_rdp.dmemVertexCount = v0 + n;
     }
