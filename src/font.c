@@ -735,6 +735,19 @@ void render_text_string(Gfx **dList, DialogueBoxBackground *box, char *text, Ali
  */
 #if REGION != REGION_JP
 s32 get_text_width(char *text, s32 x, s32 font) {
+
+    /* r114: r113 crash was get_text_width+128 = fontData->letter[ch] load
+     * on (FontData*)1 (gFonts = fontAssetData + 1 with fontAssetData NULL).
+     * Guard NULL and tiny pointers before any deref. Both US/JP versions get
+     * this via replace-all, since only one compiles per region. */
+    if (gFonts == NULL || (unsigned long)gFonts < 0x10000UL || gNumberOfFonts == 0) {
+        static int _w = 0;
+        if (_w++ < 5)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-FONT-GUARD",
+                "get_text_width abort: gFonts=%p count=%d text=%.32s",
+                (void*)gFonts, (int)gNumberOfFonts, text ? text : "(null)");
+        return 0;
+    }
     s32 diffX, thisDiffX;
     FontData *fontData;
     s32 index;
@@ -776,6 +789,19 @@ s32 get_text_width(char *text, s32 x, s32 font) {
 }
 #else
 s32 get_text_width(char *text, s32 x, s32 font) {
+
+    /* r114: r113 crash was get_text_width+128 = fontData->letter[ch] load
+     * on (FontData*)1 (gFonts = fontAssetData + 1 with fontAssetData NULL).
+     * Guard NULL and tiny pointers before any deref. Both US/JP versions get
+     * this via replace-all, since only one compiles per region. */
+    if (gFonts == NULL || (unsigned long)gFonts < 0x10000UL || gNumberOfFonts == 0) {
+        static int _w = 0;
+        if (_w++ < 5)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-FONT-GUARD",
+                "get_text_width abort: gFonts=%p count=%d text=%.32s",
+                (void*)gFonts, (int)gNumberOfFonts, text ? text : "(null)");
+        return 0;
+    }
     FontData_JP *currentFont;
     FontJpSpacing *currentFontSpacing;
     s32 glyphIndex;
