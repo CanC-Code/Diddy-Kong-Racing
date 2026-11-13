@@ -219,23 +219,50 @@ static void* bka_rdram_alloc(size_t size) {
     return p;
 }
 
+/* Round 111: shared 1x1 RGBA16 dummy for any PNG load that would have
+ * returned NULL. r110 crash stack: get_text_width ← render_text_string ←
+ * render_title_screen ← mode_menu. Font textures resolved to NULL (font.c
+ * load_texture(0) stored NULL), then get_text_width derefs it → SIGSEGV.
+ * Returning a valid TextureHeader for every miss eliminates the NULL. */
+static TextureHeader* get_dummy_texture() {
+    static TextureHeader* s_dummy = nullptr;
+    if (!s_dummy) {
+        size_t hdr = sizeof(TextureHeader);
+        size_t pix = 2;  /* 1x1 RGBA16 */
+        s_dummy = (TextureHeader*)bka_rdram_alloc(hdr + pix);
+        if (!s_dummy) return nullptr;
+        memset(s_dummy, 0, hdr + pix);
+        s_dummy->width             = 1;
+        s_dummy->height            = 1;
+        s_dummy->format            = 1;  /* RGBA16 */
+        s_dummy->numberOfInstances = 1;
+        s_dummy->numberOfCommands  = 5;
+        s_dummy->numOfTextures     = 1;
+        s_dummy->textureSize       = (s16)(hdr + pix);
+        ((uint16_t*)((uint8_t*)s_dummy + hdr))[0] = 0x0001;  /* opaque black */
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-DUMMYTEX",
+            "allocated 1x1 dummy at %p", (void*)s_dummy);
+    }
+    return s_dummy;
+}
+
 static TextureHeader* load_png_texture(uint32_t id,
         std::unordered_map<uint32_t, std::string>& paths,
         std::unordered_map<uint32_t, TextureHeader*>& cache) {
     auto it = cache.find(id);
     if (it != cache.end()) return it->second;
     auto pit = paths.find(id);
-    if (pit == paths.end()) return nullptr;
+    if (pit == paths.end()) return get_dummy_texture();
 
     int w = 0, h = 0, ch = 0;
     unsigned char* data = stbi_load(pit->second.c_str(), &w, &h, &ch, 4);
-    if (!data) { LOGE("stbi_load failed: %s", pit->second.c_str()); return nullptr; }
+    if (!data) { LOGE("stbi_load failed: %s", pit->second.c_str()); return get_dummy_texture(); }
 
     size_t header_size = sizeof(TextureHeader);
     size_t pixel_size = (size_t)w * (size_t)h * 2;
     TextureHeader* header = (TextureHeader*)bka_rdram_alloc(header_size + pixel_size);
     if (header) memset(header, 0, header_size + pixel_size);
-    if (!header) { stbi_image_free(data); return nullptr; }
+    if (!header) { stbi_image_free(data); return get_dummy_texture(); }
 
     // RGBA16 format = 1 in DKR's enum (0=RGBA32, 1=RGBA16, 2=I8, etc.)
     header->width              = (u8)w;
