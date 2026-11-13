@@ -778,13 +778,37 @@ s32 get_text_width(char *text, s32 x, s32 font) {
                 (int)font, (int)gNumberOfFonts, text ? text : "(null)");
         font = 0;
     }
-    { static int _fv = 0; if (_fv++ < 5)
+    { static int _fv = 0; _fv++;
+      if ((_fv <= 10) || (_fv >= 740 && _fv <= 800))
         __android_log_print(ANDROID_LOG_ERROR, "BKA-FONT-VAL",
-            "font=%d count=%d gFonts=%p text=%.16s",
-            (int)font, (int)gNumberOfFonts, (void*)gFonts,
-            text ? text : "(null)"); }
+            "n=%d font=%d gFonts=%p text_ptr=%p",
+            _fv, (int)font, (void*)gFonts, (void*)text); }
     fontData = &gFonts[font];
-    for (index = 0; text[index] != '\0'; index++) {
+
+    /* r120: r118/r119 crash offset moved with each FONT-VAL edit → the
+     * crash is the %.16s read on garbage text pointer, not the loop.
+     * Verify text is readable + NUL-terminated before any deref. */
+    extern int bka_is_readable(void*);
+    if (!bka_is_readable((void*)text)) {
+        static int _u = 0;
+        if (_u++ < 10)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-FONT-UNMAP",
+                "text=%p unreadable font=%d return 0",
+                (void*)text, (int)font);
+        return 0;
+    }
+    s32 safe_len = 0;
+    while (safe_len < 256 && text[safe_len] != '\0') safe_len++;
+    if (safe_len >= 256) {
+        static int _nl = 0;
+        if (_nl++ < 10)
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-FONT-NONUL",
+                "text=%p no NUL in 256 font=%d return 0",
+                (void*)text, (int)font);
+        return 0;
+    }
+
+    for (index = 0; index < safe_len; index++) {
         thisDiffX = diffX;
         ch = text[index];
         if (ch <= 0x20 || ch >= 0x80) {
