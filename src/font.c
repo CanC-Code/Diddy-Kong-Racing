@@ -765,7 +765,12 @@ s32 get_text_width(char *text, s32 x, s32 font) {
      * huge id). r114 crash was get_text_width+340 = fontData->letter[ch]
      * read on &gFonts[font] with font out-of-range → wild FontData read.
      * Clamp to 0 so text renders (small width) instead of SIGSEGV. */
-    if (font < 0 || font >= gNumberOfFonts) {
+    /* r116: tighter cap + diagnostic. r115 crash was get_text_width+516
+     * (fontData->letter[ch] read) even though FONT-GUARD/FONT-BAD never
+     * fired. Either gNumberOfFonts is bogus (>8) so fontData walks past the
+     * real FontData array, or letter[] inside FontData is bad. Cap font<8
+     * (DKR has at most 4-8 fonts) and log values. */
+    if (font < 0 || font >= gNumberOfFonts || font >= 8) {
         static int _fb = 0;
         if (_fb++ < 10)
             __android_log_print(ANDROID_LOG_ERROR, "BKA-FONT-BAD",
@@ -773,6 +778,11 @@ s32 get_text_width(char *text, s32 x, s32 font) {
                 (int)font, (int)gNumberOfFonts, text ? text : "(null)");
         font = 0;
     }
+    { static int _fv = 0; if (_fv++ < 5)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FONT-VAL",
+            "font=%d count=%d gFonts=%p text=%.16s",
+            (int)font, (int)gNumberOfFonts, (void*)gFonts,
+            text ? text : "(null)"); }
     fontData = &gFonts[font];
     for (index = 0; text[index] != '\0'; index++) {
         thisDiffX = diffX;
