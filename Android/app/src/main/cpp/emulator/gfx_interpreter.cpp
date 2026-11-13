@@ -2444,8 +2444,26 @@ static void Cmd_Polygon(GfxCommand cmd) {
          * for this (same as VTXDKR). The formula that works is
          * gN64_RDRAM + (w1 & 0x00FFFFFF) — segments 0-7 all map to RDRAM
          * from base 0. Try this FIRST before the fallback chain. */
-        uint8_t* _poly_src = NULL;
-        {
+        /* Round 102: try REGISTRY first. w1 like 0x55112550 is a truncated
+         * host pointer. Current code tries RDRAM+offset24 first and always
+         * succeeds (RDRAM readable), landing on pointers/ASCII/floats.
+         * Registry lookup finds the actual host allocation. */
+        uint8_t* _poly_src = (uint8_t*)bka_lookup_addr_by_low32(cmd.w1);
+        if (_poly_src) {
+            static int _pr = 0; if (_pr++ < 30)
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-POLYREG",
+                    "w1=0x%08X registry=%p", (unsigned)cmd.w1, (void*)_poly_src);
+        }
+        if (!_poly_src) {
+            uint32_t _sw = __builtin_bswap32(cmd.w1);
+            _poly_src = (uint8_t*)bka_lookup_addr_by_low32(_sw);
+            if (_poly_src) {
+                static int _pr2 = 0; if (_pr2++ < 15)
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-POLYREG2",
+                        "w1=0x%08X bswap registry=%p", (unsigned)cmd.w1, (void*)_poly_src);
+            }
+        }
+        if (!_poly_src) {
             extern uint8_t* gN64_RDRAM;
             uint32_t _off24 = cmd.w1 & 0x00FFFFFFu;
             uint32_t _segid = (cmd.w1 >> 24) & 0x0F;
@@ -2456,12 +2474,11 @@ static void Cmd_Polygon(GfxCommand cmd) {
                     _poly_src = _cand;
                     static int _ps = 0; if (_ps++ < 15)
                         __android_log_print(ANDROID_LOG_ERROR, "BKA-POLYSEG",
-                            "w1=0x%08X segid=%u off24=0x%X src=%p",
+                            "w1=0x%08X segid=%u off24=0x%X src=%p (fallback)",
                             (unsigned)cmd.w1, _segid, _off24, (void*)_cand);
                 }
             }
         }
-        if (!_poly_src) _poly_src = (uint8_t*)bka_lookup_addr_by_low32(cmd.w1);
         if (!_poly_src) {
             uint32_t _sw = __builtin_bswap32(cmd.w1);
             _poly_src = (uint8_t*)bka_lookup_addr_by_low32(_sw);
@@ -2491,8 +2508,13 @@ static void Cmd_Polygon(GfxCommand cmd) {
      * bka_lookup that returns NULL for 0x56... addresses. tri[0] then
      * SEGFAULTs. Apply same RDRAM+off24 formula here, then fall through to
      * the original chain if that misses. */
-    uint8_t* _poly_resolved = NULL;
-    {
+    /* Round 102: registry FIRST (see guard comment above). */
+    uint8_t* _poly_resolved = (uint8_t*)bka_lookup_addr_by_low32(cmd.w1);
+    if (!_poly_resolved) {
+        uint32_t _sw = __builtin_bswap32(cmd.w1);
+        _poly_resolved = (uint8_t*)bka_lookup_addr_by_low32(_sw);
+    }
+    if (!_poly_resolved) {
         extern uint8_t* gN64_RDRAM;
         uint32_t _off24 = cmd.w1 & 0x00FFFFFFu;
         uint32_t _segid = (cmd.w1 >> 24) & 0x0F;
@@ -2503,12 +2525,11 @@ static void Cmd_Polygon(GfxCommand cmd) {
                 _poly_resolved = _cand;
                 static int _ps2 = 0; if (_ps2++ < 15)
                     __android_log_print(ANDROID_LOG_ERROR, "BKA-POLYSEG2",
-                        "w1=0x%08X off24=0x%X src=%p",
+                        "w1=0x%08X off24=0x%X src=%p (fallback)",
                         (unsigned)cmd.w1, _off24, (void*)_cand);
             }
         }
     }
-    if (!_poly_resolved) _poly_resolved = (uint8_t*)bka_lookup_addr_by_low32(cmd.w1);
     if (!_poly_resolved) {
         static int _nr = 0;
         if (_nr++ < 40)
