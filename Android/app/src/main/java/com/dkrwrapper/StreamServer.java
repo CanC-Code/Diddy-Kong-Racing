@@ -119,6 +119,34 @@ public class StreamServer {
                 } catch (Throwable t) {
                     sb.append("diag.log err: ").append(t).append("\n");
                 }
+                sb.append("\n=== RAW LOGCAT (last 200) ===\n");
+                try {
+                    Process pr = Runtime.getRuntime().exec(new String[]{
+                        "/system/bin/logcat", "-d", "-t", "200", "-b", "crash,main"
+                    });
+                    java.io.BufferedReader br2 = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(pr.getInputStream()));
+                    String ln2;
+                    int cap2 = 0;
+                    while ((ln2 = br2.readLine()) != null && cap2 < 200) {
+                        sb.append(ln2.replace("&","&amp;").replace("<","&lt;")).append("\n");
+                        cap2++;
+                    }
+                    br2.close();
+                    pr.waitFor();
+                } catch (Throwable t) {
+                    sb.append("raw logcat err: ").append(t).append("\n");
+                }
+                try {
+                    java.io.File tombDir = new java.io.File("/data/tombstones");
+                    java.io.File[] tombs = tombDir.listFiles();
+                    if (tombs != null && tombs.length > 0) {
+                        java.util.Arrays.sort(tombs, (a,b) -> Long.compare(b.lastModified(), a.lastModified()));
+                        java.io.File last = tombs[0];
+                        sb.append("\n=== LATEST TOMBSTONE: ").append(last.getName()).append(" ===\n");
+                        sb.append("(not readable — file perms)\n");
+                    }
+                } catch (Throwable t) {}
                 sb.append("</pre></body></html>");
                 byte[] body = sb.toString().getBytes("UTF-8");
                 out.write(("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + body.length + "\r\nCache-Control: no-cache\r\nConnection: close\r\n\r\n").getBytes());

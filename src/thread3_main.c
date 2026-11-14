@@ -374,6 +374,11 @@ void main_game_loop(void) {
         }
     }
 
+    { static int _mcnt = 0; _mcnt++;
+      if ((_mcnt <= 5) || ((_mcnt % 60) == 0))
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-MODE",
+            "n=%d mode=%d timer=%d task=%d", _mcnt,
+            (int)gGameMode, (int)gDrawFrameTimer, (int)gSPTaskNum); }
     __android_log_print(ANDROID_LOG_ERROR, "DKR-LOOP", "before mode switch gGameMode=%d", (int)gGameMode);
     switch (gGameMode) {
         case GAMEMODE_INTRO: // Pre-boot screen
