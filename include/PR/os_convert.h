@@ -127,4 +127,4 @@ extern uint32_t bka_k0_to_phys(void *ptr);
 #ifdef OS_K0_TO_PHYSICAL
 #undef OS_K0_TO_PHYSICAL
 #endif
-#define OS_K0_TO_PHYSICAL(x)  bka_k0_to_phys((void *)(x))
+#define OS_K0_TO_PHYSICAL(x) ((void *)(uintptr_t)bka_k0_to_phys((void *)(x)))
