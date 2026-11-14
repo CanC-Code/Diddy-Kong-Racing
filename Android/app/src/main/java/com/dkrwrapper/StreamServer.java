@@ -65,10 +65,9 @@ public class StreamServer {
             while ((hdr = readLine(in)) != null && !hdr.isEmpty()) { }
 
             if ("GET".equals(method) && path.startsWith("/diag")) {
-                // r134: mobile-data-independent debug page. Full logcat capture
-// (all BKA-* and DKR-* lines from last 800), auto-refresh every 2s.
-// No rish or ADB needed - app reads own logcat via Runtime.exec.DKR-* lines from last 800), auto-refresh every 2s.
-                 * rish/ADB not needed — app reads own logcat via Runtime.exec. */
+                // r134 diag: mobile-data-independent debug page.
+                // Captures logcat BKA_ and DKR_ tags, auto-refresh 2s.
+                // No rish or ADB needed - app reads own logcat.
                 StringBuilder sb = new StringBuilder();
                 sb.append("<!doctype html><html><head><meta charset='utf-8'>");
                 sb.append("<meta http-equiv='refresh' content='2'>");
@@ -77,7 +76,7 @@ public class StreamServer {
                 sb.append("pre{padding:6px;margin:0;white-space:pre-wrap;word-break:break-all}");
                 sb.append("h3{color:#ff0;margin:4px 0;padding:4px;background:#333}");
                 sb.append("a{color:#0ff}</style></head><body>");
-                sb.append("<h3>DKR diag — <a href='/'>stream</a> | ");
+                sb.append("<h3>DKR diag - <a href='/'>stream</a> | ");
                 sb.append("<a href='/diag?").append(System.currentTimeMillis()).append("'>reload</a> | pid=");
                 sb.append(android.os.Process.myPid()).append("</h3><pre>");
 
