@@ -65,62 +65,63 @@ public class StreamServer {
             while ((hdr = readLine(in)) != null && !hdr.isEmpty()) { }
 
             if ("GET".equals(method) && path.startsWith("/diag")) {
+                /* r134: mobile-data-independent debug page. Full logcat capture
+                 * (all BKA-*/DKR-* lines from last 800), auto-refresh every 2s.
+                 * rish/ADB not needed — app reads own logcat via Runtime.exec. */
                 StringBuilder sb = new StringBuilder();
-                try {
-                    java.io.File f = new java.io.File(getFilesDir(), "diag.log");
-                    if (f.exists()) {
-                        java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(f));
-                        java.util.LinkedList<String> lines = new java.util.LinkedList<>();
-                        String line;
-                        java.util.HashMap<String, Integer> lineCount = new java.util.HashMap<>();
-                        while ((line = br.readLine()) != null) {
-                            // Skip zero-param SetTile spam
-                            if (line.contains("BKA-DIAG-ST") && line.contains("fmt=0 siz=0 line=0 tmem=0x0")) continue;
-                            if (line.contains("BKA-ST-ENTRY") && line.contains("w0=F7000000")) continue;
-                            // Extract tag prefix for deduplication
-                            int colon = line.indexOf(':');
-                            String key = (colon > 0) ? line.substring(0, colon) + "|" + line.substring(colon+1, Math.min(colon+80, line.length())) : line;
-                            Integer cnt = lineCount.get(key);
-                            if (cnt == null) {
-                                lineCount.put(key, 1);
-                                lines.add(line);
-                            } else {
-                                lineCount.put(key, cnt + 1);
-                                if (cnt < 10) lines.add(line);
-                                else if (cnt == 10) lines.add("  (repeated " + (cnt + 1) + "x)");
-                            }
-                            if (lines.size() > 2000) lines.removeFirst();
-                        }
-                        br.close();
-                        sb.append("=== DIAG.LOG (last ").append(lines.size()).append(" lines) ===\n");
-                        for (String l : lines) sb.append(l).append("\n");
-                    } else {
-                        sb.append("(diag.log not found at ").append(getFilesDir()).append(")\n");
-                    }
-                } catch (Throwable t) {
-                    sb.append("Error reading diag.log: ").append(t).append("\n");
-                }
+                sb.append("<!doctype html><html><head><meta charset='utf-8'>");
+                sb.append("<meta http-equiv='refresh' content='2'>");
+                sb.append("<title>DKR diag</title>");
+                sb.append("<style>body{margin:0;background:#111;color:#0f0;font:11px monospace}");
+                sb.append("pre{padding:6px;margin:0;white-space:pre-wrap;word-break:break-all}");
+                sb.append("h3{color:#ff0;margin:4px 0;padding:4px;background:#333}");
+                sb.append("a{color:#0ff}</style></head><body>");
+                sb.append("<h3>DKR diag — <a href='/'>stream</a> | ");
+                sb.append("<a href='/diag?").append(System.currentTimeMillis()).append("'>reload</a> | pid=");
+                sb.append(android.os.Process.myPid()).append("</h3><pre>");
+
+                int captured = 0;
                 try {
                     Process p = Runtime.getRuntime().exec(new String[]{
-                        "logcat", "-d", "-t", "300", "-s",
-                        "BKA-ST-ENTRY:*", "BKA-DIAG-LB:*", "BKA-SETIMG-DIAG:*",
-                        "BKA-PNG:*", "BKA-BADHDR:*", "BKA-TEXFMT:*",
-                        "BKA-Stream:*", "BKA-PNG-FETCH:*"
+                        "/system/bin/logcat", "-d", "-t", "800"
                     });
-                    java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(p.getInputStream()));
+                    java.io.BufferedReader br = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(p.getInputStream()));
                     String line;
-                    sb.append("\n=== LOGCAT (last 300) ===\n");
-                    int n = 0;
-                    while ((line = br.readLine()) != null && n++ < 300) {
-                        sb.append(line).append("\n");
+                    while ((line = br.readLine()) != null && captured < 500) {
+                        if (line.contains(" BKA-") || line.contains(" DKR-")
+                            || line.contains(" BKA_") || line.contains(" DKR_")
+                            || line.contains("AndroidRuntime")) {
+                            sb.append(line.replace("&","&amp;").replace("<","&lt;")).append("\n");
+                            captured++;
+                        }
                     }
                     br.close();
                     p.waitFor();
                 } catch (Throwable t) {
-                    sb.append("Error reading logcat: ").append(t).append("\n");
+                    sb.append("logcat error: ").append(t).append("\n");
                 }
+                sb.append("\n=== diag.log tail ===\n");
+                try {
+                    java.io.File f = new java.io.File(getFilesDir(), "diag.log");
+                    if (f.exists()) {
+                        java.io.RandomAccessFile raf = new java.io.RandomAccessFile(f, "r");
+                        long len = raf.length();
+                        long startPos = Math.max(0, len - 16384);
+                        raf.seek(startPos);
+                        byte[] tail = new byte[(int)(len - startPos)];
+                        raf.readFully(tail);
+                        raf.close();
+                        sb.append(new String(tail, "UTF-8"));
+                    } else {
+                        sb.append("(no diag.log)\n");
+                    }
+                } catch (Throwable t) {
+                    sb.append("diag.log err: ").append(t).append("\n");
+                }
+                sb.append("</pre></body></html>");
                 byte[] body = sb.toString().getBytes("UTF-8");
-                out.write(("HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: " + body.length + "\r\nConnection: close\r\n\r\n").getBytes());
+                out.write(("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + body.length + "\r\nCache-Control: no-cache\r\nConnection: close\r\n\r\n").getBytes());
                 out.write(body);
                 out.flush();
                 return;

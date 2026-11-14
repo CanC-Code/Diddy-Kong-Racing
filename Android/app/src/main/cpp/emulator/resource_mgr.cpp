@@ -565,6 +565,15 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
                 tempBuf[12], tempBuf[13], tempBuf[14], tempBuf[15]);
         }
         if (bytesRead > 0) {
+            /* r134: log every successful pread+memcpy. r133 fixed byte-swap
+             * (OUT OF ROM 62->0, survival 961->1861) but crash still at
+             * ResourceMgr+1840; catch exact DMA that crashes next. */
+            { static int _dc = 0; _dc++;
+              if ((_dc <= 30) || ((_dc % 100) == 0))
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-DMA-COPY",
+                    "n=%d dram=%p devAddr=0x%08X size=%u bytesRead=%d src=%p off=0x%X",
+                    _dc, dramAddr, devAddr, size, (int)bytesRead,
+                    tempBuf, romOffset); }
             memcpy(dramAddr, tempBuf, (size_t)bytesRead);
             if ((size_t)bytesRead < size)
                 memset((uint8_t*)dramAddr + bytesRead, 0, size - (size_t)bytesRead);
