@@ -65,8 +65,9 @@ public class StreamServer {
             while ((hdr = readLine(in)) != null && !hdr.isEmpty()) { }
 
             if ("GET".equals(method) && path.startsWith("/diag")) {
-                /* r134: mobile-data-independent debug page. Full logcat capture
-                 * (all BKA-*/DKR-* lines from last 800), auto-refresh every 2s.
+                // r134: mobile-data-independent debug page. Full logcat capture
+// (all BKA-* and DKR-* lines from last 800), auto-refresh every 2s.
+// No rish or ADB needed - app reads own logcat via Runtime.exec.DKR-* lines from last 800), auto-refresh every 2s.
                  * rish/ADB not needed — app reads own logcat via Runtime.exec. */
                 StringBuilder sb = new StringBuilder();
                 sb.append("<!doctype html><html><head><meta charset='utf-8'>");
