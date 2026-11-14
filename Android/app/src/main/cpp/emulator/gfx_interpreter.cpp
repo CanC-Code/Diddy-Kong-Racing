@@ -5443,6 +5443,13 @@ if (!g_walker_recover_installed) {
                             n += snprintf(buf+n, sizeof(buf)-n, " %02X=%llu", bi, (unsigned long long)best);
                             copy[bi] = 0;
                         }
+                        { static int _to = 0; _to++;
+                          if ((_to % 300) == 0)
+                            __android_log_print(ANDROID_LOG_ERROR, "BKA-TEXOP",
+                                "t=%d e4=%u e5=%u e9=%u f9=%u dl=%u b8=%u",
+                                _to, s_opcount[0xE4], s_opcount[0xE5],
+                                s_opcount[0xE9], s_opcount[0xF9],
+                                s_opcount[0x06], s_opcount[0xB8]); }
                         __android_log_print(ANDROID_LOG_ERROR, "BKA-OPHIST", "%s tri_ops=%llu", buf, (unsigned long long)s_tri_ops);
                     }
                 }

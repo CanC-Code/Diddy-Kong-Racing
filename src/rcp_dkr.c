@@ -681,6 +681,8 @@ void bgdraw_set_func(BackgroundFunction func) {
  * Typically, you do these shifts in the draw call itself, but Rare decided to do it beforehand.
  */
 void texrect_draw(Gfx **dList, DrawTexture *element, s32 xPos, s32 yPos, u8 red, u8 green, u8 blue, u8 alpha) {
+    Gfx* _td_start = *dList;
+
     TextureHeader *tex;
     s32 i;
     s32 uly;
@@ -721,7 +723,13 @@ void texrect_draw(Gfx **dList, DrawTexture *element, s32 xPos, s32 yPos, u8 red,
         }
     }
     gDPPipeSync((*dList)++);
-    gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);
+
+    { static int _tdl = 0; if (_tdl++ < 20)
+      __android_log_print(ANDROID_LOG_ERROR, "BKA-TDL",
+          "n=%d wrote=%d modes=%p tex0=%p",
+          _tdl, (int)(*dList - _td_start),
+          (void*)dTextureRectangleModes,
+          (void*)element[0].texture); }
 }
 
 /**
