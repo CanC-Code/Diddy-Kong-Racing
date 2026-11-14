@@ -1174,6 +1174,20 @@ __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "mode_menu: bgload DONE");
  * Skips loading many things, otherwise used in gameplay.
  */
 void load_level_for_menu(s32 levelId, s32 numberOfPlayers, s32 cutsceneId) {
+#ifdef PORT
+    /* r136: r125's per-callsite skip only caught menu.c:3577. r135 crash
+     * stack shows load_level_for_menu still reached from
+     * menu_title_screen_loop+2156 (different callsite or different branch).
+     * Guard the FUNCTION entry so ALL callsites skip. Underlying bug is in
+     * load_level_menu -> init_track -> spawn_object (SIGSEGV from corrupted
+     * track asset pointer). Fix that in a future round; for now skip the
+     * call so app survives past title screen frame ~1000. */
+    __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU",
+        "PORT load_level_for_menu SKIPPED level=%d players=%d cutscene=%d",
+        (int)levelId, (int)numberOfPlayers, (int)cutsceneId);
+    (void)levelId; (void)numberOfPlayers; (void)cutsceneId;
+    return;
+#endif
     if (!gIsLoading) {
 #ifdef PORT
         { static int fm_ = 1; if (!fm_) unload_level_menu(); fm_ = 0; }
