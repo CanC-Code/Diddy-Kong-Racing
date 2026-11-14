@@ -411,6 +411,7 @@ void render_text_string(Gfx **dList, DialogueBoxBackground *box, char *text, Ali
      * garbage text via UNMAP, but render_text_string continued into its own
      * loop on the same pointer and crashed. Byte-0 readable is NOT enough:
      * scan every byte for readability + NUL within 256. Skip if either fails. */
+    static char s_rts_safe[2] = " ";
     if (text != NULL) {
         extern int bka_is_readable(void*);
         int _safe = 0;
@@ -424,9 +425,9 @@ void render_text_string(Gfx **dList, DialogueBoxBackground *box, char *text, Ali
             static int _rts_u = 0;
             if (_rts_u++ < 10)
                 __android_log_print(ANDROID_LOG_ERROR, "BKA-RTS-UNMAP",
-                    "render_text_string text=%p not-nul-in-256 reached=%d skip",
+                    "render_text_string text=%p not-nul-in-256 reached=%d -> substitute space",
                     (void*)text, _safe);
-            return;
+            text = s_rts_safe;
         }
     }
     if (text != NULL) {

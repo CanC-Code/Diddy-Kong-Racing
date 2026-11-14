@@ -246,27 +246,13 @@ static TextureHeader* get_dummy_texture() {
         for (int i = 0; i < 8*8; i++) px[i] = 0x0001;
         /* r113: populate cmd. r110/r111/r112 all crashed at get_text_width+128;
          * dummy->cmd was NULL after memset. Game walks it for char widths. */
-        Gfx* cmd = (Gfx*)bka_rdram_alloc(5 * sizeof(Gfx));
-        if (cmd) {
-            uint32_t* cw = (uint32_t*)cmd;
-            cw[0] = (0xFDu << 24) | (2u << 19);
-            cw[1] = 0;
-            cw[2] = (0xF5u << 24) | (2u << 19) | (2u << 9);
-            cw[3] = 0;
-            cw[4] = (0xF4u << 24);
-            cw[5] = (7u << 12) | 7u;
-            cw[6] = (0xB2u << 24);
-            cw[7] = (7u << 12) | 7u;
-            cw[8] = (0xB8u << 24);
-            cw[9] = 0;
-            s_dummy->cmd = (Gfx*)(0x80000000u |
-                (uint32_t)((uintptr_t)cmd - (uintptr_t)gN64_RDRAM));
+        /* r122: do NOT emit cmd for dummy texture — r113-r121 dummy cmd loaded
+         * 8x8 garbage into TMEM at RDRAM+0, corrupting texture samples for
+         * real texrects. font.c only reads width/height/letter fields for
+         * text metrics; cmd unused. Leave s_dummy->cmd = NULL. */
+        { static int _dd = 0; if (_dd++ < 1)
             __android_log_print(ANDROID_LOG_ERROR, "BKA-DUMMYTEX",
-                "dummy 8x8 %p cmd=%p 5cmds", (void*)s_dummy, (void*)s_dummy->cmd);
-        } else {
-            __android_log_print(ANDROID_LOG_ERROR, "BKA-DUMMYTEX",
-                "dummy 8x8 %p cmd=ALLOCFAIL", (void*)s_dummy);
-        }
+                "dummy 8x8 %p no-cmd (r122)", (void*)s_dummy); }
     }
     return s_dummy;
 }
