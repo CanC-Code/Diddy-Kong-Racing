@@ -335,6 +335,14 @@ void main_game_loop(void) {
     }
     if (gDrawFrameTimer == 0) {
         __android_log_print(ANDROID_LOG_ERROR, "DKR-GFX", "before gfxtask_run_xbus task=%d", gSPTaskNum);
+        { static int _dls = 0; _dls++;
+          size_t _dlsz = (uint8_t*)gCurrDisplayList - (uint8_t*)gDisplayLists[gSPTaskNum];
+          /* r127: DL size at submission. Small size = render not reaching buffer,
+           * large size = render IS in buffer but walker not seeing it. */
+          if ((_dls <= 10) || ((_dls % 60) == 0))
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-DLSIZE",
+                "n=%d dl=%d size=%zu timer=%d mode=%d",
+                _dls, gSPTaskNum, _dlsz, (int)gDrawFrameTimer, (int)gGameMode); }
         gfxtask_run_xbus(gDisplayLists[gSPTaskNum], gCurrDisplayList, 0);
         __android_log_print(ANDROID_LOG_ERROR, "DKR-GFX", "after gfxtask_run_xbus task=%d", gSPTaskNum);
         gSPTaskNum += 1;
