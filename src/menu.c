@@ -3446,6 +3446,12 @@ void menu_title_screen_init(void) {
  * Also render the selection options.
  */
 void render_title_screen(UNUSED s32 updateRate, f32 updateRateF) {
+    { static int _gm = 0; _gm++;
+      if ((_gm <= 5) || ((_gm % 60) == 0))
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-RTS-GATES",
+            "n=%d gTitleRevealTimer=%d ctrlMissing=%d demoIds=%p",
+            _gm, (int)gTitleRevealTimer, (int)is_controller_missing(),
+            (void*)sTitleScreenDemoIds); }
     __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU", "render_title_screen gTitleRevealTimer=%d sTitleScreenDemoIds=%p", gTitleRevealTimer, (void*)sTitleScreenDemoIds);
     UNUSED u32 foo[2];
     s32 alpha;
