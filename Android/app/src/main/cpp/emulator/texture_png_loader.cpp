@@ -250,9 +250,23 @@ static TextureHeader* get_dummy_texture() {
          * 8x8 garbage into TMEM at RDRAM+0, corrupting texture samples for
          * real texrects. font.c only reads width/height/letter fields for
          * text metrics; cmd unused. Leave s_dummy->cmd = NULL. */
-        { static int _dd = 0; if (_dd++ < 1)
+        /* r128: restore cmd with minimal SAFE sub-DL — only ENDDL, no
+         * LoadTile. r113-r121 corrupted TMEM (LoadTile at RDRAM+0); r122
+         * removed cmd entirely leaving NULL → walker skips texrect draws.
+         * r128: valid sub-DL that walker follows and immediately ends. */
+        Gfx* cmd = (Gfx*)bka_rdram_alloc(sizeof(Gfx));
+        if (cmd) {
+            uint32_t* _cw = (uint32_t*)cmd;
+            _cw[0] = 0xB8000000u;  /* gSPEndDisplayList */
+            _cw[1] = 0;
+            s_dummy->cmd = (Gfx*)(0x80000000u |
+                (uint32_t)((uintptr_t)cmd - (uintptr_t)gN64_RDRAM));
             __android_log_print(ANDROID_LOG_ERROR, "BKA-DUMMYTEX",
-                "dummy 8x8 %p no-cmd (r122)", (void*)s_dummy); }
+                "dummy 8x8 %p cmd=%p (r128 enddl-only)", (void*)s_dummy, (void*)s_dummy->cmd);
+        } else {
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-DUMMYTEX",
+                "dummy 8x8 %p cmd=NULL (alloc fail)", (void*)s_dummy);
+        }
     }
     return s_dummy;
 }
