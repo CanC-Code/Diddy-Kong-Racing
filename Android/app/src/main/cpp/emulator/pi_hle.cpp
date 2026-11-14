@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <cstring>
 #include <android/log.h>
 #include "n64_os_types_cpp.h"
 
@@ -18,6 +19,18 @@ s32 osPiRawStartDma(s32 direction, u32 devAddr, void *dramAddr, u32 size) {
     LOGI("osPiRawStartDma: dir=%d devAddr=0x%08X dramAddr=%p size=%u",
          direction, devAddr, dramAddr, size);
     if (direction == 0) { // OS_READ
+        /* r132: guard against out-of-ROM devAddr. r131 logs: asset_load
+         * drifts devAddr (0x003AD160 -> 0xC83AD160 -> 0x903BD160 -> ...)
+         * via a broken retry loop; each corrupted address reaches
+         * ResourceMgr_HandleDma's "Unrecognized" branch, and the 5th
+         * iteration crashes at +1840. Zero dst and return success —
+         * matches ResourceMgr's own zeroing behavior, avoids deep path. */
+        if (devAddr > 0x04000000u || (u64)devAddr + (u64)size > 0x04000000u) {
+            LOGI("osPiRawStartDma: OUT OF ROM devAddr=0x%08X size=%u, zeroing dst",
+                 devAddr, size);
+            if (dramAddr && size > 0) memset(dramAddr, 0, size);
+            return 0;
+        }
         ResourceMgr_HandleDma(dramAddr, devAddr, size);
     }
     return 0;
