@@ -4345,10 +4345,16 @@ static void Cmd_TexRect(GfxCommand cmd) {
 // =======================================================================
 static void Cmd_DL(GfxCommand cmd, GfxCommand** outCmd, size_t* outRemaining) {
     uint32_t addr = cmd.w1;
+    { static int _dlc = 0; _dlc++;
+      if ((_dlc <= 20) || ((_dlc % 200) == 0))
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-DLCHAIN",
+            "n=%d addr=%08X", _dlc, addr); }
     *outCmd = (GfxCommand*)RDP_TranslateAddr(addr);
     *outRemaining = 0xFFFFFFFF;
 }
 
+/* r126: count every walker DL dispatch + log first opcode every 600 */
+static int _dldispatch = 0;
 static void* RSP_ResolveGfxAddress(uint32_t addr) {
     uint32_t seg = (addr >> 28) & 0x0F;
     uint32_t offset = addr & 0x0FFFFFFF;
@@ -5670,7 +5676,11 @@ case 0xF5: { static int s_op=0; if (s_op++<4000) __android_log_print(ANDROID_LOG
             }
             case 0xB2: Cmd_LoadTile(c); break;   /* F3DEX1 quick LoadTile */
             case 0xB3: Cmd_SetTile(c); break;    /* F3DEX1 quick SetTile */
-            case 0xE4: case 0xE5: Cmd_TexRect(c); break;
+            { static int _e4c = 0; _e4c++;
+      if ((_e4c <= 10) || ((_e4c % 100) == 0))
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-E4HIT",
+            "walker hit 0xE4 #%d w0=%08X w1=%08X", _e4c, c.w0, c.w1); }
+    case 0xE4: case 0xE5: Cmd_TexRect(c); break;
 
             case 0x01: Cmd_Mtx(c); break;
             case 0x04:
