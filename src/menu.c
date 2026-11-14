@@ -3534,9 +3534,17 @@ s32 menu_title_screen_loop(s32 updateRate) {
     } else {
         updateRateF = (f32) updateRate / 60.0f;
     }
+#ifdef PORT
+    /* r135: PORT always renders title screen. r134 diag showed the logo
+     * only drew during first ~20 frames (gMenuDelay < 20), then stopped.
+     * Bands in stream were bgdraw background only. Force continuous render
+     * so DKR logo persists once gMenuDelay passes 20. */
+    render_title_screen(updateRate, updateRateF);
+#else
     if (gMenuDelay < 20) {
         render_title_screen(updateRate, updateRateF);
     }
+#endif
     if (gMenuDelay) {
         gMenuDelay += updateRate;
     }
