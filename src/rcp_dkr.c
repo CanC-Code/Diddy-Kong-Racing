@@ -718,6 +718,17 @@ void texrect_draw(Gfx **dList, DrawTexture *element, s32 xPos, s32 yPos, u8 red,
                 t = -(uly << 3);
                 uly = 0;
             }
+            /* r130: per-element texrect params + texture metadata. Bands
+             * mean texrects draw but S/T or tile fmt is wrong. */
+            { static int _tp = 0; _tp++;
+              if ((_tp <= 20) || ((_tp % 100) == 0))
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-TRPAR",
+                    "n=%d el=%d rect=(%d,%d)-(%d,%d) s=%d t=%d "
+                    "tex=%dx%d fmt=%d cmds=%d",
+                    _tp, i, (int)ulx, (int)uly, (int)lrx, (int)lry,
+                    (int)s, (int)t,
+                    (int)tex->width, (int)tex->height, (int)tex->format,
+                    (int)tex->numberOfCommands); }
             gDkrDmaDisplayList((*dList)++, OS_K0_TO_PHYSICAL(tex->cmd), tex->numberOfCommands);
             gSPTextureRectangle((*dList)++, ulx, uly, lrx, lry, G_TX_RENDERTILE, s, t, 1024, 1024);
         }
