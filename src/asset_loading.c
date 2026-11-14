@@ -196,8 +196,22 @@ UNUSED s32 asset_table_load_addr(u32 assetIndex, void *address) {
  */
 s32 asset_load(u32 assetIndex, void *address, s32 assetOffset, s32 size) {
     ptd_suspect(address, "asset_load");
+    /* r133: assetOffset can arrive byte-swapped (BE read as LE) — r132 logs
+     * showed 62 retries with devAddr drift exactly matching bswap(0,200,400,600..)
+     * = level table entries. Detect and un-swap before use. */
+    if ((u32)assetOffset > 0x00100000u && (u32)assetOffset != 0xFFFFFFFFu) {
+        s32 _sw = (s32)__builtin_bswap32((u32)assetOffset);
+        if (_sw >= 0 && (u32)_sw < 0x00100000u) {
+            static int _of = 0; if (_of++ < 30)
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-OFFSET-FIX",
+                    "assetOffset 0x%08X (huge) -> bswap 0x%08X (small), fixing",
+                    (u32)assetOffset, (u32)_sw);
+            assetOffset = _sw;
+        }
+    }
     __android_log_print(ANDROID_LOG_ERROR, "DKR-LOAD",
-        "asset_load ENTRY id=%u address=%p size=%d", assetIndex, address, size);
+        "asset_load ENTRY id=%u address=%p size=%d offset=%d",
+        assetIndex, address, size, assetOffset);
     u32 *index;
     s32 start;
 
@@ -213,7 +227,20 @@ s32 asset_load(u32 assetIndex, void *address, s32 assetOffset, s32 size) {
 
     assetIndex++;
     index = assetIndex + gAssetsLookupTable;
-    start = *index + assetOffset;
+    /* r133: *index may also be BE-read-as-LE if gAssetsLookupTable isn't
+     * properly swapped. Detect + fix. */
+    uint32_t _idx_val = *index;
+    if (_idx_val > 0x00100000u && _idx_val != 0xFFFFFFFFu) {
+        uint32_t _sw = __builtin_bswap32(_idx_val);
+        if (_sw < 0x00100000u) {
+            static int _ii = 0; if (_ii++ < 15)
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-OFFSET-FIX",
+                    "gAssetsLookupTable[%u] = 0x%08X (huge) -> bswap 0x%08X",
+                    assetIndex, _idx_val, _sw);
+            _idx_val = _sw;
+        }
+    }
+    start = _idx_val + assetOffset;
 
     dmacopy_internal((u32) (start + gBkaAssetsRomOffset), address, size);
 
