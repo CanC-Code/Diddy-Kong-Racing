@@ -690,6 +690,12 @@ void texrect_draw(Gfx **dList, DrawTexture *element, s32 xPos, s32 yPos, u8 red,
     s32 t;
     s32 s;
 
+    /* r125: log texrect_draw entry + which texture IDs it iterates. Tells
+     * us if render_title_screen reaches this fn (and how many elements). */
+    { static int _td = 0; _td++;
+      if ((_td <= 15) || ((_td % 200) == 0))
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-TEXDRAW",
+            "n=%d firstTex=%p", _td, (void*)element[0].texture); }
     gSPDisplayList((*dList)++, dTextureRectangleModes);
     gDPSetPrimColor((*dList)++, 0, 0, red, green, blue, alpha);
     xPos <<= 2;
