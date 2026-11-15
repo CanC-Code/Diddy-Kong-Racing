@@ -378,20 +378,11 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         return;
     }
 
-    // Read from gVideoLastFramebuffer (the just-swapped display buffer).
-    // Fall back to RDRAM+offset if that pointer isn't set.
     uint16_t* src = NULL;
     const char* src_tag = "none";
-    if (gVideoLastFramebuffer) {
-        src = (uint16_t*)gVideoLastFramebuffer;
-        src_tag = "last";
-    } else if (gVideoCurrFramebuffer) {
-        src = (uint16_t*)gVideoCurrFramebuffer;
-        src_tag = "curr";
-    } else {
-        src = (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
-        src_tag = "rdram";
-    }
+    if (gVideoLastFramebuffer) { src = (uint16_t*)gVideoLastFramebuffer; src_tag = "last"; }
+    else if (gVideoCurrFramebuffer) { src = (uint16_t*)gVideoCurrFramebuffer; src_tag = "curr"; }
+    else { src = (uint16_t*)(gN64_RDRAM + g_active_fb_offset); src_tag = "rdram"; }
 
     int nz = 0;
     if (src) {
@@ -407,13 +398,21 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         memset(out, 0, count * sizeof(jint));
     }
 
+    // Last-good-frame cache: if current has < 1000 non-black pixels,
+    // replay the previous "good" frame instead of showing black.
+    static jint g_cache[292 * 216];
+    static int g_cache_valid = 0;
+
+    if (nz > 1000) {
+        memcpy(g_cache, out, count * sizeof(jint));
+        g_cache_valid = 1;
+    } else if (g_cache_valid) {
+        memcpy(out, g_cache, count * sizeof(jint));
+    }
+
     static int _logctr = 0;
     if ((_logctr++ % 60) == 0 || nz > 1000) {
-        long long off_last = (gVideoLastFramebuffer && gN64_RDRAM) ? (gVideoLastFramebuffer - gN64_RDRAM) : -1;
-        long long off_curr = (gVideoCurrFramebuffer && gN64_RDRAM) ? (gVideoCurrFramebuffer - gN64_RDRAM) : -1;
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL7",
-            "src=%s W=%d H=%d nz=%d off_last=%lld off_curr=%lld active=0x%X",
-            src_tag, W, H, nz, off_last, off_curr, (unsigned)g_active_fb_offset);
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL8", "src=%s nz=%d cache_valid=%d", src_tag, nz, g_cache_valid);
     }
 
     env->ReleaseIntArrayElements(outArr, out, 0);
