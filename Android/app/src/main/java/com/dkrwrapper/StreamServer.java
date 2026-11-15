@@ -49,6 +49,14 @@ public class StreamServer {
     }
 
     private void handleClient(Socket s) {
+        /* r139: Socket$2.run shutdown thread SIGSEGV fix. Chrome /diag
+         * auto-refresh opens/closes 30 sockets/min; each Socket.close()
+         * spawns an internal thread that races with itself in
+         * AbstractPlainSocketImpl.getInputStream -> SIGSEGV kills process.
+         * setSoLinger(false, 0) makes close() send RST instead of FIN,
+         * skipping that shutdown handshake thread entirely. */
+        try { s.setSoLinger(false, 0); } catch (Throwable ignored) {}
+        try { s.setTcpNoDelay(true); } catch (Throwable ignored) {}
         try (Socket sock = s) {
             sock.setTcpNoDelay(true);
             InputStream in = sock.getInputStream();
@@ -201,6 +209,9 @@ public class StreamServer {
             }
         } catch (IOException e) {
             Log.w(TAG, "client ended: " + e.getMessage());
+        } catch (Throwable t) {
+            /* r139: never let a socket thread's exception kill the process */
+            Log.e(TAG, "handleClient crashed: " + t);
         }
     }
 
