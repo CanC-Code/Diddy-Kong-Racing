@@ -364,35 +364,33 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
             "fillArgb #%d", _fa); }
     extern uint8_t* gN64_RDRAM;
     extern uint32_t g_active_fb_offset;
-    extern uint8_t *gVideoLastFramebuffer;
-    extern uint8_t *gVideoCurrFramebuffer;
 
-    if (!gN64_RDRAM || !outArr) return;
-    jint* out = env->GetIntArrayElements(outArr, nullptr);
-    if (!out) return;
+    uint16_t* src_a = (gN64_RDRAM && g_active_fb_offset < 0x04000000u) ? (uint16_t*)(gN64_RDRAM + g_active_fb_offset) : NULL;
+    uint32_t _other = (g_active_fb_offset == 0x440000u) ? 0x400000u : 0x440000u;
+    uint16_t* src_b = (gN64_RDRAM && _other < 0x04000000u) ? (uint16_t*)(gN64_RDRAM + _other) : NULL;
 
-    const int W = 292, H = 216;
+    int nb_a = 0, nb_b = 0;
+    if (src_a) for (int i = 0; i < W * H; i++) if (src_a[i]) nb_a++;
+    if (src_b) for (int i = 0; i < W * H; i++) if (src_b[i]) nb_b++;
 
-    if (!gVideoLastFramebuffer || !gVideoCurrFramebuffer) {
-        // PORT: gVideo* are null; read from gN64_RDRAM + g_active_fb_offset
-        // (the walker's actual write target)
-        uint16_t* src_fb = (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
-        int nb = 0;
-        for (int i = 0; i < W * H; i++) { if (src_fb[i]) nb++; }
-        if (nb > 0) {
-            static int _fbf = 0;
-            if (_fbf++ < 3) {
-                __android_log_print(ANDROID_LOG_ERROR, "BKA-FBFALL",
-                    "fillArgb using RDRAM+0x%X, %d non-zero pixels", g_active_fb_offset, nb);
-            }
-            for (int i = 0; i < W * H; i++) {
-                uint16_t px = src_fb[i];
-                uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
-                uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
-                uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
-                out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
-            }
-            bka_draw_palette_bar(out, W, H);
+    uint16_t* src = (nb_a >= nb_b) ? src_a : src_b;
+
+    { static int _fillog = 0; if (_fillog++ < 10)
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL", "W=%d H=%d nb_a=%d nb_b=%d off=0x%X", W, H, nb_a, nb_b, (unsigned)g_active_fb_offset); }
+
+    if (src && (nb_a > 0 || nb_b > 0)) {
+        for (int i = 0; i < W * H; i++) {
+            uint16_t px = src[i];
+            uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
+            uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
+            uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
+            out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+        }
+    } else {
+        memset(out, 0, W * H * sizeof(jint));
+    }
+
+        bka_draw_palette_bar(out, W, H);
             env->ReleaseIntArrayElements(outArr, out, 0);
             return;
         }
