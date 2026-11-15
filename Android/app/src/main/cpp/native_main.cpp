@@ -408,10 +408,10 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
      * g_active_fb_offset directly to eliminate the race (BKA-FB showed
      * 4096 pixels on one buffer while fillArgb read 0). */
     extern uint32_t g_active_fb_offset;
-    uint16_t* _direct = (gN64_RDRAM && g_active_fb_offset < 0x04000000u - 320u*240u*2u)
+    uint16_t* _direct = (gN64_RDRAM && g_active_fb_offset < 0x04000000u - (uint32_t)(W * H * 2))
                       ? (uint16_t*)(gN64_RDRAM + g_active_fb_offset) : NULL;
     int _direct_nz = 0;
-    if (_direct) for (int _i = 0; _i < 320*240; _i++) if (_direct[_i]) _direct_nz++;
+    if (_direct) for (int _i = 0; _i < W * H; _i++) if (_direct[_i]) _direct_nz++;
 
     /* BKA-SRCFIX: RasterizeTriangle writes to gN64_RDRAM + g_active_fb_offset
      * (0x6e3c440000 in run 81 with px_written=6179/triangle). fillArgb was
