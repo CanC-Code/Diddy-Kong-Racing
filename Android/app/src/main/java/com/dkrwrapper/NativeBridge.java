@@ -25,4 +25,5 @@ public class NativeBridge {
     public static native void updateTexture(int unused);
 
     public static native void nativeUpdateInput(int buttonMask, float stickX, float stickY);
+    public static native void setVirtualInput(int buttons, int stickX, int stickY);
 }

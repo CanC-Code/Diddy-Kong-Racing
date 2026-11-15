@@ -25,7 +25,40 @@ public class NativeGameActivity extends Activity {
         // Content view MUST be set before touching window insets —
         // the decor view doesn't exist until this call.
         GameView gv = new GameView(this);
-        setContentView(gv);
+        // --- r140 START_TEST: Wrap GameView to allow overlay UI ---
+        android.widget.FrameLayout rootLayout = new android.widget.FrameLayout(this);
+        rootLayout.addView(gv);
+        
+        android.widget.Button startBtn = new android.widget.Button(this);
+        startBtn.setText("START");
+        startBtn.setAlpha(0.7f);
+        startBtn.setBackgroundColor(0xFFFF0000); // Red for visibility
+        
+        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
+        params.setMargins(50, 100, 50, 50);
+        
+        startBtn.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, android.view.MotionEvent event) {
+                if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                    NativeBridge.setVirtualInput(0x1000, 0, 0); // N64 START_BUTTON
+                    android.util.Log.d("BKA-Native", "VirtualInput: START DOWN");
+                } else if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
+                    NativeBridge.setVirtualInput(0, 0, 0);
+                    android.util.Log.d("BKA-Native", "VirtualInput: START UP");
+                }
+                return false;
+            }
+        });
+        
+        rootLayout.addView(startBtn, params);
+        setContentView(rootLayout);
+        // --------------------------------------
+
 
         final View decor = getWindow().getDecorView();
         decor.setSystemUiVisibility(

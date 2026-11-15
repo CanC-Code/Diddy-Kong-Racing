@@ -18,6 +18,13 @@ u16 gControllerButtonsPressed[MAXCONTROLLERS];
 u16 gControllerButtonsReleased[MAXCONTROLLERS];
 u8 sPlayerID[16];
 
+// --- Virtual Input Injection (r140) ---
+u16 gVirtualButtons = 0;
+s8 gVirtualStickX = 0;
+s8 gVirtualStickY = 0;
+// --------------------------------------
+
+
 /**
  * Return the serial interface message queue.
  * Official name: joyMessageQ
@@ -71,6 +78,13 @@ s32 input_update(s32 saveDataFlags, s32 updateRate) {
             gControllerPrevData[i] = gControllerCurrData[i];
         }
         osContGetReadData(gControllerCurrData);
+        
+        // --- VIRTUAL INPUT INJECTION (r140) ---
+        gControllerCurrData[0].button |= gVirtualButtons;
+        if (gVirtualStickX != 0) gControllerCurrData[0].stick_x = gVirtualStickX;
+        if (gVirtualStickY != 0) gControllerCurrData[0].stick_y = gVirtualStickY;
+        // --------------------------------------
+
         if (saveDataFlags != 0) {
             settings = get_settings();
             if (SAVE_DATA_FLAG_READ_EEPROM_INDEX(saveDataFlags)) {

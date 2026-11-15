@@ -18,6 +18,15 @@ extern "C" void init_png_texture_loader(const char* base_path);
 #include <EGL/egl.h>
 #include <malloc.h>
 
+// --- Virtual Input Injection (r140) ---
+extern "C" {
+    extern unsigned short gVirtualButtons;
+    extern signed char gVirtualStickX;
+    extern signed char gVirtualStickY;
+}
+// --------------------------------------
+
+
 
 
 extern "C" void bka_install_segv_handler(void);
@@ -489,3 +498,10 @@ Java_com_dkrwrapper_NativeBridge_updateTexture(JNIEnv*, jclass, jint textureId) 
 }
 
 } // extern "C"
+
+JNIEXPORT void JNICALL
+Java_com_dkrwrapper_NativeBridge_setVirtualInput(JNIEnv* env, jclass clazz, jint buttons, jint stickX, jint stickY) {
+    gVirtualButtons = (unsigned short)buttons;
+    gVirtualStickX = (signed char)stickX;
+    gVirtualStickY = (signed char)stickY;
+}
