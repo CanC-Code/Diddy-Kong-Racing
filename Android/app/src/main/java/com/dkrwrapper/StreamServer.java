@@ -72,6 +72,26 @@ public class StreamServer {
             String hdr;
             while ((hdr = readLine(in)) != null && !hdr.isEmpty()) { }
 
+            if ("GET".equals(method) && path.startsWith("/input")) {
+                int btn = 0;
+                if (path.contains("btn=")) {
+                    try {
+                        int idx = path.indexOf("btn=") + 4;
+                        int end = path.indexOf("&", idx);
+                        if (end == -1) end = path.length();
+                        String val = path.substring(idx, end);
+                        if (val.startsWith("0x")) {
+                            btn = Integer.parseInt(val.substring(2), 16);
+                        } else {
+                            btn = Integer.parseInt(val);
+                        }
+                    } catch (Exception e) {}
+                }
+                NativeBridge.setVirtualInput(btn, 0, 0);
+                out.write(("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").getBytes());
+                out.flush();
+                return;
+            }
             if ("GET".equals(method) && path.startsWith("/diag")) {
                 // r134 diag: mobile-data-independent debug page.
                 // Captures logcat BKA_ and DKR_ tags, auto-refresh 2s.
@@ -330,5 +350,17 @@ public class StreamServer {
         "tick();\n" +
         "</script>\n" +
         "</body>\n" +
-        "</html>\n";
+        "
+    <div id="controls" style="position:fixed; top:20px; right:20px; z-index:9999;">
+        <button id="btnStart" style="width:100px; height:100px; background:red; color:white; border-radius:15px; font-size:20px; font-weight:bold; user-select:none; border:none;">START</button>
+    </div>
+    <script>
+        const btnStart = document.getElementById('btnStart');
+        const sendInput = (btn) => { fetch('/input?btn=' + btn).catch(e => console.log(e)); };
+        btnStart.addEventListener('touchstart', (e) => { e.preventDefault(); sendInput('0x1000'); });
+        btnStart.addEventListener('touchend', (e) => { e.preventDefault(); sendInput('0'); });
+        btnStart.addEventListener('mousedown', (e) => { e.preventDefault(); sendInput('0x1000'); });
+        btnStart.addEventListener('mouseup', (e) => { e.preventDefault(); sendInput('0'); });
+    </script>
+    </html>\n";
 }
