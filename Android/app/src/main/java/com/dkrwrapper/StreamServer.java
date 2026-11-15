@@ -288,6 +288,9 @@ public class StreamServer {
 
             try {
                 Native.fillArgb(pixels);
+                if (frame == 1 || frame % 150 == 0) {
+                    Log.i(TAG, "raw frame " + frame + " px0=" + pixels[0]);
+                }
                 for (int i = 0; i < pixels.length; i++) {
                     int p = pixels[i];
                     raw[i*4]   = (byte)((p >> 16) & 0xFF);

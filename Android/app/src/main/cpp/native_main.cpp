@@ -358,10 +358,17 @@ static void bka_draw_palette_bar(jint* out, int W, int H) {
 }
 
 extern "C" JNIEXPORT void JNICALL
+extern "C" JNIEXPORT void JNICALL
 Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray outArr) {
-    if (!gN64_RDRAM || !outArr) return;
+    if (!outArr) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL", "outArr is NULL");
+        return;
+    }
     jint* out = env->GetIntArrayElements(outArr, nullptr);
-    if (!out) return;
+    if (!out) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL", "GetIntArrayElements failed");
+        return;
+    }
 
     int alen = env->GetArrayLength(outArr);
     const int W = 292, H = 216;
@@ -369,7 +376,14 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
 
     extern uint8_t* gN64_RDRAM;
     extern uint32_t g_active_fb_offset;
-    
+
+    if (!gN64_RDRAM) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL", "gN64_RDRAM is NULL");
+        memset(out, 0, count * sizeof(jint));
+        env->ReleaseIntArrayElements(outArr, out, 0);
+        return;
+    }
+
     uint16_t* src_a = (gN64_RDRAM && g_active_fb_offset < 0x04000000u - (uint32_t)(count * 2)) ? (uint16_t*)(gN64_RDRAM + g_active_fb_offset) : NULL;
     uint32_t _other = (g_active_fb_offset == 0x440000u) ? 0x400000u : 0x440000u;
     uint16_t* src_b = (gN64_RDRAM && _other < 0x04000000u - (uint32_t)(count * 2)) ? (uint16_t*)(gN64_RDRAM + _other) : NULL;
@@ -382,7 +396,7 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
 
     static int _fillog = 0;
     if (_fillog++ < 10) {
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL", "W=%d H=%d count=%d nb_a=%d nb_b=%d off=0x%X", W, H, count, nb_a, nb_b, (unsigned)g_active_fb_offset);
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL", "W=%d H=%d count=%d nb_a=%d nb_b=%d off=0x%X src=%p out=%p px0=%04X", W, H, count, nb_a, nb_b, (unsigned)g_active_fb_offset, (void*)src, (void*)out, (src && count>0) ? src[0] : 0);
     }
 
     if (src && (nb_a > 0 || nb_b > 0)) {
