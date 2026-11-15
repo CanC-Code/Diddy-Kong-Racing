@@ -376,25 +376,52 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         return;
     }
 
-    // Read EXACTLY from g_active_fb_offset, matching renderFrame() (native view)
-    uint16_t* src = (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
+    // Read BOTH framebuffers, pick whichever has more non-zero pixels
+    uint32_t candidates[2] = { 0x400000, 0x440000 };
+    uint16_t* best_src = NULL;
+    int best_nz = 0;
+    uint32_t best_off = 0;
 
-    for (int i = 0; i < count; i++) {
-        uint16_t px = src[i];
-        uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
-        uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
-        uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
-        out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+    for (int c = 0; c < 2; c++) {
+        uint32_t off = candidates[c];
+        if (off >= 0x04000000u - (uint32_t)(count * 2)) continue;
+        uint16_t* src = (uint16_t*)(gN64_RDRAM + off);
+        int nz = 0;
+        for (int i = 0; i < count; i++) if (src[i]) nz++;
+        if (nz > best_nz) {
+            best_nz = nz;
+            best_src = src;
+            best_off = off;
+        }
     }
 
-    // Diagnostic: count non-black pixels in output
-    int colored = 0;
-    for (int i = 0; i < count; i++) {
-        if (out[i] != (jint)0xFF000000) colored++;
+    if (best_src && best_nz > 0) {
+        for (int i = 0; i < count; i++) {
+            uint16_t px = best_src[i];
+            uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
+            uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
+            uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
+            out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+        }
+    } else {
+        memset(out, 0, count * sizeof(jint));
     }
-    static int _fillog = 0;
-    if (_fillog++ < 20 || _fillog % 100 == 0) {
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL2", "off=0x%X count=%d colored=%d px0src=%04X px0out=%08X", (unsigned)g_active_fb_offset, count, colored, src[0], (unsigned)out[0]);
+
+    // Log only when the picked buffer or color count changes meaningfully
+    static uint32_t _last_logged_off = 0xFFFFFFFF;
+    static int _last_logged_nz = -1;
+    static int _same_logged = 0;
+    if (best_off != _last_logged_off || (best_nz > 1000 && _last_logged_nz < 1000)) {
+        _last_logged_off = best_off;
+        _last_logged_nz = best_nz;
+        _same_logged = 0;
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL3", "picked off=0x%X nz=%d px0=%04X", best_off, best_nz, (best_src && count>0) ? best_src[0] : 0);
+    } else {
+        _same_logged++;
+        if (_same_logged == 30) {
+            _same_logged = 0;
+            __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL3", "steady off=0x%X nz=%d", _last_logged_off, _last_logged_nz);
+        }
     }
 
     env->ReleaseIntArrayElements(outArr, out, 0);
