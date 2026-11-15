@@ -364,11 +364,13 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     if (!out) return;
 
     int alen = env->GetArrayLength(outArr);
-    const int W = 320, H = 240;
+    const int W = 292, H = 216;
     int count = (alen < W * H) ? alen : W * H;
 
     extern uint8_t* gN64_RDRAM;
     extern uint32_t g_active_fb_offset;
+    extern uint8_t* gVideoLastFramebuffer;
+    extern uint8_t* gVideoCurrFramebuffer;
 
     if (!gN64_RDRAM) {
         memset(out, 0, count * sizeof(jint));
@@ -376,20 +378,42 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         return;
     }
 
-    uint16_t* src = (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
+    // Read from gVideoLastFramebuffer (the just-swapped display buffer).
+    // Fall back to RDRAM+offset if that pointer isn't set.
+    uint16_t* src = NULL;
+    const char* src_tag = "none";
+    if (gVideoLastFramebuffer) {
+        src = (uint16_t*)gVideoLastFramebuffer;
+        src_tag = "last";
+    } else if (gVideoCurrFramebuffer) {
+        src = (uint16_t*)gVideoCurrFramebuffer;
+        src_tag = "curr";
+    } else {
+        src = (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
+        src_tag = "rdram";
+    }
+
     int nz = 0;
-    for (int i = 0; i < count; i++) {
-        uint16_t px = src[i];
-        uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
-        uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
-        uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
-        out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
-        if (px) nz++;
+    if (src) {
+        for (int i = 0; i < count; i++) {
+            uint16_t px = src[i];
+            uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
+            uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
+            uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
+            out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+            if (px) nz++;
+        }
+    } else {
+        memset(out, 0, count * sizeof(jint));
     }
 
     static int _logctr = 0;
     if ((_logctr++ % 60) == 0 || nz > 1000) {
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL6", "active=0x%X W=%d H=%d nz=%d px0=%04X", (unsigned)g_active_fb_offset, W, H, nz, (count>0) ? src[0] : 0);
+        long long off_last = (gVideoLastFramebuffer && gN64_RDRAM) ? (gVideoLastFramebuffer - gN64_RDRAM) : -1;
+        long long off_curr = (gVideoCurrFramebuffer && gN64_RDRAM) ? (gVideoCurrFramebuffer - gN64_RDRAM) : -1;
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL7",
+            "src=%s W=%d H=%d nz=%d off_last=%lld off_curr=%lld active=0x%X",
+            src_tag, W, H, nz, off_last, off_curr, (unsigned)g_active_fb_offset);
     }
 
     env->ReleaseIntArrayElements(outArr, out, 0);
