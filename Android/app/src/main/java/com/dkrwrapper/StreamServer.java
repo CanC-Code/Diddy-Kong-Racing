@@ -441,9 +441,14 @@ public class StreamServer {
         "if(x.done)return;\n" +
         "var nb=new Uint8Array(buf.length+x.value.length);\n" +
         "nb.set(buf,0);nb.set(x.value,buf.length);buf=nb;\n" +
-        "while(buf.length>=need){im.data.set(buf.subarray(0,need));cx.putImageData(im,0,0);buf=buf.subarray(need);}\n" +
+        "while(buf.length>=4){\n" +
+        "  var len=(buf[0]<<24)|(buf[1]<<16)|(buf[2]<<8)|buf[3];\n" +
+        "  if(buf.length<4+len)break;\n" +
+        "  var frame=buf.subarray(4,4+len);\n" +
+        "  if(frame.length===need){im.data.set(frame);cx.putImageData(im,0,0);}\n" +
+        "  buf=buf.subarray(4+len);\n" +
+        "}\n" +
         "pump();});}\n" +
-        "pump();\n" +
         "}).catch(function(){setTimeout(tick,1000);});\n" +
         "}\n" +
         "tick();\n" +
