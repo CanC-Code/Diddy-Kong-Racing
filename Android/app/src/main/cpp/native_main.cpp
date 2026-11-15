@@ -186,7 +186,7 @@ static void dumpFramebufferPPM(int frame_num) {
         uint16_t px = fb[i];
         uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
         uint8_t g = (px >> 5) & 0x3F;  g = (g << 2) | (g >> 4);
-        uint8_t b = px & 0x1F;         b = (b << 3) | (b >> 2);
+        uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
         fputc(r, f); fputc(g, f); fputc(b, f);
     }
     fclose(f);
@@ -224,8 +224,8 @@ static void renderFrame() {
             for (int x = 0; x < outW; x++) {
                 uint16_t px = srow[x / scale];
                 uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
-                uint8_t g = (px >> 5)  & 0x3F; g = (g << 2) | (g >> 4);
-                uint8_t b = px & 0x1F;         b = (b << 3) | (b >> 2);
+                uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
+                uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
                 drow[x] = 0xFF000000u | (b << 16) | (g << 8) | r;
             }
         }
@@ -371,7 +371,7 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     jint* out = env->GetIntArrayElements(outArr, nullptr);
     if (!out) return;
 
-    const int W = 320, H = 240;
+    const int W = 292, H = 216;
 
     if (!gVideoLastFramebuffer || !gVideoCurrFramebuffer) {
         // PORT: gVideo* are null; read from gN64_RDRAM + g_active_fb_offset
@@ -388,8 +388,8 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
             for (int i = 0; i < W * H; i++) {
                 uint16_t px = src_fb[i];
                 uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
-                uint8_t g = (px >> 5)  & 0x3F; g = (g << 2) | (g >> 4);
-                uint8_t b = px & 0x1F;         b = (b << 3) | (b >> 2);
+                uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
+                uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
                 out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
             }
             bka_draw_palette_bar(out, W, H);
@@ -468,8 +468,8 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     for (int i = 0; i < out_count; i++) {
         uint16_t px = (i < 320*240 && src) ? src[i] : 0;
         uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
-        uint8_t g = (px >> 5)  & 0x3F; g = (g << 2) | (g >> 4);
-        uint8_t b = px & 0x1F;         b = (b << 3) | (b >> 2);
+        uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
+        uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
         out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
     }
 
