@@ -358,6 +358,7 @@ static void bka_draw_palette_bar(jint* out, int W, int H) {
 }
 
 extern "C" JNIEXPORT void JNICALL
+extern "C" JNIEXPORT void JNICALL
 Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray outArr) {
     if (!outArr) {
         __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL", "outArr is NULL");
@@ -383,24 +384,32 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         return;
     }
 
-    uint16_t* src_a = (gN64_RDRAM && g_active_fb_offset < 0x04000000u - (uint32_t)(count * 2)) ? (uint16_t*)(gN64_RDRAM + g_active_fb_offset) : NULL;
-    uint32_t _other = (g_active_fb_offset == 0x440000u) ? 0x400000u : 0x440000u;
-    uint16_t* src_b = (gN64_RDRAM && _other < 0x04000000u - (uint32_t)(count * 2)) ? (uint16_t*)(gN64_RDRAM + _other) : NULL;
+    uint32_t candidates[3] = {0x400000, 0x420000, g_active_fb_offset};
+    uint16_t* best_src = NULL;
+    int best_nz = 0;
+    uint32_t best_off = 0;
 
-    int nb_a = 0, nb_b = 0;
-    if (src_a) for (int i = 0; i < count; i++) if (src_a[i]) nb_a++;
-    if (src_b) for (int i = 0; i < count; i++) if (src_b[i]) nb_b++;
-
-    uint16_t* src = (nb_a >= nb_b) ? src_a : src_b;
-
-    static int _fillog = 0;
-    if (_fillog++ < 10) {
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL", "W=%d H=%d count=%d nb_a=%d nb_b=%d off=0x%X src=%p out=%p px0=%04X", W, H, count, nb_a, nb_b, (unsigned)g_active_fb_offset, (void*)src, (void*)out, (src && count>0) ? src[0] : 0);
+    for (int c = 0; c < 3; c++) {
+        uint32_t off = candidates[c];
+        if (off >= 0x04000000u - (uint32_t)(count * 2)) continue;
+        uint16_t* src = (uint16_t*)(gN64_RDRAM + off);
+        int nz = 0;
+        for (int i = 0; i < count; i++) if (src[i]) nz++;
+        if (nz > best_nz) {
+            best_nz = nz;
+            best_src = src;
+            best_off = off;
+        }
     }
 
-    if (src && (nb_a > 0 || nb_b > 0)) {
+    static int _fillog = 0;
+    if (_fillog++ < 30 || _fillog % 100 == 0) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL", "W=%d H=%d count=%d best_off=0x%X best_nz=%d px0=%04X", W, H, count, best_off, best_nz, (best_src && count>0) ? best_src[0] : 0);
+    }
+
+    if (best_src && best_nz > 0) {
         for (int i = 0; i < count; i++) {
-            uint16_t px = src[i];
+            uint16_t px = best_src[i];
             uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
             uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
             uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
