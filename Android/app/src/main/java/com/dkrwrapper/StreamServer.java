@@ -15,7 +15,7 @@ public class StreamServer {
     public static void setContext(android.content.Context ctx) { sCtx = ctx.getApplicationContext(); }
 
     private static final String TAG = "BKA-Stream";
-    static final int W = 292, H = 216;
+    static final int W = 320, H = 240;
     private static final int PORT = 8081;
     private static final int FPS = 30;
 
