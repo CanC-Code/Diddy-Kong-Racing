@@ -73,12 +73,10 @@ s32 input_update(s32 saveDataFlags, s32 updateRate) {
     s32 i;
 
     if (osRecvMesg(&sSIMesgQueue, &unusedMsg, OS_MESG_NOBLOCK) == 0) {
-        // Back up old controller data
         for (i = 0; i < MAXCONTROLLERS; i++) {
             gControllerPrevData[i] = gControllerCurrData[i];
         }
         osContGetReadData(gControllerCurrData);
-        
         if (saveDataFlags != 0) {
             settings = get_settings();
             if (SAVE_DATA_FLAG_READ_EEPROM_INDEX(saveDataFlags)) {
@@ -102,40 +100,41 @@ s32 input_update(s32 saveDataFlags, s32 updateRate) {
             if (saveDataFlags & SAVE_DATA_FLAG_ERASE_SAVE_DATA) {
                 erase_save_file(SAVE_DATA_FLAG_WRITE_SAVE_FILE_NUMBER(saveDataFlags), settings);
             }
-            //!@bug: These next two if statements check the same bits
-            // as the ones used to set the save file number to read from.
             if (saveDataFlags & SAVE_DATA_FLAG_READ_EEPROM_SETTINGS) {
                 read_eeprom_settings(get_eeprom_settings_pointer());
             }
             if (saveDataFlags & SAVE_DATA_FLAG_WRITE_EEPROM_SETTINGS) {
                 write_eeprom_settings(get_eeprom_settings_pointer());
             }
-            // Reset all flags
             saveDataFlags = 0;
         }
         rumble_update(updateRate);
         osContStartReadData(&sSIMesgQueue);
+    } else {
+        // Ensure previous state is backed up for edge detection even if SI fails
+        for (i = 0; i < MAXCONTROLLERS; i++) {
+            gControllerPrevData[i] = gControllerCurrData[i];
+        }
     }
+
     for (i = 0; i < MAXCONTROLLERS; i++) {
-        // --- VIRTUAL INPUT INJECTION (r140) ---
+        if (sNoControllerPluggedIn) {
+            gControllerCurrData[i].button = 0;
+            gControllerCurrData[i].stick_x = 0;
+            gControllerCurrData[i].stick_y = 0;
+        }
+        
+        // --- VIRTUAL INPUT INJECTION (r141) ---
         if (i == 0) {
-            if (sNoControllerPluggedIn) {
-                gControllerCurrData[i].button = gVirtualButtons;
-                gControllerCurrData[i].stick_x = gVirtualStickX;
-                gControllerCurrData[i].stick_y = gVirtualStickY;
-            } else {
-                gControllerCurrData[i].button |= gVirtualButtons;
-                if (gVirtualStickX != 0) gControllerCurrData[i].stick_x = gVirtualStickX;
-                if (gVirtualStickY != 0) gControllerCurrData[i].stick_y = gVirtualStickY;
-            }
-        } else {
-            if (sNoControllerPluggedIn) {
-                gControllerCurrData[i].button = 0;
+            gControllerCurrData[i].button |= gVirtualButtons;
+            if (gVirtualStickX != 0) gControllerCurrData[i].stick_x = gVirtualStickX;
+            if (gVirtualStickY != 0) gControllerCurrData[i].stick_y = gVirtualStickY;
+            if (gVirtualButtons != 0 || gVirtualStickX != 0 || gVirtualStickY != 0) {
+                osSyncPrintf("BKA-INPUT: Applied buttons=0x%04X stick=%d,%d\n", gVirtualButtons, gVirtualStickX, gVirtualStickY);
             }
         }
         // --------------------------------------
-        // XOR the diff between the last read of the controller data with the current read to see what buttons have been
-        // pushed and released.
+
         gControllerButtonsPressed[i] =
             ((gControllerCurrData[i].button ^ gControllerPrevData[i].button) & gControllerCurrData[i].button) &
             gButtonMask;

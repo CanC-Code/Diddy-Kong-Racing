@@ -87,6 +87,7 @@ public class StreamServer {
                         }
                     }
                 } catch (Exception e) {}
+                android.util.Log.d("BKA-Stream", "setVirtualInput: btn=" + Integer.toHexString(btn) + " sx=" + sx + " sy=" + sy);
                 NativeBridge.setVirtualInput(btn, sx, sy);
                 out.write(("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").getBytes());
                 out.flush();
