@@ -376,13 +376,13 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         return;
     }
 
-    // Read BOTH framebuffers, pick whichever has more non-zero pixels
-    uint32_t candidates[2] = { 0x400000, 0x440000 };
+    // Scan all known DKR framebuffer offsets PLUS g_active_fb_offset
+    uint32_t candidates[4] = { g_active_fb_offset, 0x400000, 0x420000, 0x440000 };
     uint16_t* best_src = NULL;
     int best_nz = 0;
     uint32_t best_off = 0;
 
-    for (int c = 0; c < 2; c++) {
+    for (int c = 0; c < 4; c++) {
         uint32_t off = candidates[c];
         if (off >= 0x04000000u - (uint32_t)(count * 2)) continue;
         uint16_t* src = (uint16_t*)(gN64_RDRAM + off);
@@ -407,21 +407,10 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         memset(out, 0, count * sizeof(jint));
     }
 
-    // Log only when the picked buffer or color count changes meaningfully
-    static uint32_t _last_logged_off = 0xFFFFFFFF;
-    static int _last_logged_nz = -1;
-    static int _same_logged = 0;
-    if (best_off != _last_logged_off || (best_nz > 1000 && _last_logged_nz < 1000)) {
-        _last_logged_off = best_off;
-        _last_logged_nz = best_nz;
-        _same_logged = 0;
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL3", "picked off=0x%X nz=%d px0=%04X", best_off, best_nz, (best_src && count>0) ? best_src[0] : 0);
-    } else {
-        _same_logged++;
-        if (_same_logged == 30) {
-            _same_logged = 0;
-            __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL3", "steady off=0x%X nz=%d", _last_logged_off, _last_logged_nz);
-        }
+    // Log every 60th call regardless of change, so we see ALL candidate offsets
+    static int _logctr = 0;
+    if ((_logctr++ % 60) == 0 || (best_nz > 1000 && _logctr < 60)) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL4", "active=0x%X best_off=0x%X nz=%d px0=%04X", (unsigned)g_active_fb_offset, best_off, best_nz, (best_src && count>0) ? best_src[0] : 0);
     }
 
     env->ReleaseIntArrayElements(outArr, out, 0);
