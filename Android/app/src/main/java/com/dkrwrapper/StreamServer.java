@@ -326,6 +326,17 @@ public class StreamServer {
         "</style>\n" +
         "</head>\n" +
         "<body>\n" +
+        "    <div id=\"controls\" style=\"position:fixed; top:20px; right:20px; z-index:9999;\">\n" +
+        "        <button id=\"btnStart\" style=\"width:100px; height:100px; background:red; color:white; border-radius:15px; font-size:20px; font-weight:bold; user-select:none; border:none;\">START</button>\n" +
+        "    </div>\n" +
+        "    <script>\n" +
+        "        const btnStart = document.getElementById('btnStart');\n" +
+        "        const sendInput = (btn) => { fetch('/input?btn=' + btn).catch(e => console.log(e)); };\n" +
+        "        btnStart.addEventListener('touchstart', (e) => { e.preventDefault(); sendInput('0x1000'); });\n" +
+        "        btnStart.addEventListener('touchend', (e) => { e.preventDefault(); sendInput('0'); });\n" +
+        "        btnStart.addEventListener('mousedown', (e) => { e.preventDefault(); sendInput('0x1000'); });\n" +
+        "        btnStart.addEventListener('mouseup', (e) => { e.preventDefault(); sendInput('0'); });\n" +
+        "    </script>\n" +
         "<canvas id='screen'></canvas>\n" +
         "<div id='hud'>DKR streaming</div>\n" +
         "<script>\n" +
@@ -350,17 +361,5 @@ public class StreamServer {
         "tick();\n" +
         "</script>\n" +
         "</body>\n" +
-        "
-    <div id="controls" style="position:fixed; top:20px; right:20px; z-index:9999;">
-        <button id="btnStart" style="width:100px; height:100px; background:red; color:white; border-radius:15px; font-size:20px; font-weight:bold; user-select:none; border:none;">START</button>
-    </div>
-    <script>
-        const btnStart = document.getElementById('btnStart');
-        const sendInput = (btn) => { fetch('/input?btn=' + btn).catch(e => console.log(e)); };
-        btnStart.addEventListener('touchstart', (e) => { e.preventDefault(); sendInput('0x1000'); });
-        btnStart.addEventListener('touchend', (e) => { e.preventDefault(); sendInput('0'); });
-        btnStart.addEventListener('mousedown', (e) => { e.preventDefault(); sendInput('0x1000'); });
-        btnStart.addEventListener('mouseup', (e) => { e.preventDefault(); sendInput('0'); });
-    </script>
-    </html>\n";
+        "</html>\n";
 }
