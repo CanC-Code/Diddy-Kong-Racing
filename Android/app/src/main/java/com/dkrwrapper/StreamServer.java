@@ -381,7 +381,7 @@ public class StreamServer {
         "    const el = document.getElementById(id);\n" +
         "    if (!el) return;\n" +
         "    el.addEventListener('pointerdown', (e) => { e.preventDefault(); btnState |= mask; send(); el.setPointerCapture(e.pointerId); });\n" +
-        "    el.addEventListener('pointerup', (e) => { e.preventDefault(); btnState &= ~mask; send(); el.releasePointerCapture(e.pointerId); });\n" +
+        "    el.addEventListener('pointerup', (e) => { e.preventDefault(); el.releasePointerCapture(e.pointerId); setTimeout(() => { btnState &= ~mask; send(); }, 100); });\n" +
         "    el.addEventListener('pointercancel', (e) => { e.preventDefault(); btnState &= ~mask; send(); });\n" +
         "  };\n" +
         "  \n" +

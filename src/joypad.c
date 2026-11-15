@@ -1,4 +1,7 @@
 #include "joypad.h"
+#include <android/log.h>
+#define LOG_TAG "BKA-INPUT"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #include "game.h"
 #include "menu.h"
 #include "save_layout.h"
@@ -130,7 +133,7 @@ s32 input_update(s32 saveDataFlags, s32 updateRate) {
             if (gVirtualStickX != 0) gControllerCurrData[i].stick_x = gVirtualStickX;
             if (gVirtualStickY != 0) gControllerCurrData[i].stick_y = gVirtualStickY;
             if (gVirtualButtons != 0 || gVirtualStickX != 0 || gVirtualStickY != 0) {
-                osSyncPrintf("BKA-INPUT: Applied buttons=0x%04X stick=%d,%d\n", gVirtualButtons, gVirtualStickX, gVirtualStickY);
+                LOGI("Applied buttons=0x%04X stick=%d,%d", gVirtualButtons, gVirtualStickX, gVirtualStickY);
             }
         }
         // --------------------------------------
