@@ -358,16 +358,11 @@ static void bka_draw_palette_bar(jint* out, int W, int H) {
 }
 
 extern "C" JNIEXPORT void JNICALL
+extern "C" JNIEXPORT void JNICALL
 Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray outArr) {
-    if (!outArr) {
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL", "outArr is NULL");
-        return;
-    }
+    if (!outArr) return;
     jint* out = env->GetIntArrayElements(outArr, nullptr);
-    if (!out) {
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL", "GetIntArrayElements failed");
-        return;
-    }
+    if (!out) return;
 
     int alen = env->GetArrayLength(outArr);
     const int W = 292, H = 216;
@@ -377,46 +372,32 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     extern uint32_t g_active_fb_offset;
 
     if (!gN64_RDRAM) {
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL", "gN64_RDRAM is NULL");
         memset(out, 0, count * sizeof(jint));
         env->ReleaseIntArrayElements(outArr, out, 0);
         return;
     }
 
-    uint32_t candidates[3] = {0x400000, 0x420000, g_active_fb_offset};
-    uint16_t* best_src = NULL;
-    int best_nz = 0;
-    uint32_t best_off = 0;
+    // Read EXACTLY from g_active_fb_offset, matching renderFrame() (native view)
+    uint16_t* src = (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
 
-    for (int c = 0; c < 3; c++) {
-        uint32_t off = candidates[c];
-        if (off >= 0x04000000u - (uint32_t)(count * 2)) continue;
-        uint16_t* src = (uint16_t*)(gN64_RDRAM + off);
-        int nz = 0;
-        for (int i = 0; i < count; i++) if (src[i]) nz++;
-        if (nz > best_nz) {
-            best_nz = nz;
-            best_src = src;
-            best_off = off;
-        }
+    for (int i = 0; i < count; i++) {
+        uint16_t px = src[i];
+        uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
+        uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
+        uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
+        out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
     }
 
+    // Diagnostic: count non-black pixels in output
+    int colored = 0;
+    for (int i = 0; i < count; i++) {
+        if (out[i] != (jint)0xFF000000) colored++;
+    }
     static int _fillog = 0;
-    if (_fillog++ < 30 || _fillog % 100 == 0) {
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL", "W=%d H=%d count=%d best_off=0x%X best_nz=%d px0=%04X", W, H, count, best_off, best_nz, (best_src && count>0) ? best_src[0] : 0);
+    if (_fillog++ < 20 || _fillog % 100 == 0) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL2", "off=0x%X count=%d colored=%d px0src=%04X px0out=%08X", (unsigned)g_active_fb_offset, count, colored, src[0], (unsigned)out[0]);
     }
 
-    if (best_src && best_nz > 0) {
-        for (int i = 0; i < count; i++) {
-            uint16_t px = best_src[i];
-            uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
-            uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
-            uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
-            out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
-        }
-    } else {
-        memset(out, 0, count * sizeof(jint));
-    }
     env->ReleaseIntArrayElements(outArr, out, 0);
 }
 
