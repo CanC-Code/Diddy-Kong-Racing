@@ -358,7 +358,6 @@ static void bka_draw_palette_bar(jint* out, int W, int H) {
 }
 
 extern "C" JNIEXPORT void JNICALL
-extern "C" JNIEXPORT void JNICALL
 Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray outArr) {
     if (!outArr) return;
     jint* out = env->GetIntArrayElements(outArr, nullptr);
