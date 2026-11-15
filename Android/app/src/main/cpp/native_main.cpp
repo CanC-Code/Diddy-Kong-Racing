@@ -202,9 +202,9 @@ static void renderFrame() {
     if (g_rs.lastNs && t - g_rs.lastNs < 33000000LL) return;
     g_rs.lastNs = t;
 
-    if (!gN64_RDRAM || g_active_fb_offset > (0x04000000u - (320u*240u*2u))) { static int _fb_guard = 0; if (_fb_guard++ < 5) __android_log_print(ANDROID_LOG_ERROR, "BKA-STREAM", "guard: bad fb_offset=%u rddram=%p", g_active_fb_offset, (void*)gN64_RDRAM); return; }
+    if (!gN64_RDRAM || g_active_fb_offset > (0x04000000u - ((uint32_t)(W * H)*2u))) { static int _fb_guard = 0; if (_fb_guard++ < 5) __android_log_print(ANDROID_LOG_ERROR, "BKA-STREAM", "guard: bad fb_offset=%u rddram=%p", g_active_fb_offset, (void*)gN64_RDRAM); return; }
     uint16_t* src = (uint16_t*)(gN64_RDRAM + g_active_fb_offset);
-    if (!gN64_RDRAM || g_active_fb_offset > 0x04000000u - (320u*240u*2u)) { memset(gN64_RDRAM ? (void*)(gN64_RDRAM + 0x1000) : (void*)0, 0, 0); goto fillArgb_skip; }
+    if (!gN64_RDRAM || g_active_fb_offset > 0x04000000u - ((uint32_t)(W * H)*2u)) { memset(gN64_RDRAM ? (void*)(gN64_RDRAM + 0x1000) : (void*)0, 0, 0); goto fillArgb_skip; }
     fillArgb_skip: (void)0;
 
     ANativeWindow_Buffer buf;
