@@ -355,8 +355,8 @@ static void bka_draw_palette_bar(jint* out, int W, int H) {
             for (int x = i * 16; x < (i + 1) * 16; x++)
                 if (x < W && y < H) out[y * W + x] = color;
     }
+}
 
-extern "C" JNIEXPORT void JNICALL
 extern "C" JNIEXPORT void JNICALL
 Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray outArr) {
     if (!outArr) {
