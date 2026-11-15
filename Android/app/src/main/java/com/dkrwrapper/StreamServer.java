@@ -332,9 +332,9 @@ public class StreamServer {
         "    <script>\n" +
         "        const btnStart = document.getElementById('btnStart');\n" +
         "        const sendInput = (btn) => { fetch('/input?btn=' + btn).catch(e => console.log(e)); };\n" +
-        "        btnStart.addEventListener('touchstart', (e) => { e.preventDefault(); sendInput('0x1000'); });\n" +
+        "        btnStart.addEventListener('touchstart', (e) => { e.preventDefault(); sendInput('0x9000'); });\n" +
         "        btnStart.addEventListener('touchend', (e) => { e.preventDefault(); sendInput('0'); });\n" +
-        "        btnStart.addEventListener('mousedown', (e) => { e.preventDefault(); sendInput('0x1000'); });\n" +
+        "        btnStart.addEventListener('mousedown', (e) => { e.preventDefault(); sendInput('0x9000'); });\n" +
         "        btnStart.addEventListener('mouseup', (e) => { e.preventDefault(); sendInput('0'); });\n" +
         "    </script>\n" +
         "<canvas id='screen'></canvas>\n" +

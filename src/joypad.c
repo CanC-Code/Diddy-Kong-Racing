@@ -79,12 +79,6 @@ s32 input_update(s32 saveDataFlags, s32 updateRate) {
         }
         osContGetReadData(gControllerCurrData);
         
-        // --- VIRTUAL INPUT INJECTION (r140) ---
-        gControllerCurrData[0].button |= gVirtualButtons;
-        if (gVirtualStickX != 0) gControllerCurrData[0].stick_x = gVirtualStickX;
-        if (gVirtualStickY != 0) gControllerCurrData[0].stick_y = gVirtualStickY;
-        // --------------------------------------
-
         if (saveDataFlags != 0) {
             settings = get_settings();
             if (SAVE_DATA_FLAG_READ_EEPROM_INDEX(saveDataFlags)) {
@@ -123,9 +117,23 @@ s32 input_update(s32 saveDataFlags, s32 updateRate) {
         osContStartReadData(&sSIMesgQueue);
     }
     for (i = 0; i < MAXCONTROLLERS; i++) {
-        if (sNoControllerPluggedIn) {
-            gControllerCurrData[i].button = 0;
+        // --- VIRTUAL INPUT INJECTION (r140) ---
+        if (i == 0) {
+            if (sNoControllerPluggedIn) {
+                gControllerCurrData[i].button = gVirtualButtons;
+                gControllerCurrData[i].stick_x = gVirtualStickX;
+                gControllerCurrData[i].stick_y = gVirtualStickY;
+            } else {
+                gControllerCurrData[i].button |= gVirtualButtons;
+                if (gVirtualStickX != 0) gControllerCurrData[i].stick_x = gVirtualStickX;
+                if (gVirtualStickY != 0) gControllerCurrData[i].stick_y = gVirtualStickY;
+            }
+        } else {
+            if (sNoControllerPluggedIn) {
+                gControllerCurrData[i].button = 0;
+            }
         }
+        // --------------------------------------
         // XOR the diff between the last read of the controller data with the current read to see what buttons have been
         // pushed and released.
         gControllerButtonsPressed[i] =
