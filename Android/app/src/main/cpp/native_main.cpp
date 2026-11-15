@@ -376,7 +376,7 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         return;
     }
 
-    // Scan all known DKR framebuffer offsets PLUS g_active_fb_offset
+    // Scan candidate framebuffer offsets
     uint32_t candidates[4] = { g_active_fb_offset, 0x400000, 0x420000, 0x440000 };
     uint16_t* best_src = NULL;
     int best_nz = 0;
@@ -395,22 +395,47 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
         }
     }
 
-    if (best_src && best_nz > 0) {
-        for (int i = 0; i < count; i++) {
-            uint16_t px = best_src[i];
-            uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
-            uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
-            uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
-            out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+    // Cache: remember last good frame
+    static jint* g_last_good = NULL;
+    static int g_last_good_valid = 0;
+
+    if (best_src && best_nz > 1000) {
+        // New content found
+        if (!g_last_good) g_last_good = (jint*)malloc(count * sizeof(jint));
+        if (g_last_good) {
+            for (int i = 0; i < count; i++) {
+                uint16_t px = best_src[i];
+                uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
+                uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
+                uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
+                jint argb = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+                out[i] = argb;
+                g_last_good[i] = argb;
+            }
+            g_last_good_valid = 1;
         }
+    } else if (g_last_good && g_last_good_valid) {
+        // No new content — replay last good
+        for (int i = 0; i < count; i++) out[i] = g_last_good[i];
     } else {
-        memset(out, 0, count * sizeof(jint));
+        // No content, no cache
+        for (int i = 0; i < count; i++) {
+            if (best_src) {
+                uint16_t px = best_src[i];
+                uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
+                uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
+                uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
+                out[i] = (jint)(0xFF000000u | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+            } else {
+                out[i] = (jint)0xFF000000;
+            }
+        }
     }
 
-    // Log every 60th call regardless of change, so we see ALL candidate offsets
+    // Periodic logging
     static int _logctr = 0;
-    if ((_logctr++ % 60) == 0 || (best_nz > 1000 && _logctr < 60)) {
-        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL4", "active=0x%X best_off=0x%X nz=%d px0=%04X", (unsigned)g_active_fb_offset, best_off, best_nz, (best_src && count>0) ? best_src[0] : 0);
+    if ((_logctr++ % 60) == 0) {
+        __android_log_print(ANDROID_LOG_ERROR, "BKA-FILL5", "active=0x%X best_off=0x%X nz=%d cached=%d", (unsigned)g_active_fb_offset, best_off, best_nz, g_last_good_valid);
     }
 
     env->ReleaseIntArrayElements(outArr, out, 0);
