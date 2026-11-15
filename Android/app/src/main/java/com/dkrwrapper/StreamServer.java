@@ -74,20 +74,20 @@ public class StreamServer {
 
             if ("GET".equals(method) && path.startsWith("/input")) {
                 int btn = 0;
-                if (path.contains("btn=")) {
-                    try {
-                        int idx = path.indexOf("btn=") + 4;
-                        int end = path.indexOf("&", idx);
-                        if (end == -1) end = path.length();
-                        String val = path.substring(idx, end);
-                        if (val.startsWith("0x")) {
-                            btn = Integer.parseInt(val.substring(2), 16);
-                        } else {
-                            btn = Integer.parseInt(val);
+                int sx = 0;
+                int sy = 0;
+                try {
+                    String query = path.contains("?") ? path.substring(path.indexOf("?") + 1) : "";
+                    for (String param : query.split("&")) {
+                        String[] kv = param.split("=");
+                        if (kv.length == 2) {
+                            if (kv[0].equals("btn")) btn = Integer.parseInt(kv[1], 16);
+                            if (kv[0].equals("sx")) sx = Integer.parseInt(kv[1]);
+                            if (kv[0].equals("sy")) sy = Integer.parseInt(kv[1]);
                         }
-                    } catch (Exception e) {}
-                }
-                NativeBridge.setVirtualInput(btn, 0, 0);
+                    }
+                } catch (Exception e) {}
+                NativeBridge.setVirtualInput(btn, sx, sy);
                 out.write(("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").getBytes());
                 out.flush();
                 return;
@@ -326,17 +326,104 @@ public class StreamServer {
         "</style>\n" +
         "</head>\n" +
         "<body>\n" +
-        "    <div id=\"controls\" style=\"position:fixed; top:20px; right:20px; z-index:9999;\">\n" +
-        "        <button id=\"btnStart\" style=\"width:100px; height:100px; background:red; color:white; border-radius:15px; font-size:20px; font-weight:bold; user-select:none; border:none;\">START</button>\n" +
-        "    </div>\n" +
-        "    <script>\n" +
-        "        const btnStart = document.getElementById('btnStart');\n" +
-        "        const sendInput = (btn) => { fetch('/input?btn=' + btn).catch(e => console.log(e)); };\n" +
-        "        btnStart.addEventListener('touchstart', (e) => { e.preventDefault(); sendInput('0x9000'); });\n" +
-        "        btnStart.addEventListener('touchend', (e) => { e.preventDefault(); sendInput('0'); });\n" +
-        "        btnStart.addEventListener('mousedown', (e) => { e.preventDefault(); sendInput('0x9000'); });\n" +
-        "        btnStart.addEventListener('mouseup', (e) => { e.preventDefault(); sendInput('0'); });\n" +
-        "    </script>\n" +
+        "<div id=\"ui-container\">\n" +
+        "  <div id=\"settings-menu\" style=\"position:absolute; top:10px; right:10px; z-index:100; background:rgba(0,0,0,0.8); padding:10px; color:white; border-radius:10px; display:none;\">\n" +
+        "    <label><input type=\"checkbox\" id=\"toggle-cstick\"> C-Buttons as Right Stick</label>\n" +
+        "  </div>\n" +
+        "  <div id=\"btn-settings\" style=\"position:absolute; top:10px; right:10px; z-index:100; width:40px; height:40px; background:rgba(255,255,255,0.2); border:2px solid white; border-radius:50%; color:white; text-align:center; line-height:40px; font-size:20px;\">⚙</div>\n" +
+        
+        "  <!-- D-Pad -->\n" +
+        "  <div class=\"dpad\" id=\"dpad\">\n" +
+        "    <div class=\"dpad-btn\" id=\"d-up\" style=\"top:0;left:50px;\">▲</div>\n" +
+        "    <div class=\"dpad-btn\" id=\"d-down\" style=\"bottom:0;left:50px;\">▼</div>\n" +
+        "    <div class=\"dpad-btn\" id=\"d-left\" style=\"top:50px;left:0;\">◀</div>\n" +
+        "    <div class=\"dpad-btn\" id=\"d-right\" style=\"top:50px;right:0;\">▶</div>\n" +
+        "  </div>\n" +
+        
+        "  <!-- Analog Stick -->\n" +
+        "  <div id=\"analog-stick\" style=\"position:absolute; bottom:50px; left:150px; width:120px; height:120px; background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.5); border-radius:50%; touch-action:none;\">\n" +
+        "    <div id=\"analog-knob\" style=\"position:absolute; top:35px; left:35px; width:50px; height:50px; background:rgba(255,255,255,0.5); border-radius:50%;\"></div>\n" +
+        "  </div>\n" +
+        
+        "  <!-- A, B, C Buttons -->\n" +
+        "  <div class=\"action-btn\" id=\"btn-a\" style=\"bottom:100px; right:60px; width:60px; height:60px;\">A</div>\n" +
+        "  <div class=\"action-btn\" id=\"btn-b\" style=\"bottom:50px; right:130px; width:60px; height:60px;\">B</div>\n" +
+        "  <div class=\"action-btn\" id=\"btn-z\" style=\"bottom:30px; right:60px; width:60px; height:60px;\">Z</div>\n" +
+        
+        "  <!-- C Buttons -->\n" +
+        "  <div class=\"action-btn c-btn\" id=\"c-up\" style=\"bottom:180px; right:70px; width:40px; height:40px; font-size:14px;\">C▲</div>\n" +
+        "  <div class=\"action-btn c-btn\" id=\"c-down\" style=\"bottom:100px; right:130px; width:40px; height:40px; font-size:14px;\">C▼</div>\n" +
+        "  <div class=\"action-btn c-btn\" id=\"c-left\" style=\"bottom:140px; right:160px; width:40px; height:40px; font-size:14px;\">C◀</div>\n" +
+        "  <div class=\"action-btn c-btn\" id=\"c-right\" style=\"bottom:140px; right:100px; width:40px; height:40px; font-size:14px;\">C▶</div>\n" +
+        
+        "  <!-- L, R, Start -->\n" +
+        "  <div class=\"action-btn\" id=\"btn-l\" style=\"top:10px; left:10px; width:80px; height:40px;\">L</div>\n" +
+        "  <div class=\"action-btn\" id=\"btn-r\" style=\"top:10px; right:60px; width:80px; height:40px;\">R</div>\n" +
+        "  <div class=\"action-btn\" id=\"btn-start\" style=\"top:10px; left:50%; transform:translateX(-50%); width:80px; height:40px;\">START</div>\n" +
+        "</div>\n" +
+        "<style>\n" +
+        "  body { margin: 0; overflow: hidden; background: black; touch-action: none; }\n" +
+        "  #ui-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; }\n" +
+        "  .dpad-btn, .action-btn { position: absolute; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.6); color: white; display: flex; justify-content: center; align-items: center; border-radius: 10px; font-weight: bold; font-family: sans-serif; pointer-events: auto; user-select: none; -webkit-user-select: none; cursor: pointer; }\n" +
+        "  .dpad { position: absolute; bottom: 20px; left: 20px; width: 150px; height: 150px; }\n" +
+        "  .dpad-btn { width: 50px; height: 50px; font-size: 20px; }\n" +
+        "  .action-btn { width: 60px; height: 60px; font-size: 24px; border-radius: 50%; }\n" +
+        "  .dpad-btn:active, .action-btn:active { background: rgba(255,255,255,0.6); }\n" +
+        "</style>\n" +
+        "<script>\n" +
+        "  let btnState = 0;\n" +
+        "  let stickX = 0, stickY = 0;\n" +
+        "  let cStickMode = false;\n" +
+        "  const send = () => { fetch('/input?btn=' + btnState.toString(16) + '&sx=' + stickX + '&sy=' + stickY).catch(e => console.log(e)); };\n" +
+        "  \n" +
+        "  const bindBtn = (id, mask) => {\n" +
+        "    const el = document.getElementById(id);\n" +
+        "    if (!el) return;\n" +
+        "    el.addEventListener('pointerdown', (e) => { e.preventDefault(); btnState |= mask; send(); el.setPointerCapture(e.pointerId); });\n" +
+        "    el.addEventListener('pointerup', (e) => { e.preventDefault(); btnState &= ~mask; send(); el.releasePointerCapture(e.pointerId); });\n" +
+        "    el.addEventListener('pointercancel', (e) => { e.preventDefault(); btnState &= ~mask; send(); });\n" +
+        "  };\n" +
+        "  \n" +
+        "  // N64 Button Masks\n" +
+        "  bindBtn('d-up', 0x0800); bindBtn('d-down', 0x0400); bindBtn('d-left', 0x0200); bindBtn('d-right', 0x0100);\n" +
+        "  bindBtn('btn-a', 0x8000); bindBtn('btn-b', 0x4000); bindBtn('btn-z', 0x2000); bindBtn('btn-start', 0x1000);\n" +
+        "  bindBtn('btn-l', 0x0020); bindBtn('btn-r', 0x0010);\n" +
+        "  const bindC = () => { bindBtn('c-up', 0x0008); bindBtn('c-down', 0x0004); bindBtn('c-left', 0x0002); bindBtn('c-right', 0x0001); };\n" +
+        "  bindC();\n" +
+        "  \n" +
+        "  const menu = document.getElementById('settings-menu');\n" +
+        "  document.getElementById('btn-settings').addEventListener('pointerdown', (e) => { e.preventDefault(); menu.style.display = menu.style.display === 'none' ? 'block' : 'none'; });\n" +
+        "  document.getElementById('toggle-cstick').addEventListener('change', (e) => { cStickMode = e.target.checked; });\n" +
+        "  \n" +
+        "  const stick = document.getElementById('analog-stick');\n" +
+        "  const knob = document.getElementById('analog-knob');\n" +
+        "  let stickCenter = { x: 60, y: 60 };\n" +
+        "  let stickActive = false;\n" +
+        "  stick.addEventListener('pointerdown', (e) => { e.preventDefault(); stickActive = true; stick.setPointerCapture(e.pointerId); updateStick(e); });\n" +
+        "  stick.addEventListener('pointermove', (e) => { if (stickActive) updateStick(e); });\n" +
+        "  stick.addEventListener('pointerup', (e) => { e.preventDefault(); stickActive = false; knob.style.transform = ''; stickX = 0; stickY = 0; send(); });\n" +
+        "  stick.addEventListener('pointercancel', (e) => { e.preventDefault(); stickActive = false; knob.style.transform = ''; stickX = 0; stickY = 0; send(); });\n" +
+        "  function updateStick(e) {\n" +
+        "    const rect = stick.getBoundingClientRect();\n" +
+        "    let dx = e.clientX - (rect.left + rect.width / 2);\n" +
+        "    let dy = e.clientY - (rect.top + rect.height / 2);\n" +
+        "    const dist = Math.sqrt(dx*dx + dy*dy);\n" +
+        "    const max = 50;\n" +
+        "    if (dist > max) { dx = dx / dist * max; dy = dy / dist * max; }\n" +
+        "    knob.style.transform = 'translate(' + dx + 'px, ' + dy + 'px)';\n" +
+        "    if (cStickMode) {\n" +
+        "      if (dx < -15) btnState |= 0x0002; else btnState &= ~0x0002;\n" +
+        "      if (dx > 15) btnState |= 0x0001; else btnState &= ~0x0001;\n" +
+        "      if (dy < -15) btnState |= 0x0008; else btnState &= ~0x0008;\n" +
+        "      if (dy > 15) btnState |= 0x0004; else btnState &= ~0x0004;\n" +
+        "      stickX = 0; stickY = 0;\n" +
+        "    } else {\n" +
+        "      stickX = Math.round(dx / max * 127); stickY = Math.round(-dy / max * 127);\n" +
+        "    }\n" +
+        "    send();\n" +
+        "  }\n" +
+        "</script>\n" +
+        
         "<canvas id='screen'></canvas>\n" +
         "<div id='hud'>DKR streaming</div>\n" +
         "<script>\n" +
