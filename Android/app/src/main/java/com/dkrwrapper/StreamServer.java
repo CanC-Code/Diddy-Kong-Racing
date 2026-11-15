@@ -428,31 +428,42 @@ public class StreamServer {
         "  }\n" +
         "</script>\n" +
         
-        "<canvas id='screen'></canvas>\n" +
-        "<div id='hud'>DKR streaming</div>\n" +
+        "<canvas id='screen' style='position:absolute;top:0;left:0;border:2px solid yellow;z-index:1;'></canvas>\n" +
+        "<div id='hud' style='position:fixed;left:8px;top:8px;color:#0f0;font:12px monospace;background:rgba(0,0,0,.7);padding:4px 8px;border-radius:4px;pointer-events:none;z-index:10;white-space:pre;'>waiting</div>\n" +
         "<script>\n" +
         "var W=" + W + ",H=" + H + ";\n" +
         "var cv=document.getElementById('screen');\n" +
+        "var hud=document.getElementById('hud');\n" +
         "cv.width=W;cv.height=H;\n" +
         "var cx=cv.getContext('2d');\n" +
         "var im=cx.createImageData(W,H);\n" +
+        "for(var k=0;k<im.data.length;k+=4){im.data[k]=80;im.data[k+1]=0;im.data[k+2]=80;im.data[k+3]=255;}\n" +
+        "cx.putImageData(im,0,0);\n" +
+        "hud.textContent='W='+W+' H='+H+' need='+(W*H*4);\n" +
         "var buf=new Uint8Array(0);\n" +
+        "var frameCount=0;\n" +
+        "var lastRead=0;\n" +
+        "var badLen=0;\n" +
         "function tick(){\n" +
-        "fetch('/stream?'+Date.now()).then(function(r){\n" +
+        "fetch('/stream?'+Date.now(),{cache:'no-store'}).then(function(r){\n" +
         "var rd=r.body.getReader();var need=W*H*4;\n" +
         "function pump(){rd.read().then(function(x){\n" +
         "if(x.done)return;\n" +
+        "lastRead=x.value.length;\n" +
         "var nb=new Uint8Array(buf.length+x.value.length);\n" +
         "nb.set(buf,0);nb.set(x.value,buf.length);buf=nb;\n" +
         "while(buf.length>=4){\n" +
         "  var len=(buf[0]<<24)|(buf[1]<<16)|(buf[2]<<8)|buf[3];\n" +
         "  if(buf.length<4+len)break;\n" +
         "  var frame=buf.subarray(4,4+len);\n" +
-        "  if(frame.length===need){im.data.set(frame);cx.putImageData(im,0,0);}\n" +
+        "  if(frame.length===need){im.data.set(frame);cx.putImageData(im,0,0);frameCount++;}\n" +
+        "  else {badLen++;}\n" +
         "  buf=buf.subarray(4+len);\n" +
         "}\n" +
-        "pump();});}\n" +
-        "}).catch(function(){setTimeout(tick,1000);});\n" +
+        "hud.textContent='frames='+frameCount+' badLen='+badLen+' bufRemain='+buf.length+' lastRead='+lastRead+' need='+need;\n" +
+        "pump();}).catch(function(e){hud.textContent='pumpErr: '+e;});}\n" +
+        "pump();\n" +
+        "}).catch(function(e){hud.textContent='fetchErr: '+e;setTimeout(tick,2000);});\n" +
         "}\n" +
         "tick();\n" +
         "</script>\n" +
