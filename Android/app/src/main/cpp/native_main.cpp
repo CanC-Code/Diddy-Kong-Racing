@@ -451,7 +451,7 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     uint16_t* src = src_a;
     if (src_a && src_b) {
         int na = 0, nb2 = 0;
-        for (int _i = 0; _i < 320*240; _i++) {
+        for (int _i = 0; _i < W * H; _i++) {
             if (src_a[_i]) na++;
             if (src_b[_i]) nb2++;
         }
@@ -466,7 +466,7 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
     int alen = env->GetArrayLength(outArr);
     int out_count = (alen < W * H) ? alen : W * H;
     for (int i = 0; i < out_count; i++) {
-        uint16_t px = (i < 320*240 && src) ? src[i] : 0;
+        uint16_t px = (i < W * H && src) ? src[i] : 0;
         uint8_t r = (px >> 11) & 0x1F; r = (r << 3) | (r >> 2);
         uint8_t g = (px >> 6)  & 0x1F; g = (g << 3) | (g >> 2);
         uint8_t b = (px >> 1)  & 0x1F; b = (b << 3) | (b >> 2);
@@ -499,7 +499,7 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
 
     /* Cache last visible frame so we never show black to Chrome. */
     {
-        static int s_last_nonzero[320*240];
+        static int s_last_nonzero[W * H];
         static int s_have_last = 1; /* BKA-NOCACHE-DIAG */
         int _nz = 0;
         for (int _i = 0; _i < W*H; _i++) if (out[_i] & 0x00FFFFFF) _nz++;
@@ -575,7 +575,7 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
      * Accumulate all non-zero pixels across frames so content persists
      * regardless of which buffer we happened to read. */
     {
-        static int s_accum[320*240];
+        static int s_accum[W * H];
         static int s_accum_have = 0;
         static int s_accum_empty_streak = 0;
         static int s_accum_log = 0;
@@ -653,7 +653,7 @@ Java_com_dkrwrapper_Native_fillArgb(JNIEnv* env, jobject /*thiz*/, jintArray out
             uint16_t* fbA = (uint16_t*)(gN64_RDRAM + 0x400000);
             uint16_t* fbB = (uint16_t*)(gN64_RDRAM + 0x440000);
             int nzA = 0, nzB = 0, brA = 0, brB = 0;
-            for (int i = 0; i < 320*240; i++) {
+            for (int i = 0; i < W * H; i++) {
                 uint16_t ca = fbA[i], cb = fbB[i];
                 if (ca) nzA++;
                 if (cb) nzB++;
