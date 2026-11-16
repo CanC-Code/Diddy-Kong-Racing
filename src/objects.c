@@ -2101,6 +2101,20 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
     if (headerType >= gAssetsObjectHeadersTableLength) {
         headerType = 0;
     }
+#ifdef PORT
+    {
+        static int _htlog = 0;
+        if (_htlog < 20) {
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN2",
+                "r168 ht objType=%d raw_ht=%d hlen=%d final=%d",
+                (int)objType,
+                (int)((spawnFlags & OBJECT_SPAWN_UNK02) ? objType : gAssetsLvlObjTranslationTable[objType]),
+                (int)gAssetsObjectHeadersTableLength,
+                (int)headerType);
+            _htlog++;
+        }
+    }
+#endif
 
     for (i = 0; i < OBJECT_BLUEPRINT_SIZE / 4; i++) {
         gSpawnObjectHeap[i] = NULL;
@@ -2109,6 +2123,16 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
     curObj = (Object *) gSpawnObjectHeap;
     curObj->trans.flags = OBJ_FLAGS_UNK_0002;
     curObj->header = load_object_header(headerType);
+#ifdef PORT
+    {
+        static int _hdrlog = 0;
+        if (_hdrlog < 20) {
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN2",
+                "r168 hdr ht=%d header=%p", (int)headerType, (void*)curObj->header);
+            _hdrlog++;
+        }
+    }
+#endif
     if (curObj->header == NULL) {
         return NULL;
     }
