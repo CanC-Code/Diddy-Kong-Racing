@@ -2567,6 +2567,46 @@ s32 obj_init_emitter(Object *obj, ParticleEmitter *emitter) {
     ObjHeaderParticleEntry *particleDataEntry;
     s32 i;
 
+#ifdef PORT
+    /* r170: guard against null/bogus particle data.
+     * Crash at spawn[8] (objID=35 headerType=49) showed:
+     *   pc=obj_init_emitter+0x60 addr=0x7c
+     * Meaning particleDataEntry pointer or particleCount is garbage.
+     * Most likely: header fields not byte-swapped (BE->LE). Guard
+     * skips the loop cleanly and logs the actual values. */
+    if (!obj || !obj->header || !emitter) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN5",
+            "obj_init_emitter: NULL guard obj=%p hdr=%p em=%p",
+            (void*)obj, obj ? (void*)obj->header : NULL, (void*)emitter);
+        return 0;
+    }
+    if (obj->header->particleCount < 0 || obj->header->particleCount > 32) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN5",
+            "obj_init_emitter: BOGUS particleCount=%d (BE byteswap?) skipping",
+            (int)obj->header->particleCount);
+        return 0;
+    }
+    if (!obj->header->objectParticles) {
+        s32 ret = ((obj->header->particleCount * (s32)sizeof(ParticleEmitter)) + 3) & ~3;
+        obj->particleEmitter = emitter;
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN5",
+            "obj_init_emitter: NULL objectParticles pc=%d ret=%d",
+            (int)obj->header->particleCount, (int)ret);
+        return ret;
+    }
+    {
+        static int _pclog = 0;
+        if (_pclog++ < 5) {
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN5",
+                "obj_init_emitter ENTER obj=%p hdr=%p pc=%d op=%p em=%p",
+                (void*)obj, (void*)obj->header,
+                (int)obj->header->particleCount,
+                (void*)obj->header->objectParticles,
+                (void*)emitter);
+        }
+    }
+#endif
+
     obj->particleEmitter = emitter;
     particleDataEntry = obj->header->objectParticles;
     for (i = 0; i < obj->header->particleCount; i++) {
