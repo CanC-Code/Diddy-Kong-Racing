@@ -15,6 +15,7 @@
 #include "bka_safe_base.h"
 #include "rare_decompression.h"
 #include "rarezip_stub_cpp.h" // For D_80007284, D_80007290, inbuf, etc.
+#include <sys/mman.h>  // r180: mincore for safe memcpy
 
 #define LOG_TAG "NativeBridge"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -434,6 +435,13 @@ void ResourceMgr_Init(const char* assetDir) {
  * (core1_rzip_ROM_START) correctly go to Path 3 instead of being incorrectly
  * treated as truncated host pointers.
  */
+/* r180: check if the page containing addr is mapped (readable) */
+static inline bool r180_page_mapped(uintptr_t addr) {
+    void* page = (void*)(addr & ~(uintptr_t)0xFFF);
+    unsigned char vec = 0;
+    return mincore(page, 0x1000, &vec) == 0;
+}
+
 void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     g_pi_dma_count++;
     extern uint8_t* gN64_RDRAM;
@@ -485,11 +493,48 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
         if (srcPtr > 0x1000 && srcPtr < 0x7FFFFFFFFFFFULL) {
             int64_t diff = static_cast<int64_t>(srcPtr) - static_cast<int64_t>(dramVal);
             if (diff > -0x100000000LL && diff < 0x100000000LL) {
-                // Looks like a valid host pointer. Do a direct memcpy.
+#ifdef PORT
+                // r180: HARDENING. The diff<4GB check alone is not enough.
+                // - size can be absurd (log it)
+                // - srcPtr page or srcPtr+size-1 page can be unmapped
+                // - dramAddr page or dramAddr+size-1 page can be unmapped
+                // Use mincore() to validate every page the memcpy will touch.
+                static int _p2log = 0;
+                const bool _siz_ok   = (size <= 0x800000);              // <= 8 MB
+                const bool _src_lo   = (srcPtr >= 0x100000000ULL);      // heap space
+                const bool _src_hi   = (srcPtr < 0x800000000000ULL);    // user space
+                const bool _dst_lo   = (dramVal >= 0x100000000ULL);
+                const bool _src_mapped_lo = _src_lo && _src_hi && r180_page_mapped(srcPtr);
+                const bool _src_mapped_hi = _src_lo && _src_hi && r180_page_mapped(srcPtr + size - 1);
+                const bool _dst_mapped_lo = _dst_lo && r180_page_mapped(dramVal);
+                const bool _dst_mapped_hi = _dst_lo && r180_page_mapped(dramVal + size - 1);
+
+                if (_p2log++ < 40 || (_p2log % 100) == 0) {
+                    __android_log_print(ANDROID_LOG_ERROR, "BKA-P2",
+                        "r180 P2 #%d dram=%p srcPtr=%p size=%u siz_ok=%d "
+                        "src=%d/%d dst=%d/%d",
+                        _p2log, dramAddr, (void*)srcPtr, size,
+                        (int)_siz_ok,
+                        (int)_src_mapped_lo, (int)_src_mapped_hi,
+                        (int)_dst_mapped_lo, (int)_dst_mapped_hi);
+                }
+
+                if (_siz_ok && _src_mapped_lo && _src_mapped_hi &&
+                    _dst_mapped_lo && _dst_mapped_hi) {
+                    memcpy(dramAddr, reinterpret_cast<void*>(srcPtr), size);
+                    g_pi_dma_success++;
+                    sched_yield();
+                    return;
+                }
+                // Unsafe — fall through to Path 3 (ROM read) instead of crashing.
+                __android_log_print(ANDROID_LOG_ERROR, "BKA-P2",
+                    "r180 P2 REJECT — falling through to Path 3 (would have crashed)");
+#else
                 memcpy(dramAddr, reinterpret_cast<void*>(srcPtr), size);
                 g_pi_dma_success++;
                 sched_yield();
                 return;
+#endif
             }
         }
     }
