@@ -114,16 +114,24 @@ public class StreamServer {
                 int captured = 0;
                 try {
                     Process p = Runtime.getRuntime().exec(new String[]{
-                        "/system/bin/logcat", "-d", "-t", "800"
+                        "/system/bin/logcat", "-d", "-t", "400"
                     });
                     java.io.BufferedReader br = new java.io.BufferedReader(
                         new java.io.InputStreamReader(p.getInputStream()));
                     String line;
-                    while ((line = br.readLine()) != null && captured < 500) {
+                    while ((line = br.readLine()) != null && captured < 150) {
                         if (line.contains(" BKA-") || line.contains(" DKR-")
                             || line.contains(" BKA_") || line.contains(" DKR_")
                             || line.contains("AndroidRuntime")) {
-                            sb.append(line.replace("&","&amp;").replace("<","&lt;")).append("\n");
+                            // r161: inline HTML escape, no temp String allocations
+                            int _len = line.length();
+                            for (int _j = 0; _j < _len; _j++) {
+                                char _c = line.charAt(_j);
+                                if (_c == '&') sb.append("&amp;");
+                                else if (_c == '<') sb.append("&lt;");
+                                else sb.append(_c);
+                            }
+                            sb.append("\n");
                             captured++;
                         }
                     }

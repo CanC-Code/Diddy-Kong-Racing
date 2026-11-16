@@ -48,16 +48,20 @@ public class BkaService extends Service {
         // shows nonBlack > 0, walker renders correctly and pipeline is proven.
         if (true) new Thread(() -> {  /* r160: enable keepalive to prevent JVM reaping */
             int[] scratch = new int[292 * 216];
-            int n = 0;
-            while (n++ < 200) {
-                try { Thread.sleep(500); } catch (InterruptedException e) {}
+            long n = 0;
+            while (true) {
+                try { Thread.sleep(500); } catch (InterruptedException e) { return; }
                 try {
                     Native.fillArgb(scratch);
-                    int nonBlack = 0;
-                    for (int i = 0; i < scratch.length; i++) if ((scratch[i] & 0x00FFFFFF) != 0) nonBlack++;
-                    Log.i("BKA-KEEPALIVE", "fillArgb nonBlack=" + nonBlack + "/" + scratch.length + " iter=" + n);
+                    n++;
+                    if (n % 20 == 0) {
+                        int nonBlack = 0;
+                        for (int i = 0; i < scratch.length; i++) if ((scratch[i] & 0x00FFFFFF) != 0) nonBlack++;
+                        Log.i("BKA-KEEPALIVE", "fillArgb nonBlack=" + nonBlack + "/" + scratch.length + " iter=" + n);
+                    }
                 } catch (Throwable t) {
-                    Log.e("BKA-KEEPALIVE", "fillArgb failed: " + t); if (n > 5) { Log.e("BKA-KEEPALIVE", "breaking after " + n + " iters"); return; }
+                    Log.e("BKA-KEEPALIVE", "fillArgb failed: " + t);
+                    n++;
                 }
             }
         }, "BKA-FillArgb-Keepalive").start();
