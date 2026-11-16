@@ -1060,7 +1060,24 @@ void track_spawn_objects(s32 mapID, s32 index) {
         gzip_inflate(compressedAsset, (u8 *) mem);
         mempool_free(objMapTable);
         gObjectMapSpawnList[index] = (u8 *) (gObjectMap[index] + sizeof(uintptr_t));
+#ifdef PORT
+        /* r165: N64 object map is BE. gzip_inflate decodes bytes as-is;
+         * reading *mem on LE ARM gives byte-swapped size (0x90000000
+         * instead of 0x00000090). Apply __builtin_bswap32, same pattern
+         * as line 756/777/928+. */
+        {
+            s32 _raw = *mem;
+            s32 _swap = (s32)__builtin_bswap32((u32)_raw);
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN",
+                "r165 size raw=0x%08X swap=0x%08X dec=%d first8=%02X%02X%02X%02X%02X%02X%02X%02X",
+                (u32)_raw, (u32)_swap, (int)_swap,
+                ((u8*)mem)[0],((u8*)mem)[1],((u8*)mem)[2],((u8*)mem)[3],
+                ((u8*)mem)[4],((u8*)mem)[5],((u8*)mem)[6],((u8*)mem)[7]);
+            gObjectMapSize[index] = _swap;
+        }
+#else
         gObjectMapSize[index] = *mem;
+#endif
         gObjectMapIndex = index;
         for (var_s0 = 0; var_s0 < gObjectMapSize[index]; var_s0 += temp_t3) {
             if (gObjectMapSpawnList[index] == NULL) {
