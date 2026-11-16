@@ -2595,6 +2595,8 @@ s32 obj_init_emitter(Object *obj, ParticleEmitter *emitter) {
         (uintptr_t)obj->header->objectParticles < 0x10000) {
         s32 ret = ((obj->header->particleCount * (s32)sizeof(ParticleEmitter)) + 3) & ~3;
         obj->particleEmitter = emitter;
+        static int _e6c = 0;
+        if (_e6c++ % 500 == 0)
         __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN6",
             "obj_init_emitter SKIP op=0x%lx pc=%d ret=%d",
             (unsigned long)(uintptr_t)obj->header->objectParticles,
@@ -10478,9 +10480,9 @@ void run_object_init_func(Object *obj, void *entry, s32 param) {
              * after audio pipeline is verified. */
             {
                 static int _sk = 0;
-                if (_sk++ < 6)
+                if (_sk++ % 500 == 0)
                     __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN7",
-                        "r172 SKIP BHV_AUDIO objID=%d", (int)obj->objectID);
+                        "r172 SKIP BHV_AUDIO objID=%d iter=%d", (int)obj->objectID, _sk);
             }
             break;
 #else

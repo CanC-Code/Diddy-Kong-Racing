@@ -5815,6 +5815,21 @@ void obj_init_butterfly(Object *butterflyObj, LevelObjectEntry_Butterfly *butter
     s32 i;
 
     butterfly = butterflyObj->butterfly;
+#ifdef PORT
+    /* r173: 32-bit ROM offsets being treated as 64-bit pointers.
+     * Crash trace: addr=0x407eea72 pc=obj_init_butterfly+0x50.
+     * Validate as canonical ARM64 pointer before any field access. */
+    {
+        uint64_t _bf = (uint64_t)(uintptr_t)butterfly;
+        uint64_t _hi = _bf >> 48;
+        if (_bf < 0x10000ULL || (_hi != 0 && _hi != 0xFFFF)) {
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN8",
+                "r173 SKIP obj_init_butterfly bad ptr=0x%llx objID=%d",
+                (unsigned long long)_bf, (int)butterflyObj->objectID);
+            return;
+        }
+    }
+#endif
     if (param == 0) {
         butterflyObj->y_velocity = 0.0f;
         butterfly->unkFE = 0;
