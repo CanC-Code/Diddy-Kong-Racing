@@ -747,19 +747,52 @@ void allocate_object_pools(void) {
     gDrawbridgeTimers = mempool_alloc_safe(8, COLOUR_TAG_BLUE);
     D_8011AFF4 = mempool_alloc_safe(sizeof(unk800179D0) * 16, COLOUR_TAG_BLUE);
     gAssetsLvlObjTranslationTable = (s16 *) asset_table_load(ASSET_LEVEL_OBJECT_TRANSLATION_TABLE);
+#ifdef PORT
+    /* r169: s16 table is BE in ROM, needs byte-swap for LE ARM64.
+     * Without this, headerType becomes garbage -> clamp to 0 -> NULL. */
+    if (gAssetsLvlObjTranslationTable != NULL) {
+        s32 _tcount = (s32)(asset_table_size(ASSET_LEVEL_OBJECT_TRANSLATION_TABLE) >> 1);
+        for (s32 _ti = 0; _ti < _tcount; _ti++) {
+            gAssetsLvlObjTranslationTable[_ti] = (s16)__builtin_bswap16((u16)gAssetsLvlObjTranslationTable[_ti]);
+        }
+        static int _xtlog = 0;
+        if (_xtlog++ == 0) {
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-XLAT",
+                "r169 xlat[0..7]=%d %d %d %d %d %d %d %d count=%d",
+                (int)gAssetsLvlObjTranslationTable[0], (int)gAssetsLvlObjTranslationTable[1],
+                (int)gAssetsLvlObjTranslationTable[2], (int)gAssetsLvlObjTranslationTable[3],
+                (int)gAssetsLvlObjTranslationTable[4], (int)gAssetsLvlObjTranslationTable[5],
+                (int)gAssetsLvlObjTranslationTable[6], (int)gAssetsLvlObjTranslationTable[7],
+                _tcount);
+        }
+    }
+#endif
     gAssetsLvlObjTranslationTableLength = (asset_table_size(ASSET_LEVEL_OBJECT_TRANSLATION_TABLE) >> 1) - 1;
     while (gAssetsLvlObjTranslationTable[gAssetsLvlObjTranslationTableLength] == 0) {
         gAssetsLvlObjTranslationTableLength--;
     }
     gSpawnObjectHeap = mempool_alloc_safe(OBJECT_BLUEPRINT_SIZE, COLOUR_TAG_BLUE);
     gAssetsObjectHeadersTable = (s32 *) asset_table_load(ASSET_OBJECT_HEADERS_TABLE);
-    if (gAssetsObjectHeadersTable != NULL) dkr_bswap_u32_buf((u32*)gAssetsObjectHeadersTable, asset_table_size(ASSET_OBJECT_HEADERS_TABLE) / sizeof(u32));
+    if (gAssetsObjectHeadersTable != NULL) {
+        dkr_bswap_u32_buf((u32*)gAssetsObjectHeadersTable, asset_table_size(ASSET_OBJECT_HEADERS_TABLE) / sizeof(u32));
+#ifdef PORT
+        static int _htlog = 0;
+        if (_htlog++ == 0) {
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-XLAT",
+                "r169 hdrs[0..7]=0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X",
+                (unsigned)gAssetsObjectHeadersTable[0], (unsigned)gAssetsObjectHeadersTable[1],
+                (unsigned)gAssetsObjectHeadersTable[2], (unsigned)gAssetsObjectHeadersTable[3],
+                (unsigned)gAssetsObjectHeadersTable[4], (unsigned)gAssetsObjectHeadersTable[5],
+                (unsigned)gAssetsObjectHeadersTable[6], (unsigned)gAssetsObjectHeadersTable[7]);
+        }
+#endif
+    }
     gAssetsObjectHeadersTableLength = 0;
     while (-1 != gAssetsObjectHeadersTable[gAssetsObjectHeadersTableLength]) {
         gAssetsObjectHeadersTableLength++;
     }
     gAssetsObjectHeadersTableLength--;
-    gLoadedObjectHeaders = mempool_alloc_safe(gAssetsObjectHeadersTableLength * 4, COLOUR_TAG_WHITE);
+    gLoadedObjectHeaders = mempool_alloc_safe(gAssetsObjectHeadersTableLength * sizeof(*gLoadedObjectHeaders), COLOUR_TAG_WHITE); /* r169: was *4, ARM64 ptr is 8 */
     gObjectHeaderReferences = mempool_alloc_safe(gAssetsObjectHeadersTableLength, COLOUR_TAG_WHITE);
 
     for (i = 0; i < gAssetsObjectHeadersTableLength; i++) {
