@@ -49,6 +49,8 @@ public class StreamServer {
     }
 
     private void handleClient(Socket s) {
+        android.util.Log.d(TAG, "r159-thread-tag: thread=" + Thread.currentThread().getName() + " id=" + Thread.currentThread().getId());
+        // r159-thread-tag
         /* r139: Socket$2.run shutdown thread SIGSEGV fix. Chrome /diag
          * auto-refresh opens/closes 30 sockets/min; each Socket.close()
          * spawns an internal thread that races with itself in
@@ -95,11 +97,11 @@ public class StreamServer {
             }
             if ("GET".equals(method) && path.startsWith("/diag")) {
                 // r134 diag: mobile-data-independent debug page.
-                // Captures logcat BKA_ and DKR_ tags, auto-refresh 2s.
+                // Captures logcat BKA_ and DKR_ tags. r159: no auto-refresh (socket churn caused SIGSEGV).
                 // No rish or ADB needed - app reads own logcat.
                 StringBuilder sb = new StringBuilder();
                 sb.append("<!doctype html><html><head><meta charset='utf-8'>");
-                sb.append("<meta http-equiv='refresh' content='2'>");
+                sb.append("<!-- r159: auto-refresh removed - it triggered Android Socket$2 shutdown-race SIGSEGV in art::Monitor::Lock -->");
                 sb.append("<title>DKR diag</title>");
                 sb.append("<style>body{margin:0;background:#111;color:#0f0;font:11px monospace}");
                 sb.append("pre{padding:6px;margin:0;white-space:pre-wrap;word-break:break-all}");
