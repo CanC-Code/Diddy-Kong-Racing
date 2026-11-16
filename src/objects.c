@@ -2328,7 +2328,7 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
         address += sizeOfobj;
         if (sizeOfobj == 0) {
             if (D_8011AE50 != NULL) {
-                tex_free((TextureHeader *) (s32) D_8011AE50);
+                tex_free((TextureHeader *) D_8011AE50);
             }
             objFreeAssets(curObj, assetCount, objType);
             try_free_object_header(headerType);
@@ -2360,10 +2360,10 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
     curObj = mempool_alloc_pool((MemoryPoolSlot *) gObjectMemoryPool, sizeOfobj);
     if (curObj == NULL) {
         if (D_8011AE50 != NULL) {
-            tex_free((TextureHeader *) (s32) D_8011AE50);
+            tex_free((TextureHeader *) D_8011AE50);
         }
         if (D_8011AE54 != NULL) {
-            tex_free((TextureHeader *) (s32) D_8011AE54);
+            tex_free((TextureHeader *) D_8011AE54);
         }
         objFreeAssets(prevObj, assetCount, objType);
         try_free_object_header(headerType);
@@ -2435,10 +2435,10 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
     }
     if (curObj->header->attachPointCount > 0 && curObj->header->attachPointCount < 10 && obj_init_attachpoint(curObj)) {
         if (D_8011AE50 != NULL) {
-            tex_free((TextureHeader *) (s32) D_8011AE50);
+            tex_free((TextureHeader *) D_8011AE50);
         }
         if (D_8011AE54 != NULL) {
-            tex_free((TextureHeader *) (s32) D_8011AE54);
+            tex_free((TextureHeader *) D_8011AE54);
         }
         objFreeAssets(curObj, assetCount, objType);
         try_free_object_header(headerType);
@@ -2463,22 +2463,31 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
  */
 void objFreeAssets(Object *obj, s32 count, s32 objType) {
     s32 i;
+#ifdef PORT
+    {
+        static int _fac = 0;
+        if (_fac++ < 3)
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-FREE",
+                "r178 objFreeAssets obj=%p count=%d type=%d",
+                (void*)obj, (int)count, (int)objType);
+    }
+#endif
     if (objType == OBJECT_MODEL_TYPE_3D_MODEL) { // 3D model
         for (i = 0; i < count; i++) {
             if (obj->modelInstances[i] != NULL) {
-                free_3d_model((ModelInstance *) (s32) obj->modelInstances[i]);
+                free_3d_model((ModelInstance *) obj->modelInstances[i]);
             }
         }
     } else if (objType == OBJECT_MODEL_TYPE_MISC) {
         for (i = 0; i < count; i++) {
             if (obj->textures[i] != NULL) {
-                tex_free((TextureHeader *) (s32) obj->textures[i]);
+                tex_free((TextureHeader *) obj->textures[i]);
             }
         }
     } else { // Sprite
         for (i = 0; i < count; i++) {
             if (obj->sprites[i] != NULL) {
-                sprite_free((Sprite *) (s32) obj->sprites[i]);
+                sprite_free((Sprite *) obj->sprites[i]);
             }
         }
     }

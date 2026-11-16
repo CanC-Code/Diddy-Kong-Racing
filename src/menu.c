@@ -13841,12 +13841,12 @@ void menu_asset_free(s32 assetID) {
                 mempool_free_timer(2);
             } else {
                 if ((*gAssetsMenuElementIds)[assetID] & ASSET_MASK_SPRITE) {
-                    sprite_free((Sprite *) (u32) gMenuAssets[assetID]);
+                    sprite_free((Sprite *) gMenuAssets[assetID]);
                 } else {
                     if ((*gAssetsMenuElementIds)[assetID] & ASSET_MASK_OBJECT) {
-                        free_object((Object *) (u32) gMenuAssets[assetID]);
+                        free_object((Object *) gMenuAssets[assetID]);
                     } else {
-                        free_3d_model((ModelInstance *) (u32) gMenuAssets[assetID]);
+                        free_3d_model((ModelInstance *) gMenuAssets[assetID]);
                     }
                 }
             }
