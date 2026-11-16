@@ -2586,11 +2586,18 @@ s32 obj_init_emitter(Object *obj, ParticleEmitter *emitter) {
             (int)obj->header->particleCount);
         return 0;
     }
-    if (!obj->header->objectParticles) {
+    /* r171: objectParticles field is a base-relative offset (e.g. 0x7c)
+     * in the N64 ROM, not an absolute pointer. Any value below 0x10000 is
+     * a memory-relative offset that our loader never rebased. Skip the
+     * emitter loop safely; still advance address by the expected size so
+     * spawn_object continues with subsequent fields/objects. */
+    if (!obj->header->objectParticles ||
+        (uintptr_t)obj->header->objectParticles < 0x10000) {
         s32 ret = ((obj->header->particleCount * (s32)sizeof(ParticleEmitter)) + 3) & ~3;
         obj->particleEmitter = emitter;
-        __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN5",
-            "obj_init_emitter: NULL objectParticles pc=%d ret=%d",
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN6",
+            "obj_init_emitter SKIP op=0x%lx pc=%d ret=%d",
+            (unsigned long)(uintptr_t)obj->header->objectParticles,
             (int)obj->header->particleCount, (int)ret);
         return ret;
     }
