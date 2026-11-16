@@ -52,6 +52,13 @@ s32 byteswap32(u8 *arg0) {
  * Official name: rzipUncompressSizeROM
  */
 s32 gzip_size_uncompressed(s32 assetIndex, s32 assetOffset) {
+#ifdef PORT
+    if (!gPackedHeader) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-GZIP",
+            "r167 gzip_size_uncompressed: gPackedHeader NULL (gzip_init missed)");
+        return 0;
+    }
+#endif
     asset_load(assetIndex, gPackedHeader, assetOffset, 8);
     return byteswap32((u8 *) gPackedHeader);
 }
@@ -62,6 +69,13 @@ s32 gzip_size_uncompressed(s32 assetIndex, s32 assetOffset) {
  * Official name: rzipUncompress
  */
 u8 *gzip_inflate(u8 *compressedInput, u8 *decompressedOutput) {
+#ifdef PORT
+    if (!compressedInput || !decompressedOutput) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-GZIP",
+            "r167 gzip_inflate NULL: in=%p out=%p", (void*)compressedInput, (void*)decompressedOutput);
+        return decompressedOutput;
+    }
+#endif
     /* PORT: on-device extraction. Replace MIPS asm gzip_inflate_block with
        zlib raw DEFLATE. DKR format: 4-byte BE uncompressed size +
        1-byte flag + raw deflate stream. Works entirely on-device. */

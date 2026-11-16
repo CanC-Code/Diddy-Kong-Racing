@@ -1108,11 +1108,26 @@ void track_spawn_objects(s32 mapID, s32 index) {
                 }
             }
 #endif
-            spawn_object((LevelObjectEntryCommon *) gObjectMapSpawnList[index], OBJECT_SPAWN_UNK01);
+            {
+                Object* _sp = spawn_object((LevelObjectEntryCommon *) gObjectMapSpawnList[index], OBJECT_SPAWN_UNK01);
+                static int _splog = 0;
+                if (_splog++ < 40) {
+                    __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN",
+                        "r167 spawn[%d] var_s0=%d objID=%d size=%d result=%p",
+                        _splog-1, var_s0,
+                        (int)gObjectMapSpawnList[index][0],
+                        (int)(gObjectMapSpawnList[index][1] & 0x3F),
+                        (void*)_sp);
+                }
+            }
             gObjectMapSpawnList[index] = &gObjectMapSpawnList[index][temp_t3 = gObjectMapSpawnList[index][1] & 0x3F];
+            if ((var_s0 & 0x7F) == 0) {
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN",
+                    "r167 progress var_s0=%d/%d", var_s0, (int)gObjectMapSize[index]);
+            }
             if (temp_t3 == 0) {
                 __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN",
-                    "r164 temp_t3=0 at var_s0=%d break", var_s0);
+                    "r167 temp_t3=0 at var_s0=%d break", var_s0);
                 break;
             }
         }
@@ -2054,7 +2069,7 @@ Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
     {
         uintptr_t _e = (uintptr_t)entry;
         /* reject obviously bad pointers: too low, not 4-byte aligned */
-        if (_e < 0x10000u || (_e & 0x3u)) {
+        if (_e < 0x10000u || (_e & 0x1u)) {  /* r167: was 0x3, N64 LevelObjectEntryCommon needs only 2-byte */
             __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN",
                 "r164 spawn_object bad entry=0x%lx", (unsigned long)_e);
             return NULL;
