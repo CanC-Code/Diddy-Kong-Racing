@@ -47,21 +47,12 @@ public class BkaService extends Service {
         // Reads framebuffer every 500ms, logs non-black pixel count. If this
         // shows nonBlack > 0, walker renders correctly and pipeline is proven.
         if (true) new Thread(() -> {  /* r160: enable keepalive to prevent JVM reaping */
-            int[] scratch = new int[292 * 216];
             long n = 0;
             while (true) {
-                try { Thread.sleep(500); } catch (InterruptedException e) { return; }
-                try {
-                    Native.fillArgb(scratch);
-                    n++;
-                    if (n % 20 == 0) {
-                        int nonBlack = 0;
-                        for (int i = 0; i < scratch.length; i++) if ((scratch[i] & 0x00FFFFFF) != 0) nonBlack++;
-                        Log.i("BKA-KEEPALIVE", "fillArgb nonBlack=" + nonBlack + "/" + scratch.length + " iter=" + n);
-                    }
-                } catch (Throwable t) {
-                    Log.e("BKA-KEEPALIVE", "fillArgb failed: " + t);
-                    n++;
+                try { Thread.sleep(2000); } catch (InterruptedException e) { return; }
+                n++;
+                if (n % 5 == 0) {
+                    Log.i("BKA-KEEPALIVE", "alive iter=" + n + " t=" + System.currentTimeMillis());
                 }
             }
         }, "BKA-FillArgb-Keepalive").start();
@@ -110,8 +101,10 @@ public class BkaService extends Service {
                 t.start();
             } catch (Exception e) {
                 Log.e(TAG, "server start failed", e);
-                return START_STICKY; /* r160: was NOT_STICKY - service got reaped */
+                return START_STICKY;
             }
+        } else {
+            Log.i(TAG, "r162: server already running, skipping rebind (avoids BindException restart loop)");
         }
 
         // Launch Chrome
