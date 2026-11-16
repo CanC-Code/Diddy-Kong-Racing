@@ -377,8 +377,8 @@ public class StreamServer {
         "</div>\n" +
         "<style>\n" +
         "  body { margin: 0; overflow: hidden; background: black; touch-action: none; }\n" +
-        "  #ui-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; }\n" +
-        "  .dpad-btn, .action-btn { position: absolute; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.6); color: white; display: flex; justify-content: center; align-items: center; border-radius: 10px; font-weight: bold; font-family: sans-serif; pointer-events: auto; user-select: none; -webkit-user-select: none; cursor: pointer; }\n" +
+        "  #ui-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 100; }\n" +
+        "  .dpad-btn, .action-btn { z-index: 150; position: absolute; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.6); color: white; display: flex; justify-content: center; align-items: center; border-radius: 10px; font-weight: bold; font-family: sans-serif; pointer-events: auto; user-select: none; -webkit-user-select: none; cursor: pointer; }\n" +
         "  .dpad { position: absolute; bottom: 20px; left: 20px; width: 150px; height: 150px; }\n" +
         "  .dpad-btn { width: 50px; height: 50px; font-size: 20px; }\n" +
         "  .action-btn { width: 60px; height: 60px; font-size: 24px; border-radius: 50%; }\n" +
@@ -438,7 +438,7 @@ public class StreamServer {
         "  }\n" +
         "</script>\n" +
         
-        "<canvas id='screen' style='position:absolute;top:0;left:0;border:2px solid yellow;z-index:1;'></canvas>\n" +
+        "<canvas id='screen' style='position:absolute;top:0;left:0;border:2px solid yellow;z-index:0;'></canvas>\n" +
         "<div id='hud' style='position:fixed;left:8px;top:8px;color:#0f0;font:12px monospace;background:rgba(0,0,0,.7);padding:4px 8px;border-radius:4px;pointer-events:none;z-index:10;white-space:pre;'>waiting</div>\n" +
         "<script>\n" +
         "var W=" + W + ",H=" + H + ";\n" +
