@@ -5821,11 +5821,19 @@ void obj_init_butterfly(Object *butterflyObj, LevelObjectEntry_Butterfly *butter
      * Validate as canonical ARM64 pointer before any field access. */
     {
         uint64_t _bf = (uint64_t)(uintptr_t)butterfly;
-        uint64_t _hi = _bf >> 48;
-        if (_bf < 0x10000ULL || (_hi != 0 && _hi != 0xFFFF)) {
-            __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN8",
-                "r173 SKIP obj_init_butterfly bad ptr=0x%llx objID=%d",
-                (unsigned long long)_bf, (int)butterflyObj->objectID);
+        /* r174: reject any address < 4GB. On ARM64 Android, valid
+         * heap/stack/anon-mmap pointers are always >= 0x5000000000.
+         * Anything below is a truncated 32-bit value (ROM offset or
+         * base-relative N64 address) that got misinterpreted. The
+         * crash at obj_init_butterfly+0xC4 with addr=0x407eea72 was
+         * exactly this: butterfly ptr was 0x407ec974-ish, passed
+         * the weak r173 guard, then crashed deeper. */
+        if (_bf < 0x100000000ULL || _bf >= 0x800000000000ULL) {
+            static int _bfc = 0;
+            if (_bfc++ % 20 == 0)
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN9",
+                    "r174 SKIP butterfly bad ptr=0x%llx objID=%d iter=%d",
+                    (unsigned long long)_bf, (int)butterflyObj->objectID, _bfc);
             return;
         }
     }
