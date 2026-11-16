@@ -11,6 +11,8 @@ import java.net.Socket;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class StreamServer {
+    private static final Object STREAM_LOCK = new Object(); // r175: serialize fillArgb
+    private static volatile int sActiveStreams = 0;
     public static android.content.Context sCtx;
     public static void setContext(android.content.Context ctx) { sCtx = ctx.getApplicationContext(); }
 
@@ -274,6 +276,15 @@ public class StreamServer {
     private java.io.File getFilesDir() { return sCtx != null ? sCtx.getFilesDir() : null; }
 
     private void sendRawStream(OutputStream out) throws IOException {
+        // r175: track active streams for debugging
+        int _myStreamIdx;
+        synchronized (STREAM_LOCK) {
+            _myStreamIdx = sActiveStreams++;
+            if (_myStreamIdx > 0) {
+                Log.w(TAG, "r175 concurrent /stream: " + sActiveStreams + " active (this one is #" + _myStreamIdx + ")");
+            }
+        }
+        try {
         String hdr = "HTTP/1.1 200 OK\r\n"
                 + "Content-Type: application/octet-stream\r\n"
                 + "Cache-Control: no-cache\r\n"
@@ -297,6 +308,7 @@ public class StreamServer {
             }
 
             try {
+                synchronized (STREAM_LOCK) { // r175: serialize fillArgb across stream threads
                 Native.fillArgb(pixels);
                 if (frame == 1 || frame % 150 == 0) {
                     Log.i(TAG, "raw frame " + frame + " px0=" + pixels[0]);
@@ -308,6 +320,7 @@ public class StreamServer {
                     raw[i*4+2] = (byte)( p        & 0xFF);
                     raw[i*4+3] = (byte)((p >> 24) & 0xFF);
                 }
+                } // r175 end synchronized
                 int len = raw.length;
                 out.write((len >>> 24) & 0xFF);
                 out.write((len >>> 16) & 0xFF);
@@ -323,6 +336,9 @@ public class StreamServer {
                 Log.i(TAG, "stream closed after " + frame + " frames");
                 break;
             }
+        }
+        } finally {
+            synchronized (STREAM_LOCK) { sActiveStreams--; }
         }
     }
 
