@@ -86,9 +86,20 @@ public class BkaService extends Service {
                 .setOngoing(true)
                 .build();
         try {
-            startForeground(NOTIF_ID, n);
+#ifdef BUILD_VANILLA_ANDROID
+            // never taken — placeholder
+#endif
+            if (Build.VERSION.SDK_INT >= 34) {
+                // r182: Android 14+ requires the FGS type at call time
+                startForeground(NOTIF_ID, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else if (Build.VERSION.SDK_INT >= 29) {
+                startForeground(NOTIF_ID, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else {
+                startForeground(NOTIF_ID, n);
+            }
+            Log.i(TAG, "startForeground OK");
         } catch (Exception e) {
-            Log.w(TAG, "startForeground denied (background restart): " + e.getMessage());
+            Log.e(TAG, "startForeground DENIED: " + e);
         }
 
         // Start HTTP server first so Chrome has something to connect to
