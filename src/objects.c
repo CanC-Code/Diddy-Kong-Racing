@@ -2658,6 +2658,20 @@ s32 init_object_shadow(Object *obj, ShadowData *shadow) {
     shadow->meshStart = -1;
     D_8011AE50 = shadow->texture;
     if (obj->header->shadowGroup && shadow->texture == NULL) {
+#ifdef PORT
+        /* r179: leave obj->shadow as NULL on partial init. Otherwise
+         * spawn_object reuses the same pool bytes for the next sub-object
+         * (attachPoints/particles) and obj->shadow becomes a dangling
+         * pointer. shadow_update then reads garbage `shadow->scale` and
+         * crashes at +0x260 (with the ART MonitorList crash as a
+         * downstream symptom of the resulting SIGSEGV). */
+        obj->shadow = NULL;
+        D_8011AE50 = NULL;
+        static int _ssh = 0;
+        if (_ssh++ % 10 == 0)
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT",
+                "r179 shadow SKIP (texture NULL) obj=%p", (void*)obj);
+#endif
         return 0;
     }
     return sizeof(ShadowData);
@@ -2679,6 +2693,15 @@ s32 init_object_water_effect(Object *obj, WaterEffect *waterEffect) {
     waterEffect->meshStart = -1;
     D_8011AE54 = waterEffect->texture;
     if (obj->header->waterEffectGroup && waterEffect->texture == NULL) {
+#ifdef PORT
+        /* r179: same dangling-pointer fix as init_object_shadow. */
+        obj->waterEffect = NULL;
+        D_8011AE54 = NULL;
+        static int _swa = 0;
+        if (_swa++ % 10 == 0)
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-INIT",
+                "r179 water SKIP (texture NULL) obj=%p", (void*)obj);
+#endif
         return 0;
     }
     return sizeof(WaterEffect);
