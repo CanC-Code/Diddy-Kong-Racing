@@ -10472,15 +10472,48 @@ void run_object_init_func(Object *obj, void *entry, s32 param) {
             obj_init_exit(obj, (LevelObjectEntry_Exit *) entry);
             break;
         case BHV_AUDIO:
+#ifdef PORT
+            /* r172: audio context not ready; sound_is_looped crashes on
+             * uninit table. Menu demo runs silent. Re-enable in r173+
+             * after audio pipeline is verified. */
+            {
+                static int _sk = 0;
+                if (_sk++ < 6)
+                    __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN7",
+                        "r172 SKIP BHV_AUDIO objID=%d", (int)objType);
+            }
+            break;
+#else
             obj_init_audio(obj, (LevelObjectEntry_Audio *) entry);
             break;
+#endif
         case BHV_AUDIO_LINE:
         case BHV_AUDIO_LINE_2:
+#ifdef PORT
+            {
+                static int _sk2 = 0;
+                if (_sk2++ < 6)
+                    __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN7",
+                        "r172 SKIP BHV_AUDIO_LINE objID=%d", (int)objType);
+            }
+            break;
+#else
             obj_init_audioline(obj, (LevelObjectEntry_AudioLine *) entry);
             break;
+#endif
         case BHV_AUDIO_REVERB:
+#ifdef PORT
+            {
+                static int _sk3 = 0;
+                if (_sk3++ < 6)
+                    __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN7",
+                        "r172 SKIP BHV_AUDIO_REVERB objID=%d", (int)objType);
+            }
+            break;
+#else
             obj_init_audioreverb(obj, (LevelObjectEntry_AudioReverb *) entry);
             break;
+#endif
         case BHV_CAMERA_CONTROL:
             obj_init_cameracontrol(obj, (LevelObjectEntry_CameraControl *) entry);
             break;
