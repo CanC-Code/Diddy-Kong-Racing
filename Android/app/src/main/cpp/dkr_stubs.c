@@ -363,7 +363,8 @@ const char* dkr_stubs_build_id = "mempool_removed_2026_10_20";
 
 static void bka_segv_handler(int sig, siginfo_t *info, void *ctx) {
     if (sig != SIGSEGV) {
-        __android_log_print(ANDROID_LOG_FATAL, "BKA-SIG",
+crash_after_fp:;
+            __android_log_print(ANDROID_LOG_FATAL, "BKA-SIG",
             "signal %d (si_code=%d) addr=%p — not handled, re-raising",
             sig, info->si_code, info->si_addr);
         signal(sig, SIG_DFL);
@@ -428,10 +429,20 @@ static void bka_segv_handler(int sig, siginfo_t *info, void *ctx) {
             } else {
                 fprintf(cf, "#0  pc=0x%lx  ??\n", (unsigned long)pc);
             }
+            /* r183: wrap FP walk in sigsetjmp so a bad FP can't crash us */
+            static sigjmp_buf _crash_fp_jmp;
+            if (sigsetjmp(_crash_fp_jmp, 1) != 0) {
+                if (cf) fprintf(cf, "\n=== FP WALK ABORTED (bad fp) ===\n");
+                __android_log_print(ANDROID_LOG_FATAL, "BKA-CRASH",
+                    "FP walk aborted at bad frame");
+                if (cf) fclose(cf);
+                goto crash_after_fp;
+            }
             /* Walk frame pointer chain */
             int depth = 1;
             while (fp > 0x100000000ULL && fp < 0x800000000000ULL && depth < 25) {
                 uintptr_t* fdata = (uintptr_t*)fp;
+                if (((uintptr_t)fdata & 0x7) != 0) break; // unaligned
                 uintptr_t next_fp = fdata[0];
                 uintptr_t ret = fdata[1];
                 if (ret < 0x100000ULL) break;

@@ -5841,10 +5841,32 @@ void checkpoint_update_all(void) {
 
     alternateCount = 0;
     gNumberOfMainCheckpoints = 0;
+#ifdef PORT
+    /* r183: crash at checkpoint_update_all+104 = null obj deref.
+     * gObjPtrList[] can contain NULL from our spawn guards
+     * (butterfly/audio/emitter skips) that leave slots empty.
+     * Also gObjectCount could be garbage in rare cases — cap it. */
+    {
+        static int _cpc = 0;
+        if (_cpc++ < 3)
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-CPK",
+                "r183 cpk_update_all gObjectCount=%d", (int)gObjectCount);
+    }
+#endif
     for (i = 0; i < gObjectCount; i++) {
         obj = gObjPtrList[i];
+#ifdef PORT
+        if (i > 2048) break;
+        if (obj == NULL) {
+            static int _cpn = 0;
+            if (_cpn++ < 5)
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-CPK",
+                    "r183 SKIP null obj at idx=%d", i);
+            continue;
+        }
+#endif
         if (!(obj->trans.flags & OBJ_FLAGS_PARTICLE) && obj->behaviorId == BHV_CHECKPOINT &&
-            gNumberOfMainCheckpoints < MAX_CHECKPOINTS) {
+            gNumberOfMainCheckpoints < MAX_CHECKPOINTS && obj->level_entry != NULL) {
             checkpointEntry = &obj->level_entry->checkpoint;
             if (checkpointEntry->vehicleType == gTajChallengeType) {
                 gTrackCheckpoints[gNumberOfMainCheckpoints].obj = obj;
