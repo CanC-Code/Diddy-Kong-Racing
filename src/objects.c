@@ -1039,7 +1039,7 @@ void track_spawn_objects(s32 mapID, s32 index) {
     D_8011AD3E = 0;
     mem = mempool_alloc_safe(OBJECT_MAP_SIZE, COLOUR_TAG_BLUE);
     gObjectMap[index] = mem;
-    gObjectMapSpawnList[index] = (u8 *) (gObjectMap[index] + sizeof(uintptr_t));
+    gObjectMapSpawnList[index] = (u8 *) (gObjectMap[index] + 4); /* r166: was sizeof(uintptr_t) which is 8 on ARM64 but 4 on N64; 4 s32 = 16-byte header */
     gObjectMapSize[index] = NULL;
     gObjectMapID[index] = mapID;
     objMapTable = (u32 *) asset_table_load(ASSET_LEVEL_OBJECT_MAPS_TABLE);
@@ -1059,7 +1059,7 @@ void track_spawn_objects(s32 mapID, s32 index) {
         asset_load(ASSET_LEVEL_OBJECT_MAPS, compressedAsset, assetOffset, assetSize);
         gzip_inflate(compressedAsset, (u8 *) mem);
         mempool_free(objMapTable);
-        gObjectMapSpawnList[index] = (u8 *) (gObjectMap[index] + sizeof(uintptr_t));
+        gObjectMapSpawnList[index] = (u8 *) (gObjectMap[index] + 4); /* r166: was sizeof(uintptr_t) which is 8 on ARM64 but 4 on N64; 4 s32 = 16-byte header */
 #ifdef PORT
         /* r165: N64 object map is BE. gzip_inflate decodes bytes as-is;
          * reading *mem on LE ARM gives byte-swapped size (0x90000000
@@ -1088,6 +1088,14 @@ void track_spawn_objects(s32 mapID, s32 index) {
 #ifdef PORT
             {
                 static int _objctr = 0;
+                if (_objctr == 0) {
+                    __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN",
+                        "r166 pre-loop: list[0..7]=%02X %02X %02X %02X %02X %02X %02X %02X",
+                        gObjectMapSpawnList[index][0], gObjectMapSpawnList[index][1],
+                        gObjectMapSpawnList[index][2], gObjectMapSpawnList[index][3],
+                        gObjectMapSpawnList[index][4], gObjectMapSpawnList[index][5],
+                        gObjectMapSpawnList[index][6], gObjectMapSpawnList[index][7]);
+                }
                 if (_objctr < 12) {
                     __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN",
                         "r164 spawn[%d] entry=%p objID=%d sz=%d var_s0=%d",
@@ -1112,7 +1120,7 @@ void track_spawn_objects(s32 mapID, s32 index) {
         __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN",
             "r164 spawn loop COMPLETE size=%d", (int)gObjectMapSize[index]);
 #endif
-        gObjectMapSpawnList[index] = (u8 *) (gObjectMap[index] + sizeof(uintptr_t));
+        gObjectMapSpawnList[index] = (u8 *) (gObjectMap[index] + 4); /* r166: was sizeof(uintptr_t) which is 8 on ARM64 but 4 on N64; 4 s32 = 16-byte header */
         gCollisionObjectCount = 0;
         gNumFinishedRacers = 1;
         if (gPathUpdateOff == FALSE) {
