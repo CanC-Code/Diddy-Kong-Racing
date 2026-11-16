@@ -46,7 +46,7 @@ public class BkaService extends Service {
         // PORT: keepalive thread proves fillArgb works independent of display.
         // Reads framebuffer every 500ms, logs non-black pixel count. If this
         // shows nonBlack > 0, walker renders correctly and pipeline is proven.
-        if (false) new Thread(() -> {
+        if (true) new Thread(() -> {  /* r160: enable keepalive to prevent JVM reaping */
             int[] scratch = new int[292 * 216];
             int n = 0;
             while (n++ < 200) {
@@ -57,7 +57,7 @@ public class BkaService extends Service {
                     for (int i = 0; i < scratch.length; i++) if ((scratch[i] & 0x00FFFFFF) != 0) nonBlack++;
                     Log.i("BKA-KEEPALIVE", "fillArgb nonBlack=" + nonBlack + "/" + scratch.length + " iter=" + n);
                 } catch (Throwable t) {
-                    Log.e("BKA-KEEPALIVE", "fillArgb failed: " + t);
+                    Log.e("BKA-KEEPALIVE", "fillArgb failed: " + t); if (n > 5) { Log.e("BKA-KEEPALIVE", "breaking after " + n + " iters"); return; }
                 }
             }
         }, "BKA-FillArgb-Keepalive").start();
@@ -106,7 +106,7 @@ public class BkaService extends Service {
                 t.start();
             } catch (Exception e) {
                 Log.e(TAG, "server start failed", e);
-                return START_NOT_STICKY;
+                return START_STICKY; /* r160: was NOT_STICKY - service got reaped */
             }
         }
 
@@ -175,7 +175,7 @@ public class BkaService extends Service {
             }
         }
 
-        return START_NOT_STICKY;
+        return START_STICKY; /* r160: was NOT_STICKY - service got reaped */
     }
 
     private File findRom() {
@@ -249,8 +249,13 @@ public class BkaService extends Service {
         engineStarted = true;
         new Thread(() -> {
             try { Thread.sleep(800); } catch (InterruptedException ignored) {}
-            Log.i(TAG, "starting engine");
-            Native.startEngine(getFilesDir().getAbsolutePath());
+            Log.i(TAG, "BEFORE Native.startEngine");
+            try {
+                Native.startEngine(getFilesDir().getAbsolutePath());
+                Log.e(TAG, "AFTER Native.startEngine — RETURNED! game thread exited normally, this is the bug");
+            } catch (Throwable t) {
+                Log.e(TAG, "Native.startEngine threw", t);
+            }
         }, "BKA-Engine-Launcher").start();
     }
 
@@ -263,6 +268,24 @@ public class BkaService extends Service {
                 .setOngoing(true)
                 .build();
         nm.notify(NOTIF_ID, n);
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        Log.e(TAG, "BKA-SVC-TASK-REMOVED rootIntent=" + rootIntent);
+        super.onTaskRemoved(rootIntent);
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        Log.w(TAG, "BKA-SVC-TRIM level=" + level);
+        super.onTrimMemory(level);
+    }
+
+    @Override
+    public void onLowMemory() {
+        Log.e(TAG, "BKA-SVC-LOWMEM fired");
+        super.onLowMemory();
     }
 
     @Override
