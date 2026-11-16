@@ -1063,9 +1063,38 @@ void track_spawn_objects(s32 mapID, s32 index) {
         gObjectMapSize[index] = *mem;
         gObjectMapIndex = index;
         for (var_s0 = 0; var_s0 < gObjectMapSize[index]; var_s0 += temp_t3) {
+            if (gObjectMapSpawnList[index] == NULL) {
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN",
+                    "r164 spawn_list NULL at var_s0=%d break", var_s0);
+                break;
+            }
+#ifdef PORT
+            {
+                static int _objctr = 0;
+                if (_objctr < 12) {
+                    __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN",
+                        "r164 spawn[%d] entry=%p objID=%d sz=%d var_s0=%d",
+                        _objctr,
+                        (void*)gObjectMapSpawnList[index],
+                        (int)gObjectMapSpawnList[index][0],
+                        (int)(gObjectMapSpawnList[index][1] & 0x3F),
+                        var_s0);
+                    _objctr++;
+                }
+            }
+#endif
             spawn_object((LevelObjectEntryCommon *) gObjectMapSpawnList[index], OBJECT_SPAWN_UNK01);
             gObjectMapSpawnList[index] = &gObjectMapSpawnList[index][temp_t3 = gObjectMapSpawnList[index][1] & 0x3F];
+            if (temp_t3 == 0) {
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN",
+                    "r164 temp_t3=0 at var_s0=%d break", var_s0);
+                break;
+            }
         }
+#ifdef PORT
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN",
+            "r164 spawn loop COMPLETE size=%d", (int)gObjectMapSize[index]);
+#endif
         gObjectMapSpawnList[index] = (u8 *) (gObjectMap[index] + sizeof(uintptr_t));
         gCollisionObjectCount = 0;
         gNumFinishedRacers = 1;
@@ -1988,6 +2017,25 @@ void add_particle_to_entity_list(Object *obj) {
 
 // Official Name: objSetupObject
 Object *spawn_object(LevelObjectEntryCommon *entry, s32 spawnFlags) {
+#ifdef PORT
+    /* r164: guard against corrupted / stale entry pointer. Retailing
+     * code paths never see this because assets always loaded correctly;
+     * the port occasionally gets garbage from gzip_inflate failures. */
+    if (!entry) {
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN",
+            "r164 spawn_object(NULL)");
+        return NULL;
+    }
+    {
+        uintptr_t _e = (uintptr_t)entry;
+        /* reject obviously bad pointers: too low, not 4-byte aligned */
+        if (_e < 0x10000u || (_e & 0x3u)) {
+            __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN",
+                "r164 spawn_object bad entry=0x%lx", (unsigned long)_e);
+            return NULL;
+        }
+    }
+#endif
     s32 objType;
     Settings *settings;
     s32 i;

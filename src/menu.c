@@ -3575,15 +3575,12 @@ s32 menu_title_screen_loop(s32 updateRate) {
             gTitleDemoTimer = 1500;
         }
 #ifdef PORT
-        /* r125: skip demo level load — r123 crashed in spawn_object+696
-         * after blocking frame loop ~2s (kills app before walker can
-         * process title texrects). Title renders fine without demo reel. */
+        /* r164: r125 skip REMOVED. spawn_object now guards entries. */
         __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU",
-            "PORT skip load_level_for_menu demo=%d playerCount=%d",
+            "r164 demo load demo=%d playerCount=%d",
             (int)demo[DEMO_LEVEL_ID], (int)playerCount);
-#else
-        load_level_for_menu(demo[DEMO_LEVEL_ID], playerCount, demo[DEMO_CUTSCENE_ID]);
 #endif
+        load_level_for_menu(demo[DEMO_LEVEL_ID], playerCount, demo[DEMO_CUTSCENE_ID]);
         if (sTitleScreenDemoIds[gTitleDemoIndex] == sTitleScreenDemoIds[DEMO_LEVEL_ID]) {
             D_801268D8 = 0.0f;
             gOpeningNameID = 0;

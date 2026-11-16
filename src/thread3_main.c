@@ -1206,9 +1206,17 @@ void load_level_for_menu(s32 levelId, s32 numberOfPlayers, s32 cutsceneId) {
         }
     }
     if (levelId != (s32) SPECIAL_MAP_ID_NO_LEVEL) {
+#ifdef PORT
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU",
+            "r164 calling load_level_menu level=%d", (int)levelId);
+#endif
         //!@bug: Forcing the plane here makes all AI use plane paths.
         //! This can be seen most evidently in the Ancient Lake demo.
         load_level_menu(levelId, numberOfPlayers, 0, VEHICLE_PLANE, cutsceneId);
+#ifdef PORT
+        __android_log_print(ANDROID_LOG_ERROR, "DKR-MENU",
+            "r164 load_level_menu RETURNED OK");
+#endif
         gIsLoading = FALSE;
         return;
     }
