@@ -358,6 +358,8 @@ const char* dkr_stubs_build_id = "mempool_removed_2026_10_20";
 #include <stdint.h>
 #include <string.h>
 #include <android/log.h>
+#include <dlfcn.h>
+#include <ucontext.h>
 
 static void bka_segv_handler(int sig, siginfo_t *info, void *ctx) {
     if (sig != SIGSEGV) {
@@ -381,9 +383,79 @@ static void bka_segv_handler(int sig, siginfo_t *info, void *ctx) {
         __android_log_print(ANDROID_LOG_ERROR, "BKA-SEGV",
             "mprotect FAILED addr=%p errno-return", info->si_addr);
     }
-    /* Not our case — log everything then restore default and re-raise */
+    /* r181: capture registers + walk frame pointer + dladdr each frame
+     * BEFORE re-raising. This is what lets us symbolicate crashes that
+     * the Android debuggerd collector never sees (because our custom
+     * handler intercepts SIGSEGV first, before sigchain/debuggerd). */
+    {
+        ucontext_t* uc = (ucontext_t*)ctx;
+        uintptr_t pc  = (uintptr_t)uc->uc_mcontext.pc;
+        uintptr_t lr  = (uintptr_t)uc->uc_mcontext.regs[30];
+        uintptr_t sp  = (uintptr_t)uc->uc_mcontext.sp;
+        uintptr_t fp  = (uintptr_t)uc->uc_mcontext.regs[29];
+
+        __android_log_print(ANDROID_LOG_FATAL, "BKA-CRASH",
+            "sig=%d si_code=%d addr=%p pc=0x%lx lr=0x%lx sp=0x%lx fp=0x%lx",
+            sig, (int)info->si_code, info->si_addr, pc, lr, sp, fp);
+
+        /* x0-x7 are usually args — most useful for "who called us" */
+        __android_log_print(ANDROID_LOG_FATAL, "BKA-CRASH",
+            "x0=0x%lx x1=0x%lx x2=0x%lx x3=0x%lx",
+            (unsigned long)uc->uc_mcontext.regs[0],
+            (unsigned long)uc->uc_mcontext.regs[1],
+            (unsigned long)uc->uc_mcontext.regs[2],
+            (unsigned long)uc->uc_mcontext.regs[3]);
+
+        /* Write full trace to file for offline analysis */
+        FILE* cf = fopen("/data/data/com.dkrwrapper/files/last_crash.txt", "w");
+        if (cf) {
+            fprintf(cf, "sig=%d si_code=%d addr=%p\n",
+                    sig, (int)info->si_code, info->si_addr);
+            fprintf(cf, "pc=0x%lx lr=0x%lx sp=0x%lx fp=0x%lx\n",
+                    (unsigned long)pc, (unsigned long)lr,
+                    (unsigned long)sp, (unsigned long)fp);
+            for (int i = 0; i < 31; i++) {
+                fprintf(cf, "x%d=0x%lx\n", i,
+                        (unsigned long)uc->uc_mcontext.regs[i]);
+            }
+            fprintf(cf, "\n=== frame chain ===\n");
+            Dl_info dli;
+            /* PC symbol first */
+            if (dladdr((void*)pc, &dli) && dli.dli_sname) {
+                fprintf(cf, "#0  pc=0x%lx  %s+0x%lx\n",
+                        (unsigned long)pc, dli.dli_sname,
+                        (unsigned long)(pc - (uintptr_t)dli.dli_saddr));
+            } else {
+                fprintf(cf, "#0  pc=0x%lx  ??\n", (unsigned long)pc);
+            }
+            /* Walk frame pointer chain */
+            int depth = 1;
+            while (fp > 0x100000000ULL && fp < 0x800000000000ULL && depth < 25) {
+                uintptr_t* fdata = (uintptr_t*)fp;
+                uintptr_t next_fp = fdata[0];
+                uintptr_t ret = fdata[1];
+                if (ret < 0x100000ULL) break;
+                if (dladdr((void*)ret, &dli) && dli.dli_sname) {
+                    fprintf(cf, "#%d  pc=0x%lx  %s+0x%lx\n",
+                            depth, (unsigned long)ret, dli.dli_sname,
+                            (unsigned long)(ret - (uintptr_t)dli.dli_saddr));
+                    __android_log_print(ANDROID_LOG_FATAL, "BKA-CRASH",
+                        "#%d pc=0x%lx %s+0x%lx", depth,
+                        (unsigned long)ret, dli.dli_sname,
+                        (unsigned long)(ret - (uintptr_t)dli.dli_saddr));
+                } else {
+                    fprintf(cf, "#%d  pc=0x%lx  ??\n",
+                            depth, (unsigned long)ret);
+                }
+                if (next_fp <= fp) break;
+                fp = next_fp;
+                depth++;
+            }
+            fclose(cf);
+        }
+    }
     __android_log_print(ANDROID_LOG_FATAL, "BKA-SIG",
-        "signal %d si_code=%d addr=%p — falling through, re-raising to SIG_DFL",
+        "signal %d si_code=%d addr=%p — re-raising to SIG_DFL",
         sig, (int)info->si_code, info->si_addr);
     signal(sig, SIG_DFL);
     raise(sig);

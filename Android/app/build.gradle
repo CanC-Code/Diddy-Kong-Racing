@@ -3,10 +3,18 @@ plugins {
 }
 
 android {
+    packagingOptions {
+        jniLibs {
+            keepDebugSymbols += ['**/*.so']
+        }
+    }
     namespace 'com.dkrwrapper'
     compileSdk 34
 
     defaultConfig {
+        ndk {
+            debugSymbolLevel 'FULL'
+        }
         applicationId "com.dkrwrapper"
         minSdk 26
         targetSdk 34
