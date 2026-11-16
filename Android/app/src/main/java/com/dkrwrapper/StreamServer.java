@@ -276,14 +276,26 @@ public class StreamServer {
     private java.io.File getFilesDir() { return sCtx != null ? sCtx.getFilesDir() : null; }
 
     private void sendRawStream(OutputStream out) throws IOException {
-        // r175: track active streams for debugging
+        // r177: LOCAL buffers - each stream thread gets its own, no cross-thread race
+        final int[] pixels = new int[W * H];
+        final byte[] raw = new byte[W * H * 4];
+        final int rawLen = raw.length;
+        // r177: pre-allocated 4-byte length header, written once per frame
+        final byte[] hdrLen = new byte[] {
+            (byte)((rawLen >>> 24) & 0xFF),
+            (byte)((rawLen >>> 16) & 0xFF),
+            (byte)((rawLen >>> 8) & 0xFF),
+            (byte)( rawLen        & 0xFF)
+        };
+
         int _myStreamIdx;
         synchronized (STREAM_LOCK) {
             _myStreamIdx = sActiveStreams++;
-            if (_myStreamIdx > 0) {
-                Log.w(TAG, "r175 concurrent /stream: " + sActiveStreams + " active (this one is #" + _myStreamIdx + ")");
-            }
         }
+        if (_myStreamIdx > 0) {
+            Log.w(TAG, "r177 concurrent /stream active=" + sActiveStreams);
+        }
+
         try {
         String hdr = "HTTP/1.1 200 OK\r\n"
                 + "Content-Type: application/octet-stream\r\n"
@@ -308,11 +320,12 @@ public class StreamServer {
             }
 
             try {
-                synchronized (STREAM_LOCK) { // r175: serialize fillArgb across stream threads
-                Native.fillArgb(pixels);
-                if (frame == 1 || frame % 150 == 0) {
-                    Log.i(TAG, "raw frame " + frame + " px0=" + pixels[0]);
+                // r177: ONLY the JNI call is inside the lock.
+                // No logging, no allocation, no copying - all outside.
+                synchronized (STREAM_LOCK) {
+                    Native.fillArgb(pixels);
                 }
+                // r177: copy outside the lock, using local buffer
                 for (int i = 0; i < pixels.length; i++) {
                     int p = pixels[i];
                     raw[i*4]   = (byte)((p >> 16) & 0xFF);
@@ -320,17 +333,13 @@ public class StreamServer {
                     raw[i*4+2] = (byte)( p        & 0xFF);
                     raw[i*4+3] = (byte)((p >> 24) & 0xFF);
                 }
-                } // r175 end synchronized
-                int len = raw.length;
-                out.write((len >>> 24) & 0xFF);
-                out.write((len >>> 16) & 0xFF);
-                out.write((len >>>  8) & 0xFF);
-                out.write( len         & 0xFF);
+                // r177: 2 syscalls instead of 5, no temp byte arrays
+                out.write(hdrLen, 0, 4);
                 out.write(raw);
                 out.flush();
                 frame++;
                 if (frame == 1 || frame % 150 == 0) {
-                    Log.i(TAG, "raw frame " + frame);
+                    Log.i(TAG, "raw frame " + frame + " px0=0x" + Integer.toHexString(pixels[0]));
                 }
             } catch (IOException e) {
                 Log.i(TAG, "stream closed after " + frame + " frames");
