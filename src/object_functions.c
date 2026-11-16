@@ -5873,11 +5873,25 @@ void obj_init_butterfly(Object *butterflyObj, LevelObjectEntry_Butterfly *butter
         butterfly->unkFC = 1;
     }
     butterflyObj->trans.scale = butterflyEntry->unkB * 0.01f;
+#ifdef PORT
+    /* r176: textures array or butterflyEntry->unkA can be garbage.
+     * Defensive: null-check the base array before indexing. */
+    if (butterflyObj->textures == NULL) {
+        butterfly->texture = NULL;
+    } else
+#endif
     if (butterflyEntry->unkA < butterflyObj->header->numberOfModelIds) {
         butterfly->texture = butterflyObj->textures[butterflyEntry->unkA];
     } else {
         butterfly->texture = butterflyObj->textures[0];
     }
+#ifdef PORT
+    /* r176: texture pointer can be 32-bit ROM offset (addr=0x407eea72).
+     * Reject anything that isn't a valid ARM64 heap pointer. */
+    if ((uintptr_t)butterfly->texture < 0x100000000ULL) {
+        butterfly->texture = NULL;
+    }
+#endif
     if (butterfly->texture != NULL) {
         uMask = (butterfly->texture->width - 1) << 5;
         vMask = (butterfly->texture->height - 1) << 5;

@@ -3554,10 +3554,31 @@ void shadow_update(s32 group, s32 waterGroup, s32 updateRate) {
     objects = objGetObjList(&objIndex, &objectCount);
     while (objIndex < objectCount) {
         obj = objects[objIndex];
+        objIndex += 1;
+#ifdef PORT
+        /* r176: null obj or obj->header crashes at offset 0x36 (addr=0x36).
+         * Partial spawns (butterfly/audio skipped) can leave NULL slots. */
+        if (obj == NULL) {
+            static int _skn = 0;
+            if (_skn++ % 50 == 0)
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-SHADOW",
+                    "r176 SKIP null obj idx=%d iter=%d", objIndex, _skn);
+            continue;
+        }
+#endif
         objHeader = obj->header;
+#ifdef PORT
+        if (objHeader == NULL) {
+            static int _skh = 0;
+            if (_skh++ % 50 == 0)
+                __android_log_print(ANDROID_LOG_ERROR, "DKR-SHADOW",
+                    "r176 SKIP null header obj=0x%lx idx=%d iter=%d",
+                    (unsigned long)(uintptr_t)obj, objIndex, _skh);
+            continue;
+        }
+#endif
         waterEffect = obj->waterEffect;
         shadow = obj->shadow;
-        objIndex += 1;
         if ((obj->trans.flags & OBJ_FLAGS_PARTICLE)) {
             continue;
         }
