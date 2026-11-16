@@ -10480,7 +10480,7 @@ void run_object_init_func(Object *obj, void *entry, s32 param) {
                 static int _sk = 0;
                 if (_sk++ < 6)
                     __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN7",
-                        "r172 SKIP BHV_AUDIO objID=%d", (int)objType);
+                        "r172 SKIP BHV_AUDIO objID=%d", (int)obj->objectID);
             }
             break;
 #else
@@ -10494,7 +10494,7 @@ void run_object_init_func(Object *obj, void *entry, s32 param) {
                 static int _sk2 = 0;
                 if (_sk2++ < 6)
                     __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN7",
-                        "r172 SKIP BHV_AUDIO_LINE objID=%d", (int)objType);
+                        "r172 SKIP BHV_AUDIO_LINE objID=%d", (int)obj->objectID);
             }
             break;
 #else
@@ -10507,7 +10507,7 @@ void run_object_init_func(Object *obj, void *entry, s32 param) {
                 static int _sk3 = 0;
                 if (_sk3++ < 6)
                     __android_log_print(ANDROID_LOG_ERROR, "DKR-SPAWN7",
-                        "r172 SKIP BHV_AUDIO_REVERB objID=%d", (int)objType);
+                        "r172 SKIP BHV_AUDIO_REVERB objID=%d", (int)obj->objectID);
             }
             break;
 #else
