@@ -422,9 +422,34 @@ static void bka_segv_handler(int sig, siginfo_t *info, void *ctx) {
             Dl_info dli;
             /* PC symbol first */
             if (dladdr((void*)pc, &dli) && dli.dli_sname) {
-                fprintf(cf, "#0  pc=0x%lx  %s+0x%lx\n",
-                        (unsigned long)pc, dli.dli_sname,
-                        (unsigned long)(pc - (uintptr_t)dli.dli_saddr));
+            fprintf(cf, "#0  pc=0x%lx  %s+0x%lx\n",
+                    (unsigned long)pc, dli.dli_sname,
+                    (unsigned long)(pc - (uintptr_t)dli.dli_saddr));
+        } else {
+            fprintf(cf, "#0  pc=0x%lx  ??\n", (unsigned long)pc);
+        }
+
+        // Walk frame pointer chain for backtrace
+        uintptr_t* curr_fp = (uintptr_t*)fp;
+        for (int depth = 1; depth < 16 && curr_fp != NULL; depth++) {
+            uintptr_t prev_fp = curr_fp[0];
+            uintptr_t ret_addr = curr_fp[1];
+            if (ret_addr == 0 || ret_addr < 0x1000) break;
+            
+            if (dladdr((void*)ret_addr, &dli) && dli.dli_sname) {
+                fprintf(cf, "#%d pc=0x%lx %s+0x%lx\n",
+                        depth, (unsigned long)ret_addr,
+                        dli.dli_sname,
+                        (unsigned long)(ret_addr - (uintptr_t)dli.dli_saddr));
             } else {
-                fprintf(cf, "#0  pc=0x%lx  ??\n", (unsigned long)pc);
+                fprintf(cf, "#%d pc=0x%lx ??\n", depth, (unsigned long)ret_addr);
             }
+            curr_fp = (uintptr_t*)prev_fp;
+        }
+        fclose(cf);
+    }
+}
+// Re-raise signal so system handler / debuggerd catches it too
+signal(sig, SIG_DFL);
+raise(sig);
+}
