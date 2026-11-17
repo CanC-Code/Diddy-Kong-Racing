@@ -453,3 +453,22 @@ static void bka_segv_handler(int sig, siginfo_t *info, void *ctx) {
 signal(sig, SIG_DFL);
 raise(sig);
 }
+
+#include <signal.h>
+#include <unistd.h>
+#include <android/log.h>
+
+void bka_install_segv_handler(void) {
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = bka_segv_handler;
+    sa.sa_flags = SA_SIGINFO | SA_RESTART;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGABRT, &sa, NULL);
+    sigaction(SIGBUS,  &sa, NULL);
+    sigaction(SIGILL,  &sa, NULL);
+    sigaction(SIGFPE,  &sa, NULL);
+    __android_log_print(ANDROID_LOG_ERROR, "BKA-SEGV",
+        "handler installed pid=%d", (int)getpid());
+}
