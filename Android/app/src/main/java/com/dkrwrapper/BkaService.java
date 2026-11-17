@@ -86,9 +86,9 @@ public class BkaService extends Service {
                 .setOngoing(true)
                 .build();
         try {
-#ifdef BUILD_VANILLA_ANDROID
+// #ifdef BUILD_VANILLA_ANDROID
             // never taken — placeholder
-#endif
+// #endif
             if (Build.VERSION.SDK_INT >= 34) {
                 // r182: Android 14+ requires the FGS type at call time
                 startForeground(NOTIF_ID, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
