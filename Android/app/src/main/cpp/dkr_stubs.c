@@ -363,7 +363,6 @@ const char* dkr_stubs_build_id = "mempool_removed_2026_10_20";
 
 static void bka_segv_handler(int sig, siginfo_t *info, void *ctx) {
     if (sig != SIGSEGV) {
-crash_after_fp:;
             __android_log_print(ANDROID_LOG_FATAL, "BKA-SIG",
             "signal %d (si_code=%d) addr=%p — not handled, re-raising",
             sig, info->si_code, info->si_addr);
@@ -429,64 +428,3 @@ crash_after_fp:;
             } else {
                 fprintf(cf, "#0  pc=0x%lx  ??\n", (unsigned long)pc);
             }
-            /* r183: wrap FP walk in sigsetjmp so a bad FP can't crash us */
-            static sigjmp_buf _crash_fp_jmp;
-            if (sigsetjmp(_crash_fp_jmp, 1) != 0) {
-                if (cf) fprintf(cf, "\n=== FP WALK ABORTED (bad fp) ===\n");
-                __android_log_print(ANDROID_LOG_FATAL, "BKA-CRASH",
-                    "FP walk aborted at bad frame");
-                if (cf) fclose(cf);
-                goto crash_after_fp;
-            }
-            /* Walk frame pointer chain */
-            int depth = 1;
-            while (fp > 0x100000000ULL && fp < 0x800000000000ULL && depth < 25) {
-                uintptr_t* fdata = (uintptr_t*)fp;
-                if (((uintptr_t)fdata & 0x7) != 0) break; // unaligned
-                uintptr_t next_fp = fdata[0];
-                uintptr_t ret = fdata[1];
-                if (ret < 0x100000ULL) break;
-                if (dladdr((void*)ret, &dli) && dli.dli_sname) {
-                    fprintf(cf, "#%d  pc=0x%lx  %s+0x%lx\n",
-                            depth, (unsigned long)ret, dli.dli_sname,
-                            (unsigned long)(ret - (uintptr_t)dli.dli_saddr));
-                    __android_log_print(ANDROID_LOG_FATAL, "BKA-CRASH",
-                        "#%d pc=0x%lx %s+0x%lx", depth,
-                        (unsigned long)ret, dli.dli_sname,
-                        (unsigned long)(ret - (uintptr_t)dli.dli_saddr));
-                } else {
-                    fprintf(cf, "#%d  pc=0x%lx  ??\n",
-                            depth, (unsigned long)ret);
-                }
-                if (next_fp <= fp) break;
-                fp = next_fp;
-                depth++;
-            }
-            fclose(cf);
-        }
-    }
-    __android_log_print(ANDROID_LOG_FATAL, "BKA-SIG",
-        "signal %d si_code=%d addr=%p — re-raising to SIG_DFL",
-        sig, (int)info->si_code, info->si_addr);
-    signal(sig, SIG_DFL);
-    raise(sig);
-}
-
-__attribute__((constructor, used))
-void bka_install_segv_handler(void) {
-    struct sigaction sa = {
-        .sa_sigaction = bka_segv_handler,
-        .sa_flags = SA_SIGINFO | SA_NODEFER,
-    };
-    sigemptyset(&sa.sa_mask);
-    sigaction(SIGSEGV, &sa, NULL);
-    /* Also catch these so we can log which signal fires; without this,
-       Android debuggerd sometimes swallows them without a crash-buffer
-       entry, leaving us unable to tell SIGABRT from clean exit(). */
-    sigaction(SIGABRT, &sa, NULL);
-    sigaction(SIGBUS,  &sa, NULL);
-    sigaction(SIGILL,  &sa, NULL);
-    sigaction(SIGFPE,  &sa, NULL);
-    __android_log_print(ANDROID_LOG_ERROR, "BKA-SEGV",
-        "handler installed pid=%d", (int)getpid());
-}
